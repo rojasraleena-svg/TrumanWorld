@@ -14,15 +14,15 @@ from typing import TYPE_CHECKING
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.providers import (
-    build_cast_stabilizing_decision,
     build_default_talk_message,
-    build_suspicion_aware_decision,
 )
 from app.agent.registry import AgentRegistry
 from app.agent.runtime import AgentRuntime
-from app.director.observer import DirectorAssessment, DirectorObserver
-from app.director.planner import DirectorPlanner
+from app.director.observer import DirectorAssessment
 from app.infra.settings import get_settings
+from app.scenario.truman_world.coordinator import TrumanWorldCoordinator
+from app.scenario.truman_world.seed import TrumanWorldSeedBuilder
+from app.scenario.truman_world.state import TrumanWorldStateUpdater
 from app.sim.action_resolver import ActionIntent
 from app.sim.context import ContextBuilder
 from app.sim.persistence import PersistenceManager
@@ -35,7 +35,7 @@ from app.store.repositories import (
     RunRepository,
     build_event,
 )
-from app.store.models import Agent, Location
+from app.store.models import Agent
 
 if TYPE_CHECKING:
     from app.infra.db import async_engine
@@ -59,10 +59,13 @@ class SimulationService:
         self.event_repo = EventRepository(session)
         self._context_builder = ContextBuilder(session)
         self._persistence = PersistenceManager(session)
+        self._scenario = TrumanWorldCoordinator(session)
+        self._scenario_state = TrumanWorldStateUpdater(session)
         settings = get_settings()
         self.agent_runtime = agent_runtime or AgentRuntime(
             registry=AgentRegistry(agents_root or (settings.project_root / "agents"))
         )
+        self._scenario.configure_runtime(self.agent_runtime)
 
     @classmethod
     def create_for_scheduler(cls, agent_runtime: AgentRuntime) -> "SimulationService":
@@ -77,6 +80,9 @@ class SimulationService:
         instance.agent_runtime = agent_runtime
         instance._context_builder = None  # type: ignore[assignment]
         instance._persistence = None  # type: ignore[assignment]
+        instance._scenario = TrumanWorldCoordinator()
+        instance._scenario_state = None  # type: ignore[assignment]
+        instance._scenario.configure_runtime(agent_runtime)
         return instance
 
     async def run_tick(self, run_id: str, intents: list[ActionIntent] | None = None) -> TickResult:
@@ -172,33 +178,21 @@ class SimulationService:
                 ]
 
             # Second pass: build agent_data
-            observer = DirectorObserver()
-            planner = DirectorPlanner()
-            assessment = observer.assess(
+            scenario = TrumanWorldCoordinator(read_session)
+            assessment = scenario.assess(
                 run_id=run_id,
                 current_tick=current_tick,
                 agents=list(agents),
                 events=[],
             )
-            plan = planner.build_plan(assessment=assessment, agents=list(agents))
+            plan = scenario.planner.build_plan(assessment=assessment, agents=list(agents))
 
             for agent in agents:
                 location_id = agent.current_location_id or agent.home_location_id
                 if location_id is None:
                     location_id = next(iter(location_states.keys()), "unknown")
 
-                profile = dict(agent.profile or {})
-                if plan and agent.id in plan.target_cast_ids:
-                    profile.update(
-                        {
-                            "director_scene_goal": plan.scene_goal,
-                            "director_priority": plan.priority,
-                            "director_message_hint": plan.message_hint,
-                            "director_target_agent_id": plan.target_agent_id,
-                            "director_location_hint": plan.location_hint,
-                            "director_reason": plan.reason,
-                        }
-                    )
+                profile = scenario.merge_agent_profile(agent, plan)
 
                 agent_data.append(
                     {
@@ -230,9 +224,11 @@ class SimulationService:
         # Phase 3: Persist results with a fresh session
         async with AsyncSessionType(engine, expire_on_commit=False) as write_session:
             persistence = PersistenceManager(write_session)
-            await persistence.persist_tick_results(
+            persisted_events = await persistence.persist_tick_results(
                 run_id, result, world, current_tick + 1
             )
+            scenario_state = TrumanWorldStateUpdater(write_session)
+            await scenario_state.persist_truman_suspicion(run_id, persisted_events)
 
         return result
 
@@ -377,7 +373,7 @@ class SimulationService:
             persisted = await self.event_repo.create_many(events)
             await self._persistence.persist_tick_memories(run_id, persisted)
             await self._persistence.persist_tick_relationships(run_id, persisted)
-            await self._persistence.persist_truman_suspicion(run_id, persisted)
+            await self._scenario_state.persist_truman_suspicion(run_id, persisted)
 
     async def prepare_tick_intents(self, run_id: str, world: WorldState) -> list[ActionIntent]:
         agents = await self.agent_repo.list_for_run(run_id)
@@ -385,7 +381,7 @@ class SimulationService:
         truman_suspicion_score = self._context_builder.extract_truman_suspicion_from_agents(
             agents, world
         )
-        plan = await self._build_director_plan(run_id, agents)
+        plan = await self._scenario.build_director_plan(run_id, agents)
 
         for agent in agents:
             state = world.get_agent(agent.id)
@@ -396,7 +392,7 @@ class SimulationService:
                 world, agent.id, state.location_id
             )
             runtime_agent_id = self._resolve_runtime_agent_id(agent)
-            profile = self._context_builder.profile_with_director_plan(agent, plan)
+            profile = self._scenario.merge_agent_profile(agent, plan)
             try:
                 intent = await self.agent_runtime.react(
                     runtime_agent_id,
@@ -481,8 +477,7 @@ class SimulationService:
         agents = await self.agent_repo.list_for_run(run_id)
         events = await self.event_repo.list_for_run(run_id, limit=event_limit)
 
-        observer = DirectorObserver()
-        return observer.assess(
+        return self._scenario.assess(
             run_id=run_id,
             current_tick=run.current_tick,
             agents=list(agents),
@@ -498,125 +493,8 @@ class SimulationService:
         existing_agents = await self.agent_repo.list_for_run(run_id)
         if existing_agents:
             return
-
-        plaza = Location(
-            id=f"{run_id}-plaza",
-            run_id=run_id,
-            name="Town Plaza",
-            location_type="plaza",
-            capacity=10,
-            x=0,
-            y=0,
-            attributes={"kind": "social"},
-        )
-        apartment = Location(
-            id=f"{run_id}-apartment",
-            run_id=run_id,
-            name="Seaside Apartment",
-            location_type="home",
-            capacity=3,
-            x=-1,
-            y=0,
-            attributes={"kind": "private"},
-        )
-        office = Location(
-            id=f"{run_id}-office",
-            run_id=run_id,
-            name="Harbor Office",
-            location_type="office",
-            capacity=6,
-            x=2,
-            y=0,
-            attributes={"kind": "work"},
-        )
-        cafe = Location(
-            id=f"{run_id}-cafe",
-            run_id=run_id,
-            name="Corner Cafe",
-            location_type="cafe",
-            capacity=6,
-            x=1,
-            y=0,
-            attributes={"kind": "work"},
-        )
-        truman = Agent(
-            id=f"{run_id}-truman",
-            run_id=run_id,
-            name="Truman",
-            occupation="insurance clerk",
-            home_location_id=f"{run_id}-apartment",
-            current_location_id=f"{run_id}-apartment",
-            current_goal="work",
-            personality={"openness": 0.55, "conscientiousness": 0.62},
-            profile={
-                "bio": "Lives an ordinary life and believes the town is completely normal.",
-                "agent_config_id": "truman",
-                "world_role": "truman",
-            },
-            status={"energy": 0.85, "suspicion_score": 0.0},
-            current_plan={"morning": "commute", "daytime": "work", "evening": "socialize"},
-        )
-        spouse = Agent(
-            id=f"{run_id}-spouse",
-            run_id=run_id,
-            name="Meryl",
-            occupation="hospital staff",
-            home_location_id=f"{run_id}-apartment",
-            current_location_id=f"{run_id}-apartment",
-            current_goal="work",
-            personality={"agreeableness": 0.72, "conscientiousness": 0.7},
-            profile={
-                "bio": "Keeps Truman's domestic life stable and predictable.",
-                "agent_config_id": "spouse",
-                "world_role": "cast",
-            },
-            status={"energy": 0.78},
-            current_plan={"morning": "prepare_day", "daytime": "work", "evening": "home"},
-        )
-        friend = Agent(
-            id=f"{run_id}-friend",
-            run_id=run_id,
-            name="Marlon",
-            occupation="office coworker",
-            home_location_id=f"{run_id}-plaza",
-            current_location_id=f"{run_id}-office",
-            current_goal="work",
-            personality={"agreeableness": 0.68, "openness": 0.48},
-            profile={
-                "bio": "A familiar friend who often shares Truman's daily routine.",
-                "agent_config_id": "friend",
-                "world_role": "cast",
-            },
-            status={"energy": 0.74},
-            current_plan={"morning": "work", "daytime": "work", "evening": "socialize"},
-        )
-        neighbor = Agent(
-            id=f"{run_id}-neighbor",
-            run_id=run_id,
-            name="Lauren",
-            occupation="shop regular",
-            home_location_id=f"{run_id}-plaza",
-            current_location_id=f"{run_id}-cafe",
-            current_goal="talk",
-            personality={"agreeableness": 0.58, "openness": 0.66},
-            profile={
-                "bio": "A recurring familiar face around the plaza and cafe.",
-                "agent_config_id": "neighbor",
-                "world_role": "cast",
-            },
-            status={"energy": 0.72},
-            current_plan={"morning": "socialize", "daytime": "wander", "evening": "socialize"},
-        )
-
-        if "world_start_time" not in (run.metadata_json or {}):
-            metadata = dict(run.metadata_json or {})
-            metadata["world_start_time"] = self.DEFAULT_WORLD_START_TIME.isoformat()
-            run.metadata_json = metadata
-
-        self.session.add_all([plaza, apartment, office, cafe])
-        await self.session.flush()
-        self.session.add_all([truman, spouse, friend, neighbor])
-        await self.session.commit()
+        seed_builder = TrumanWorldSeedBuilder(self.session)
+        await seed_builder.seed_demo_run(run)
 
     async def _load_world(self, run_id: str, tick_minutes: int) -> WorldState:
         run = await self.run_repo.get(run_id)
@@ -645,11 +523,6 @@ class SimulationService:
 
         return start_time + timedelta(minutes=run.current_tick * run.tick_minutes)
 
-    async def _build_director_plan(self, run_id: str, agents: list[Agent]):
-        assessment = await self.observe_run(run_id)
-        planner = DirectorPlanner()
-        return planner.build_plan(assessment=assessment, agents=list(agents))
-
     def _fallback_intent(
         self,
         agent_id: str,
@@ -663,47 +536,19 @@ class SimulationService:
         director_scene_goal: str | None = None,
         director_priority: str | None = None,
     ) -> ActionIntent:
-        suspicion_decision = build_suspicion_aware_decision(
-            world={
-                "world_role": world_role,
-                "self_status": current_status or {},
-            },
-            nearby_agent_id=nearby_agent_id,
+        scenario_intent = self._scenario.fallback_intent(
+            agent_id=agent_id,
             current_location_id=current_location_id,
             home_location_id=home_location_id,
-        )
-        if suspicion_decision is not None:
-            payload = dict(suspicion_decision.payload)
-            if suspicion_decision.message:
-                payload["message"] = suspicion_decision.message
-            return ActionIntent(
-                agent_id=agent_id,
-                action_type=suspicion_decision.action_type,
-                target_location_id=suspicion_decision.target_location_id,
-                target_agent_id=suspicion_decision.target_agent_id,
-                payload=payload,
-            )
-
-        cast_decision = build_cast_stabilizing_decision(
-            world={
-                "world_role": world_role,
-                "truman_suspicion_score": truman_suspicion_score,
-                "director_scene_goal": director_scene_goal,
-                "director_priority": director_priority,
-            },
             nearby_agent_id=nearby_agent_id,
+            world_role=world_role,
+            current_status=current_status,
+            truman_suspicion_score=truman_suspicion_score,
+            director_scene_goal=director_scene_goal,
+            director_priority=director_priority,
         )
-        if cast_decision is not None:
-            payload = dict(cast_decision.payload)
-            if cast_decision.message:
-                payload["message"] = cast_decision.message
-            return ActionIntent(
-                agent_id=agent_id,
-                action_type=cast_decision.action_type,
-                target_location_id=cast_decision.target_location_id,
-                target_agent_id=cast_decision.target_agent_id,
-                payload=payload,
-            )
+        if scenario_intent is not None:
+            return scenario_intent
 
         if isinstance(current_goal, str) and current_goal.startswith("move:"):
             return ActionIntent(

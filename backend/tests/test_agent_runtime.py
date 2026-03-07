@@ -5,12 +5,18 @@ import pytest
 
 import app.agent.providers as provider_module
 from app.agent.context_builder import ContextBuilder
-from app.agent.providers import AgentDecisionProvider, ClaudeSDKDecisionProvider, RuntimeDecision
+from app.agent.providers import (
+    AgentDecisionProvider,
+    ClaudeSDKDecisionProvider,
+    HeuristicDecisionProvider,
+    RuntimeDecision,
+)
 from app.agent.planner import Planner
 from app.agent.reactor import Reactor
 from app.agent.reflector import Reflector
 from app.agent.registry import AgentRegistry
 from app.agent.runtime import AgentRuntime, RuntimeInvocation
+from app.scenario.truman_world.heuristics import build_truman_world_decision
 from app.agent.system_prompt import build_system_prompt
 from app.infra.settings import get_settings
 
@@ -284,6 +290,9 @@ async def test_heuristic_provider_generates_message_for_talk(runtime: AgentRunti
 
 @pytest.mark.asyncio
 async def test_truman_suspicion_changes_heuristic_decision(runtime: AgentRuntime):
+    runtime.decision_provider = HeuristicDecisionProvider(
+        decision_hook=build_truman_world_decision
+    )
     invocation = runtime.prepare_reactor(
         "demo_agent",
         world={
@@ -305,6 +314,9 @@ async def test_truman_suspicion_changes_heuristic_decision(runtime: AgentRuntime
 
 @pytest.mark.asyncio
 async def test_cast_stabilizes_when_truman_suspicion_is_high(runtime: AgentRuntime):
+    runtime.decision_provider = HeuristicDecisionProvider(
+        decision_hook=build_truman_world_decision
+    )
     invocation = runtime.prepare_reactor(
         "demo_agent",
         world={

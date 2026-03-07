@@ -1,7 +1,7 @@
 """Persistence logic for simulation ticks.
 
-This module handles persisting agent locations, events, memories, relationships,
-and Truman suspicion scores after each simulation tick.
+This module handles persisting agent locations, events, memories, and relationships
+after each simulation tick.
 """
 
 from __future__ import annotations
@@ -36,7 +36,6 @@ class PersistenceManager:
     - Creating and storing events (accepted and rejected)
     - Building and storing memories from events
     - Updating relationships based on interactions
-    - Updating Truman suspicion scores
     """
 
     def __init__(self, session: AsyncSession) -> None:
@@ -85,7 +84,6 @@ class PersistenceManager:
             persisted = await self.event_repo.create_many(events)
             await self.persist_tick_memories(run_id, persisted)
             await self.persist_tick_relationships(run_id, persisted)
-            await self.persist_truman_suspicion(run_id, persisted)
             return persisted
         return []
 
@@ -251,48 +249,6 @@ class PersistenceManager:
                 affinity_delta=0.05,
             )
 
-    async def persist_truman_suspicion(self, run_id: str, events: list[Event]) -> None:
-        """Update Truman suspicion score based on events."""
-        agents = await self.agent_repo.list_for_run(run_id)
-        changed = False
-        for agent in agents:
-            if (agent.profile or {}).get("world_role") != "truman":
-                continue
-            delta = self._calculate_suspicion_delta(agent.id, events)
-            if delta == 0.0:
-                continue
-            status = dict(agent.status or {})
-            current = float(status.get("suspicion_score", 0.0))
-            status["suspicion_score"] = max(0.0, min(1.0, round(current + delta, 4)))
-            agent.status = status
-            changed = True
-        if changed:
-            await self.session.commit()
-
-    async def persist_truman_suspicion_with_session(
-        self,
-        session: AsyncSession,
-        run_id: str,
-        events: list[Event],
-    ) -> None:
-        """Update Truman suspicion score using a provided session."""
-        agent_repo = AgentRepository(session)
-        agents = await agent_repo.list_for_run(run_id)
-        changed = False
-        for agent in agents:
-            if (agent.profile or {}).get("world_role") != "truman":
-                continue
-            delta = self._calculate_suspicion_delta(agent.id, events)
-            if delta == 0.0:
-                continue
-            status = dict(agent.status or {})
-            current = float(status.get("suspicion_score", 0.0))
-            status["suspicion_score"] = max(0.0, min(1.0, round(current + delta, 4)))
-            agent.status = status
-            changed = True
-        if changed:
-            await session.commit()
-
     async def persist_agent_locations(self, run_id: str, world: WorldState) -> None:
         """Update agent locations after tick."""
         agents = await self.agent_repo.list_for_run(run_id)
@@ -382,24 +338,3 @@ class PersistenceManager:
                 event.target_agent_id,
             )
         ]
-
-    def _calculate_suspicion_delta(self, agent_id: str, events: list[Event]) -> float:
-        """Calculate suspicion score delta for Truman based on events."""
-        delta = 0.0
-        for event in events:
-            payload = event.payload or {}
-            involved = event.actor_agent_id == agent_id or event.target_agent_id == agent_id
-            if not involved and payload.get("agent_id") != agent_id:
-                continue
-
-            if event.event_type.endswith("_rejected"):
-                delta += 0.12
-            elif event.event_type.startswith("director_"):
-                delta += 0.2
-            elif event.event_type == "talk":
-                delta -= 0.02
-            elif event.event_type in {"rest", "work"}:
-                delta -= 0.01
-            elif event.event_type == "move":
-                delta -= 0.005
-        return delta

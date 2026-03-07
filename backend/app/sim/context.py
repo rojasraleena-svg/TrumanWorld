@@ -9,8 +9,6 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from app.director.observer import DirectorAssessment, DirectorObserver
-from app.director.planner import DirectorPlanner
 from app.sim.world import AgentState, LocationState, WorldState
 from app.store.repositories import AgentRepository, EventRepository, LocationRepository
 
@@ -272,30 +270,6 @@ class ContextBuilder:
             return float((state.status or {}).get("suspicion_score", 0.0) or 0.0)
         return 0.0
 
-    def profile_with_director_plan(self, agent: Agent, plan) -> dict:
-        """Merge director plan into agent profile.
-
-        Args:
-            agent: The agent to update
-            plan: Director plan (may be None)
-
-        Returns:
-            Updated profile dict with director guidance
-        """
-        profile = dict(agent.profile or {})
-        if plan and agent.id in plan.target_cast_ids:
-            profile.update(
-                {
-                    "director_scene_goal": plan.scene_goal,
-                    "director_priority": plan.priority,
-                    "director_message_hint": plan.message_hint,
-                    "director_target_agent_id": plan.target_agent_id,
-                    "director_location_hint": plan.location_hint,
-                    "director_reason": plan.reason,
-                }
-            )
-        return profile
-
     def format_event_for_context(
         self,
         evt: Event,
@@ -337,78 +311,3 @@ class ContextBuilder:
             result["message"] = payload["message"]
 
         return result
-
-
-async def build_director_plan(
-    run_id: str,
-    agents: list[Agent],
-    session: AsyncSession,
-) -> object:
-    """Build director plan for the current tick.
-
-    Args:
-        run_id: The simulation run ID
-        agents: List of agents in the simulation
-        session: Database session
-
-    Returns:
-        Director plan object, or None
-    """
-    run_repo = AgentRepository(session)
-    event_repo = EventRepository(session)
-
-    # Get run to access current tick
-    from app.store.repositories import RunRepository
-    run_repo = RunRepository(session)
-    run = await run_repo.get(run_id)
-    if run is None:
-        return None
-
-    events = await event_repo.list_for_run(run_id, limit=20)
-
-    observer = DirectorObserver()
-    assessment = observer.assess(
-        run_id=run_id,
-        current_tick=run.current_tick,
-        agents=list(agents),
-        events=list(events),
-    )
-    planner = DirectorPlanner()
-    return planner.build_plan(assessment=assessment, agents=list(agents))
-
-
-async def observe_run(
-    run_id: str,
-    session: AsyncSession,
-    event_limit: int = 20,
-) -> DirectorAssessment:
-    """Observe run and return assessment.
-
-    Args:
-        run_id: The simulation run ID
-        session: Database session
-        event_limit: Max events to consider
-
-    Returns:
-        DirectorAssessment with suspicion and risk info
-    """
-    run_repo = AgentRepository(session)
-    event_repo = EventRepository(session)
-
-    from app.store.repositories import RunRepository
-    run_repo_obj = RunRepository(session)
-    run = await run_repo_obj.get(run_id)
-    if run is None:
-        msg = f"Run not found: {run_id}"
-        raise ValueError(msg)
-
-    agents = await run_repo.list_for_run(run_id)
-    events = await event_repo.list_for_run(run_id, limit=event_limit)
-
-    observer = DirectorObserver()
-    return observer.assess(
-        run_id=run_id,
-        current_tick=run.current_tick,
-        agents=list(agents),
-        events=list(events),
-    )
