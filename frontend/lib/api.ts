@@ -27,6 +27,28 @@ export type TimelineEvent = {
   payload: Record<string, unknown>;
 };
 
+export type WorldSnapshot = {
+  run: RunSummary;
+  locations: Array<{
+    id: string;
+    name: string;
+    location_type: string;
+    x: number;
+    y: number;
+    capacity: number;
+    occupants: AgentSummary[];
+  }>;
+  recent_events: Array<{
+    id: string;
+    tick_no: number;
+    event_type: string;
+    location_id?: string;
+    actor_agent_id?: string;
+    target_agent_id?: string;
+    payload: Record<string, unknown>;
+  }>;
+};
+
 export type AgentDetails = {
   run_id: string;
   agent_id: string;
@@ -112,6 +134,10 @@ export async function listRuns(): Promise<RunSummary[]> {
 
 export async function getTimeline(runId: string): Promise<{ run_id: string; events: TimelineEvent[] }> {
   return safeFetch(`/runs/${runId}/timeline`, { run_id: runId, events: [] });
+}
+
+export async function getWorld(runId: string): Promise<WorldSnapshot | null> {
+  return safeFetch<WorldSnapshot | null>(`/runs/${runId}/world`, null);
 }
 
 export async function getAgent(runId: string, agentId: string): Promise<AgentDetails | null> {

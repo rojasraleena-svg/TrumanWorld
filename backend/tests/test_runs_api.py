@@ -84,6 +84,22 @@ async def test_get_timeline_for_empty_run(client):
 
 
 @pytest.mark.asyncio
+async def test_get_world_snapshot_returns_locations_agents_and_public_events(client):
+    create_response = await client.post("/api/runs", json={"name": "world-run"})
+    run_id = create_response.json()["id"]
+
+    await client.post(f"/api/runs/{run_id}/tick")
+    world_response = await client.get(f"/api/runs/{run_id}/world")
+
+    assert world_response.status_code == 200
+    body = world_response.json()
+    assert body["run"]["id"] == run_id
+    assert len(body["locations"]) == 2
+    assert any(len(location["occupants"]) >= 1 for location in body["locations"])
+    assert len(body["recent_events"]) >= 1
+
+
+@pytest.mark.asyncio
 async def test_run_not_found_returns_404(client):
     response = await client.get("/api/runs/00000000-0000-0000-0000-000000000001")
 

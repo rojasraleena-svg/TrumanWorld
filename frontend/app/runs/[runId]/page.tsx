@@ -44,6 +44,15 @@ export default async function RunPage({ params }: RunPageProps) {
         </SectionCard>
 
         <div className="grid gap-4 md:grid-cols-2">
+          <SectionCard title="World Viewer" description="面向观众的世界观看页。">
+            <Link
+              href={`/runs/${runId}/world`}
+              className="inline-flex rounded-full bg-moss px-4 py-2 text-sm font-medium text-white"
+            >
+              打开 World Viewer
+            </Link>
+          </SectionCard>
+
           <SectionCard title="Timeline" description="跳转到该 run 的事件时间线。">
             <Link
               href={`/runs/${runId}/timeline`}

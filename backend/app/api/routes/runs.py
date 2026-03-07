@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.infra.db import get_db_session
 from app.sim.service import SimulationService
 from app.store.models import SimulationRun
-from app.store.repositories import EventRepository, RunRepository
+from app.store.repositories import AgentRepository, EventRepository, LocationRepository, RunRepository
 
 router = APIRouter()
 
@@ -160,6 +160,79 @@ async def get_timeline(
                 "payload": event.payload,
             }
             for event in events
+        ],
+    }
+
+
+@router.get("/{run_id}/world")
+async def get_world_snapshot(
+    run_id: UUID,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, object]:
+    run_repo = RunRepository(session)
+    run = await run_repo.get(str(run_id))
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+
+    agent_repo = AgentRepository(session)
+    location_repo = LocationRepository(session)
+    event_repo = EventRepository(session)
+
+    agents = await agent_repo.list_for_run(str(run_id))
+    locations = await location_repo.list_for_run(str(run_id))
+    events = await event_repo.list_for_run(str(run_id), limit=12)
+
+    agent_summaries = {
+        agent.id: {
+            "id": agent.id,
+            "name": agent.name,
+            "occupation": agent.occupation,
+            "current_goal": agent.current_goal,
+            "current_location_id": agent.current_location_id,
+        }
+        for agent in agents
+    }
+
+    locations_payload = []
+    for location in locations:
+        occupants = [
+            agent_summaries[agent.id]
+            for agent in agents
+            if agent.current_location_id == location.id
+        ]
+        locations_payload.append(
+            {
+                "id": location.id,
+                "name": location.name,
+                "location_type": location.location_type,
+                "x": location.x,
+                "y": location.y,
+                "capacity": location.capacity,
+                "occupants": occupants,
+            }
+        )
+
+    return {
+        "run": {
+            "id": run.id,
+            "name": run.name,
+            "status": run.status,
+            "current_tick": run.current_tick,
+            "tick_minutes": run.tick_minutes,
+        },
+        "locations": locations_payload,
+        "recent_events": [
+            {
+                "id": event.id,
+                "tick_no": event.tick_no,
+                "event_type": event.event_type,
+                "location_id": event.location_id,
+                "actor_agent_id": event.actor_agent_id,
+                "target_agent_id": event.target_agent_id,
+                "payload": event.payload,
+            }
+            for event in events
+            if event.visibility == "public"
         ],
     }
 

@@ -19,9 +19,16 @@ export default async function HomePage() {
             检视流程。
           </p>
         </header>
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-4">
           <NavLink href="/runs/00000000-0000-0000-0000-000000000001" eyebrow="Runs" title="Run Detail">
             查看单个运行的状态、tick 和控制入口。
+          </NavLink>
+          <NavLink
+            href="/runs/00000000-0000-0000-0000-000000000001/world"
+            eyebrow="Viewer"
+            title="World Viewer"
+          >
+            面向观众的小镇观看页，显示地点与人物分布。
           </NavLink>
           <NavLink
             href="/runs/00000000-0000-0000-0000-000000000001/timeline"
