@@ -78,3 +78,15 @@ def test_simulation_runner_advances_tick_and_collects_results():
     assert len(result.accepted) == 2
     assert len(result.rejected) == 0
     assert world.current_time.isoformat() == "2026-03-07T08:05:00"
+
+
+def test_world_time_context_exposes_calendar_fields():
+    world = build_world()
+
+    clock = world.time_context()
+
+    assert clock["hour"] == 8
+    assert clock["minute"] == 0
+    assert clock["weekday_name"] == "Saturday"
+    assert clock["is_weekend"] is True
+    assert clock["time_period"] == "morning"

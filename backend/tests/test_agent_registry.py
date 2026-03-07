@@ -4,21 +4,24 @@ from app.agent.config_loader import AgentConfigLoader
 from app.agent.prompt_loader import PromptLoader
 from app.agent.registry import AgentRegistry
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 def test_agent_config_loader_reads_template_config():
     loader = AgentConfigLoader()
 
-    config = loader.load(Path("../agents/_template/agent.yml"))
+    config = loader.load(REPO_ROOT / "agents" / "_template" / "agent.yml")
 
     assert config.id == "demo_agent"
     assert config.name == "Demo Agent"
+    assert config.world_role == "cast"
     assert config.capabilities.dialogue is True
     assert config.model.max_turns == 8
 
 
 def test_prompt_loader_reads_and_renders_prompt():
     loader = PromptLoader()
-    prompt = loader.load(Path("../agents/_template/prompt.md"))
+    prompt = loader.load(REPO_ROOT / "agents" / "_template" / "prompt.md")
     rendered = loader.render(prompt, context={"location": "cafe", "goal": "work"})
 
     assert "角色定义" in prompt
@@ -58,5 +61,6 @@ def test_agent_registry_lists_configs_and_renders_prompt(tmp_path: Path):
 
     assert len(configs) == 1
     assert configs[0].id == "alice"
+    assert configs[0].world_role == "cast"
     assert prompt is not None
     assert '"tick": 3' in prompt

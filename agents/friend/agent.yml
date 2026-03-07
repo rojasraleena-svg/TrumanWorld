@@ -1,11 +1,11 @@
-id: demo_agent
-name: Demo Agent
+id: friend
+name: Marlon
 world_role: cast
-occupation: resident
-home: demo_home
+occupation: office coworker
+home: town_plaza
 personality:
-  openness: 0.5
-  conscientiousness: 0.5
+  agreeableness: 0.68
+  openness: 0.48
 capabilities:
   reflection: true
   dialogue: true

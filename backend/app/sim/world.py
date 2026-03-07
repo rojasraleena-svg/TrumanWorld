@@ -41,6 +41,7 @@ class WorldState:
         return {
             "current_time": self.current_time.isoformat(),
             "tick_minutes": self.tick_minutes,
+            "clock": self.time_context(),
             "locations": {
                 location_id: {
                     "name": location.name,
@@ -57,6 +58,22 @@ class WorldState:
                 }
                 for agent_id, agent in self.agents.items()
             },
+        }
+
+    def time_context(self) -> dict[str, Any]:
+        weekday = self.current_time.weekday()
+        minute_of_day = (self.current_time.hour * 60) + self.current_time.minute
+        return {
+            "current_time": self.current_time.isoformat(),
+            "tick_minutes": self.tick_minutes,
+            "day_index": self._day_index(),
+            "weekday": weekday,
+            "weekday_name": self._weekday_name(weekday),
+            "hour": self.current_time.hour,
+            "minute": self.current_time.minute,
+            "minute_of_day": minute_of_day,
+            "is_weekend": weekday >= 5,
+            "time_period": self._time_period(),
         }
 
     def advance_tick(self) -> datetime:
@@ -77,3 +94,34 @@ class WorldState:
         origin.occupants.discard(agent_id)
         destination.occupants.add(agent_id)
         agent.location_id = destination_id
+
+    def _day_index(self) -> int:
+        return self.current_time.toordinal()
+
+    def _weekday_name(self, weekday: int) -> str:
+        names = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ]
+        return names[weekday]
+
+    def _time_period(self) -> str:
+        hour = self.current_time.hour
+        if hour < 6:
+            return "night"
+        if hour < 9:
+            return "morning"
+        if hour < 12:
+            return "late_morning"
+        if hour < 14:
+            return "noon"
+        if hour < 18:
+            return "afternoon"
+        if hour < 22:
+            return "evening"
+        return "night"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
@@ -23,6 +24,7 @@ class AgentConfig(BaseModel):
 
     id: str = Field(min_length=1)
     name: str = Field(min_length=1)
+    world_role: Literal["truman", "cast", "npc"] = "cast"
     occupation: str = "resident"
     home: str
     personality: dict = Field(default_factory=dict)

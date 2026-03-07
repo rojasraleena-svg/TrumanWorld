@@ -17,6 +17,7 @@ class ContextBuilder:
         return {
             "agent_id": agent.id,
             "agent_name": agent.name,
+            "world_role": agent.world_role,
             "occupation": agent.occupation,
             "home": agent.home,
             "personality": agent.personality,

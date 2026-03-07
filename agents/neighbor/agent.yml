@@ -1,11 +1,11 @@
-id: demo_agent
-name: Demo Agent
+id: neighbor
+name: Lauren
 world_role: cast
-occupation: resident
-home: demo_home
+occupation: shop regular
+home: town_plaza
 personality:
-  openness: 0.5
-  conscientiousness: 0.5
+  agreeableness: 0.58
+  openness: 0.66
 capabilities:
   reflection: true
   dialogue: true

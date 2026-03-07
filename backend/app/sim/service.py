@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -32,6 +32,8 @@ if TYPE_CHECKING:
 
 class SimulationService:
     """Loads persisted state, executes one tick, and persists results."""
+
+    DEFAULT_WORLD_START_TIME = datetime(2026, 3, 2, 7, 0, tzinfo=UTC)
 
     def __init__(
         self,
@@ -173,7 +175,7 @@ class SimulationService:
                 )
 
             world = WorldState(
-                current_time=datetime.now(UTC),
+                current_time=self._get_run_world_time(run),
                 tick_minutes=tick_minutes,
                 locations=location_states,
                 agents=agent_states,
@@ -235,12 +237,14 @@ class SimulationService:
             try:
                 intent = await self.agent_runtime.react(
                     runtime_agent_id,
-                    world={
-                        "current_goal": agent_dict.get("current_goal"),
-                        "current_location_id": agent_dict.get("current_location_id"),
-                        "home_location_id": agent_dict.get("home_location_id"),
-                        "nearby_agent_id": nearby_agent_id,
-                    },
+                    world=self._build_agent_world_context(
+                        world=world,
+                        current_goal=agent_dict.get("current_goal"),
+                        current_location_id=agent_dict.get("current_location_id"),
+                        home_location_id=agent_dict.get("home_location_id"),
+                        nearby_agent_id=nearby_agent_id,
+                        world_role=(profile.get("world_role") if isinstance(profile, dict) else None),
+                    ),
                     memory={"recent": []},  # Memory tools available via MCP
                     event={},
                     recent_events=agent_dict.get("recent_events", []),
@@ -409,12 +413,14 @@ class SimulationService:
             try:
                 intent = await self.agent_runtime.react(
                     runtime_agent_id,
-                    world={
-                        "current_goal": agent.current_goal,
-                        "current_location_id": state.location_id,
-                        "home_location_id": agent.home_location_id,
-                        "nearby_agent_id": nearby_agent_id,
-                    },
+                    world=self._build_agent_world_context(
+                        world=world,
+                        current_goal=agent.current_goal,
+                        current_location_id=state.location_id,
+                        home_location_id=agent.home_location_id,
+                        nearby_agent_id=nearby_agent_id,
+                        world_role=(agent.profile or {}).get("world_role"),
+                    ),
                     memory={"recent": []},
                     event={},
                 )
@@ -456,7 +462,7 @@ class SimulationService:
         event = build_event(
             run_id=run_id,
             tick_no=run.current_tick,
-            world_time=datetime.now(UTC).isoformat(),
+            world_time=self._get_run_world_time(run).isoformat(),
             action_type=f"director_{event_type}",
             payload=payload,
             accepted=True,
@@ -481,10 +487,30 @@ class SimulationService:
             run_id=run_id,
             name="Town Plaza",
             location_type="plaza",
-            capacity=8,
+            capacity=10,
             x=0,
             y=0,
             attributes={"kind": "social"},
+        )
+        apartment = Location(
+            id=f"{run_id}-apartment",
+            run_id=run_id,
+            name="Seaside Apartment",
+            location_type="home",
+            capacity=3,
+            x=-1,
+            y=0,
+            attributes={"kind": "private"},
+        )
+        office = Location(
+            id=f"{run_id}-office",
+            run_id=run_id,
+            name="Harbor Office",
+            location_type="office",
+            capacity=6,
+            x=2,
+            y=0,
+            attributes={"kind": "work"},
         )
         cafe = Location(
             id=f"{run_id}-cafe",
@@ -496,45 +522,91 @@ class SimulationService:
             y=0,
             attributes={"kind": "work"},
         )
-        alice = Agent(
-            id=f"{run_id}-alice",
+        truman = Agent(
+            id=f"{run_id}-truman",
             run_id=run_id,
-            name="Alice",
-            occupation="barista",
-            home_location_id=f"{run_id}-cafe",
-            current_location_id=f"{run_id}-cafe",
-            current_goal="talk",
-            personality={"openness": 0.7},
+            name="Truman",
+            occupation="insurance clerk",
+            home_location_id=f"{run_id}-apartment",
+            current_location_id=f"{run_id}-apartment",
+            current_goal="work",
+            personality={"openness": 0.55, "conscientiousness": 0.62},
             profile={
-                "bio": "Runs the cafe counter.",
-                "agent_config_id": "alice",
+                "bio": "Lives an ordinary life and believes the town is completely normal.",
+                "agent_config_id": "truman",
+                "world_role": "truman",
             },
-            status={"energy": 0.8},
-            current_plan={"morning": "work"},
+            status={"energy": 0.85, "suspicion_score": 0.0},
+            current_plan={"morning": "commute", "daytime": "work", "evening": "socialize"},
         )
-        bob = Agent(
-            id=f"{run_id}-bob",
+        spouse = Agent(
+            id=f"{run_id}-spouse",
             run_id=run_id,
-            name="Bob",
-            occupation="resident",
+            name="Meryl",
+            occupation="hospital staff",
+            home_location_id=f"{run_id}-apartment",
+            current_location_id=f"{run_id}-apartment",
+            current_goal="work",
+            personality={"agreeableness": 0.72, "conscientiousness": 0.7},
+            profile={
+                "bio": "Keeps Truman's domestic life stable and predictable.",
+                "agent_config_id": "spouse",
+                "world_role": "cast",
+            },
+            status={"energy": 0.78},
+            current_plan={"morning": "prepare_day", "daytime": "work", "evening": "home"},
+        )
+        friend = Agent(
+            id=f"{run_id}-friend",
+            run_id=run_id,
+            name="Marlon",
+            occupation="office coworker",
+            home_location_id=f"{run_id}-plaza",
+            current_location_id=f"{run_id}-office",
+            current_goal="work",
+            personality={"agreeableness": 0.68, "openness": 0.48},
+            profile={
+                "bio": "A familiar friend who often shares Truman's daily routine.",
+                "agent_config_id": "friend",
+                "world_role": "cast",
+            },
+            status={"energy": 0.74},
+            current_plan={"morning": "work", "daytime": "work", "evening": "socialize"},
+        )
+        neighbor = Agent(
+            id=f"{run_id}-neighbor",
+            run_id=run_id,
+            name="Lauren",
+            occupation="shop regular",
             home_location_id=f"{run_id}-plaza",
             current_location_id=f"{run_id}-cafe",
             current_goal="talk",
-            personality={"agreeableness": 0.6},
+            personality={"agreeableness": 0.58, "openness": 0.66},
             profile={
-                "bio": "Stops by the cafe every morning.",
-                "agent_config_id": "bob",
+                "bio": "A recurring familiar face around the plaza and cafe.",
+                "agent_config_id": "neighbor",
+                "world_role": "cast",
             },
-            status={"energy": 0.7},
-            current_plan={"morning": "socialize"},
+            status={"energy": 0.72},
+            current_plan={"morning": "socialize", "daytime": "wander", "evening": "socialize"},
         )
 
-        self.session.add_all([plaza, cafe])
+        if "world_start_time" not in (run.metadata_json or {}):
+            metadata = dict(run.metadata_json or {})
+            metadata["world_start_time"] = self.DEFAULT_WORLD_START_TIME.isoformat()
+            run.metadata_json = metadata
+
+        self.session.add_all([plaza, apartment, office, cafe])
         await self.session.flush()
-        self.session.add_all([alice, bob])
+        self.session.add_all([truman, spouse, friend, neighbor])
         await self.session.commit()
 
     async def _load_world(self, run_id: str, tick_minutes: int) -> WorldState:
+        run = await self.run_repo.get(run_id)
+        if run is None:
+            msg = f"Run not found: {run_id}"
+            raise ValueError(msg)
+
         locations = await self.location_repo.list_for_run(run_id)
         agents = await self.agent_repo.list_for_run(run_id)
 
@@ -564,11 +636,48 @@ class SimulationService:
                 location_states[location_id].occupants.add(agent.id)
 
         return WorldState(
-            current_time=datetime.now(UTC),
+            current_time=self._get_run_world_time(run),
             tick_minutes=tick_minutes,
             locations=location_states,
             agents=agent_states,
         )
+
+    def _get_run_world_time(self, run) -> datetime:
+        metadata = run.metadata_json or {}
+        raw_start = metadata.get("world_start_time")
+        if isinstance(raw_start, str):
+            try:
+                start_time = datetime.fromisoformat(raw_start)
+            except ValueError:
+                start_time = self.DEFAULT_WORLD_START_TIME
+        else:
+            start_time = self.DEFAULT_WORLD_START_TIME
+
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=UTC)
+
+        return start_time + timedelta(minutes=run.current_tick * run.tick_minutes)
+
+    def _build_agent_world_context(
+        self,
+        *,
+        world: WorldState,
+        current_goal: str | None,
+        current_location_id: str | None,
+        home_location_id: str | None,
+        nearby_agent_id: str | None,
+        world_role: str | None = None,
+    ) -> dict:
+        context = {
+            "current_goal": current_goal,
+            "current_location_id": current_location_id,
+            "home_location_id": home_location_id,
+            "nearby_agent_id": nearby_agent_id,
+            **world.time_context(),
+        }
+        if world_role:
+            context["world_role"] = world_role
+        return context
 
     async def _persist_agent_locations(self, run_id: str, world: WorldState) -> None:
         agents = await self.agent_repo.list_for_run(run_id)

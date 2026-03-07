@@ -1,5 +1,6 @@
 id: alice
 name: Alice
+world_role: cast
 occupation: barista
 home: town_cafe
 personality:

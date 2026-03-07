@@ -1,5 +1,6 @@
 id: bob
 name: Bob
+world_role: cast
 occupation: resident
 home: town_plaza
 personality:

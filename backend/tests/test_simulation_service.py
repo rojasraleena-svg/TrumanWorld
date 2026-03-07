@@ -82,6 +82,7 @@ async def test_simulation_service_persists_tick_and_events(db_session):
     assert events[0].event_type == "move"
     assert events[0].actor_agent_id == "alice"
     assert events[0].payload["to_location_id"] == "loc-park"
+    assert result.world_time == "2026-03-02T07:05:00+00:00"
     assert len(memories) == 1
     assert memories[0].summary == "Moved to Park"
     assert memories[0].source_event_id == events[0].id
@@ -238,6 +239,91 @@ async def test_simulation_service_resolves_runtime_agent_id_from_profile(db_sess
     assert len(events) == 1
     assert events[0].event_type == "move"
     assert recording_provider.agent_ids == ["alice"]
+
+
+@pytest.mark.asyncio
+async def test_simulation_service_uses_world_role_and_clock_in_runtime_context(db_session, tmp_path):
+    run = SimulationRun(
+        id="run-service-role-clock",
+        name="service",
+        status="running",
+        current_tick=2,
+        tick_minutes=15,
+        metadata_json={"world_start_time": "2026-03-02T07:00:00+00:00"},
+    )
+    home = Location(
+        id="loc-home-role-clock",
+        run_id="run-service-role-clock",
+        name="Home",
+        location_type="home",
+        capacity=2,
+    )
+    park = Location(
+        id="loc-park-role-clock",
+        run_id="run-service-role-clock",
+        name="Park",
+        location_type="park",
+        capacity=2,
+    )
+    agent_dir = tmp_path / "truman"
+    agent_dir.mkdir(parents=True)
+    (agent_dir / "agent.yml").write_text(
+        "\n".join(
+            [
+                "id: truman",
+                "name: Truman",
+                "world_role: truman",
+                "occupation: resident",
+                "home: loc-home-role-clock",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "prompt.md").write_text("# Truman\nBase prompt", encoding="utf-8")
+
+    truman = Agent(
+        id="run-service-role-clock-truman",
+        run_id="run-service-role-clock",
+        name="Truman",
+        occupation="resident",
+        home_location_id="loc-home-role-clock",
+        current_location_id="loc-home-role-clock",
+        current_goal="move:loc-park-role-clock",
+        personality={},
+        profile={"agent_config_id": "truman", "world_role": "truman"},
+        status={},
+        current_plan={},
+    )
+
+    db_session.add_all([run, home, park, truman])
+    await db_session.commit()
+
+    recording_provider = RecordingDecisionProvider()
+    runtime = SimulationService(db_session, agents_root=tmp_path).agent_runtime
+    runtime.decision_provider = recording_provider
+    service = SimulationService(db_session, agent_runtime=runtime, agents_root=tmp_path)
+
+    result = await service.run_tick("run-service-role-clock")
+
+    assert result.world_time == "2026-03-02T07:45:00+00:00"
+    assert recording_provider.agent_ids == ["truman"]
+
+
+@pytest.mark.asyncio
+async def test_seed_demo_run_creates_truman_world_agents(db_session):
+    run = SimulationRun(id="run-demo-seed", name="demo-seed", status="running")
+    db_session.add(run)
+    await db_session.commit()
+
+    service = SimulationService(db_session)
+    await service.seed_demo_run("run-demo-seed")
+
+    agents = await AgentRepository(db_session).list_for_run("run-demo-seed")
+
+    assert [agent.name for agent in agents] == ["Lauren", "Marlon", "Meryl", "Truman"]
+    profile_by_name = {agent.name: agent.profile for agent in agents}
+    assert profile_by_name["Truman"]["world_role"] == "truman"
+    assert profile_by_name["Meryl"]["world_role"] == "cast"
 
 
 @pytest.mark.asyncio
