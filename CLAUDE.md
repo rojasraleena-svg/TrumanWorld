@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AI Truman World is an AI social simulation system built with Claude Agent SDK. It's a small-scale,可持续运行、可观察、可回放的 AI 小镇仿真器。MVP 目标：10-20 个 agent 在一个小镇持续运行 3-7 天。
+AI Truman World is an AI social simulation system built with Claude Agent SDK. It's a small-scale, 可持续运行、可观察、可回放的 AI 小镇仿真器。MVP 目标：10-20 个 agent 在一个小镇持续运行 3-7 天。
 
 ## Common Commands
 
@@ -18,19 +18,29 @@ make backend-dev
 # Start frontend (Next.js on http://127.0.0.1:3000)
 make frontend-dev
 
-# Database migrations
-make migrate
+# Start both (with Docker database)
+make dev
+
+# Database (Docker)
+make db-start      # start PostgreSQL container
+make db-stop       # stop container
+make db-migrate    # run Alembic migrations
+make migrate       # apply migrations
 
 # Code quality
-make lint        # ruff check
-make format      # ruff format
+make lint          # ruff check
+make format        # ruff format
+make pre-commit    # pre-commit hooks
 
 # Run tests
-make test        # pytest (run from backend/)
-make pre-commit  # pre-commit hooks
+make test          # pytest (run from backend/)
 
 # Single test (from backend/)
-python -m pytest tests/test_file.py::test_name
+cd backend && python -m pytest tests/test_file.py::test_name -v
+
+# Frontend checks
+cd frontend && npm run lint
+cd frontend && npm run build
 ```
 
 ## Architecture
@@ -52,7 +62,7 @@ backend/app/
 └── store/       # SQLAlchemy models, persistence, memory retrieval
 ```
 
-### Agent Configuration Pattern (参考 IssueLab)
+### Agent Configuration Pattern
 
 Agents are configured declaratively in `agents/<id>/` directories:
 
@@ -71,6 +81,25 @@ Key capability flags in `agent.yml`:
 - `dialogue`: 是否启用对话生成
 - `mcp`: 是否启用 MCP 工具
 - `subagents`: 是否启用子 agent
+
+Example `agent.yml`:
+```yaml
+id: alice
+name: Alice
+occupation: barista
+home: apartment_a
+personality:
+  openness: 0.7
+  conscientiousness: 0.6
+capabilities:
+  reflection: true
+  dialogue: true
+  mcp: false
+  subagents: false
+model:
+  max_turns: 8
+  max_budget_usd: 1.0
+```
 
 ### Agent Runtime Flow
 
@@ -137,8 +166,24 @@ TRUMANWORLD_API_PREFIX=/api
 TRUMANWORLD_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/trumanworld
 TRUMANWORLD_REDIS_URL=redis://localhost:6379/0
 TRUMANWORLD_ANTHROPIC_API_KEY=<your-key>
+TRUMANWORLD_ANTHROPIC_BASE_URL=
+TRUMANWORLD_AGENT_PROVIDER=heuristic
+TRUMANWORLD_AGENT_MODEL=
+TRUMANWORLD_CORS_ALLOWED_ORIGINS=["http://127.0.0.1:3000","http://localhost:3000"]
 TRUMANWORLD_LOG_LEVEL=INFO
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api
 ```
+
+Key variables:
+- `TRUMANWORLD_ANTHROPIC_API_KEY`: Required for Claude cognition
+- `TRUMANWORLD_AGENT_PROVIDER`: `heuristic` (rule-based) or `claude` (LLM-driven)
+- `TRUMANWORLD_CORS_ALLOWED_ORIGINS`: Must include frontend URL
+
+## Coding Style
+
+- **Python**: 4-space indent, snake_case modules/functions, PascalCase classes, 100-char line limit, formatted by Ruff
+- **TypeScript**: 2-space indent, PascalCase components, Next.js App Router conventions
+- **Commits**: Conventional Commits (`feat:`, `fix:`, `test:`, `chore:`)
 
 ## API Endpoints (MVP)
 
@@ -152,6 +197,14 @@ TRUMANWORLD_LOG_LEVEL=INFO
 - `GET /runs/{id}/agents/{agent_id}` - 获取 agent 详情
 - `GET /api/health` - 健康检查
 
+## Frontend Routes
+
+- `/` - Home
+- `/runs/[id]` - Run overview
+- `/runs/[id]/timeline` - Timeline view
+- `/runs/[id]/agents/[agentId]` - Agent detail
+- `/runs/[id]/world` - World view
+
 ## Testing
 
 Tests are in `backend/tests/`. Key fixtures in `conftest.py`:
@@ -160,5 +213,18 @@ Tests are in `backend/tests/`. Key fixtures in `conftest.py`:
 
 Run single test:
 ```bash
-cd backend && python -m pytest tests/test_agents_api.py::test_get_agents -v
+cd backend && python -m pytest tests/test_file.py::test_name -v
 ```
+
+Frontend has no test suite yet; run `npm run lint` and `npm run build` for verification.
+
+## Pre-commit Hooks
+
+Configured in `.pre-commit-config.yaml`:
+- Trailing whitespace, EOF fixer
+- YAML/JSON/TOML validation
+- Merge conflict detection
+- Ruff check + format
+- Actionlint for GitHub Actions
+
+Hooks run automatically on `git push`; can run manually with `make pre-commit`.
