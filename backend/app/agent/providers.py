@@ -148,6 +148,13 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
             else self.settings.agent_budget_usd
         )
         
+        # 确定 session_id：优先使用 invocation 中的，否则从连接池获取
+        session_id = invocation.session_id
+        if not session_id and self._pool:
+            session_id = self._pool.get_session_id(invocation.agent_id)
+            if session_id:
+                logger.debug(f"Auto-resuming session {session_id} for agent: {invocation.agent_id}")
+        
         options = ClaudeAgentOptions(
             max_turns=invocation.max_turns,
             max_budget_usd=budget,
@@ -155,6 +162,7 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
             cwd=str(self.settings.project_root),
             env=env,
             system_prompt=build_system_prompt(),
+            resume=session_id,  # 恢复之前的 session
         )
         
         # Add MCP memory server if runtime context provides database engine
@@ -184,8 +192,8 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
         """Make a decision using Claude SDK.
 
         支持两种模式:
-        1. 连接池模式: 复用已建立的客户端连接
-        2. 直接模式: 每次调用 query() 新建进程
+        1. 连接池模式: 复用已建立的客户端连接，自动恢复 session
+        2. 直接模式: 每次调用 query() 新建进程，使用 resume 参数恢复
         """
         if self._pool and self._pool.is_warmed_up(invocation.agent_id):
             logger.debug(f"Using POOLED connection for agent: {invocation.agent_id}")
@@ -203,6 +211,7 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
         from claude_agent_sdk import AssistantMessage
 
         result_decision: RuntimeDecision | None = None
+        captured_session_id: str | None = None
 
         # Acquire client from pool
         client = await self._pool.acquire(invocation.agent_id)
@@ -244,6 +253,7 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
                                 else:
                                     raise ValueError("No valid JSON found in response")
                 elif isinstance(message, ResultMessage):
+                    captured_session_id = message.session_id  # 捕获 session_id
                     if message.is_error:
                         msg = message.result or "Claude SDK decision failed"
                         raise RuntimeError(msg)
@@ -255,15 +265,23 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
             return result_decision
 
         finally:
-            await self._pool.release(invocation.agent_id)
+            # 释放连接并保存 session_id
+            await self._pool.release(
+                invocation.agent_id,
+                session_id=captured_session_id,
+            )
 
     async def _decide_with_query(
         self,
         invocation: RuntimeInvocation,
         runtime_ctx: "RuntimeContext | None" = None,
     ) -> RuntimeDecision:
-        """使用 query() 进行决策（原有逻辑)"""
+        """使用 query() 进行决策（原有逻辑)
+        
+        支持 resume 参数恢复历史对话。
+        """
         result_decision: RuntimeDecision | None = None
+        captured_session_id: str | None = None
         gen = None
 
         if shutil.which("claude") is None:
@@ -271,6 +289,10 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
             raise RuntimeError(msg)
 
         options = self._build_sdk_options(invocation, runtime_ctx=runtime_ctx)
+        
+        # 日志记录 resume 状态
+        if invocation.session_id:
+            logger.debug(f"Resuming session {invocation.session_id} for agent {invocation.agent_id}")
 
         # Build prompt that asks for JSON response
         json_schema = json.dumps(DECISION_OUTPUT_SCHEMA, indent=2)
@@ -285,6 +307,7 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
             gen = query(prompt=full_prompt, options=options)
             async for message in gen:
                 if isinstance(message, ResultMessage):
+                    captured_session_id = message.session_id  # 捕获 session_id
                     if message.is_error:
                         msg = message.result or "Claude SDK decision failed"
                         raise RuntimeError(msg)
@@ -333,5 +356,12 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
         if result_decision is None:
             msg = "Claude SDK returned no decision"
             raise RuntimeError(msg)
+        
+        # 记录 session_id 用于追踪
+        if captured_session_id:
+            logger.debug(
+                f"Agent {invocation.agent_id} session_id={captured_session_id} "
+                f"(resume={invocation.session_id is not None})"
+            )
 
         return result_decision

@@ -130,6 +130,8 @@ class SimulationService:
 
             agent_states: dict[str, AgentState] = {}
             agent_data: list[dict] = []  # Store agent data for later use
+
+            # First pass: build agent_states and location_states.occupants
             for agent in agents:
                 location_id = agent.current_location_id or agent.home_location_id
                 if location_id is None:
@@ -144,7 +146,21 @@ class SimulationService:
                 if location_id in location_states:
                     location_states[location_id].occupants.add(agent.id)
 
-                # Copy agent data for SDK calls
+            # Load recent events for all agents (after agent_states is built)
+            agent_recent_events: dict[str, list[dict]] = {}
+            for agent in agents:
+                recent_events = await agent_repo.list_recent_events(run_id, agent.id, limit=5)
+                agent_recent_events[agent.id] = [
+                    self._format_event_for_context(evt, agent_states, location_states)
+                    for evt in recent_events
+                ]
+
+            # Second pass: build agent_data
+            for agent in agents:
+                location_id = agent.current_location_id or agent.home_location_id
+                if location_id is None:
+                    location_id = next(iter(location_states.keys()), "unknown")
+
                 agent_data.append(
                     {
                         "id": agent.id,
@@ -152,6 +168,7 @@ class SimulationService:
                         "current_location_id": location_id,
                         "home_location_id": agent.home_location_id,
                         "profile": agent.profile or {},
+                        "recent_events": agent_recent_events.get(agent.id, []),
                     }
                 )
 
@@ -226,6 +243,7 @@ class SimulationService:
                     },
                     memory={"recent": []},  # Memory tools available via MCP
                     event={},
+                    recent_events=agent_dict.get("recent_events", []),
                     runtime_ctx=runtime_ctx,
                 )
                 intent.agent_id = agent_id
@@ -769,3 +787,36 @@ class SimulationService:
             return ActionIntent(agent_id=agent_id, action_type="work")
 
         return ActionIntent(agent_id=agent_id, action_type="rest")
+
+    def _format_event_for_context(
+        self,
+        evt: Event,
+        agent_states: dict[str, AgentState],
+        location_states: dict[str, LocationState],
+    ) -> dict:
+        """Format an Event object for context injection."""
+        result = {
+            "event_type": evt.event_type,
+            "tick_no": evt.tick_no,
+        }
+
+        # Add actor name
+        if evt.actor_agent_id and evt.actor_agent_id in agent_states:
+            result["actor_name"] = agent_states[evt.actor_agent_id].name
+        else:
+            result["actor_name"] = "某人"
+
+        # Add target name for talk events
+        if evt.target_agent_id and evt.target_agent_id in agent_states:
+            result["target_name"] = agent_states[evt.target_agent_id].name
+
+        # Add location name
+        if evt.location_id and evt.location_id in location_states:
+            result["location_name"] = location_states[evt.location_id].name
+
+        # Add message for talk events
+        payload = evt.payload or {}
+        if "message" in payload:
+            result["message"] = payload["message"]
+
+        return result

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
@@ -35,6 +35,7 @@ class RuntimeInvocation(BaseModel):
     max_turns: int
     max_budget_usd: float
     allowed_actions: list[str] = []
+    session_id: str | None = None  # 用于恢复 SDK session
 
 
 @dataclass
@@ -104,6 +105,7 @@ class AgentRuntime:
         world: dict[str, Any] | None = None,
         memory: dict[str, Any] | None = None,
         event: dict[str, Any] | None = None,
+        recent_events: list[dict[str, Any]] | None = None,
     ) -> RuntimeInvocation:
         config = self._load_agent(agent_id)
         context = self.context_builder.build_reactor_context(
@@ -111,6 +113,7 @@ class AgentRuntime:
             world=world,
             memory=memory,
             event=event,
+            recent_events=recent_events,
         )
         base_prompt = self.registry.get_prompt(agent_id)
         allowed_actions = ["move", "talk", "work", "rest"]
@@ -180,9 +183,12 @@ class AgentRuntime:
         world: dict[str, Any] | None = None,
         memory: dict[str, Any] | None = None,
         event: dict[str, Any] | None = None,
+        recent_events: list[dict[str, Any]] | None = None,
         runtime_ctx: RuntimeContext | None = None,
     ) -> ActionIntent:
-        invocation = self.prepare_reactor(agent_id, world=world, memory=memory, event=event)
+        invocation = self.prepare_reactor(
+            agent_id, world=world, memory=memory, event=event, recent_events=recent_events
+        )
         return await self.decide_intent(invocation, runtime_ctx=runtime_ctx)
 
     def derive_intent(self, invocation: RuntimeInvocation) -> ActionIntent:

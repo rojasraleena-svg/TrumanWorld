@@ -33,6 +33,7 @@ class PooledClient:
     last_used: float
     in_use: bool = False
     error_count: int = 0
+    session_id: str | None = None  # SDK session ID，用于恢复对话
 
 
 class AgentConnectionPool:
@@ -189,18 +190,26 @@ class AgentConnectionPool:
             logger.debug(f"Created new connection for agent: {agent_id}")
             return client
 
-    async def release(self, agent_id: str, had_error: bool = False) -> None:
+    async def release(
+        self,
+        agent_id: str,
+        had_error: bool = False,
+        session_id: str | None = None,
+    ) -> None:
         """释放客户端回池
 
         Args:
             agent_id: Agent ID
             had_error: 是否发生了错误（用于错误计数）
+            session_id: SDK session ID，用于下次恢复对话
         """
         async with self._lock:
             if agent_id in self._pool:
                 pooled = self._pool[agent_id]
                 pooled.in_use = False
                 pooled.last_used = time.time()
+                if session_id:
+                    pooled.session_id = session_id
                 if had_error:
                     pooled.error_count += 1
                 else:
@@ -286,6 +295,15 @@ class AgentConnectionPool:
     def is_warmed_up(self, agent_id: str) -> bool:
         """检查指定 agent 是否已预热"""
         return agent_id in self._pool
+
+    def get_session_id(self, agent_id: str) -> str | None:
+        """获取指定 agent 的 session_id
+
+        用于在下次调用时恢复对话。
+        """
+        if agent_id in self._pool:
+            return self._pool[agent_id].session_id
+        return None
 
 
 

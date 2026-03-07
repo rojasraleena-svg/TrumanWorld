@@ -40,10 +40,12 @@ class ContextBuilder:
         world: dict[str, Any] | None = None,
         memory: dict[str, Any] | None = None,
         event: dict[str, Any] | None = None,
+        recent_events: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         context = self.build_base_context(agent=agent, world=world, memory=memory)
         context["task"] = "reactor"
         context["event"] = event or {}
+        context["recent_events"] = recent_events or []
         return context
 
     def build_reflector_context(

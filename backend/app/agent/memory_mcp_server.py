@@ -10,7 +10,7 @@ The server is created dynamically per-agent with the agent's runtime context
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from mcp.server import Server
 from mcp.types import Tool, TextContent
