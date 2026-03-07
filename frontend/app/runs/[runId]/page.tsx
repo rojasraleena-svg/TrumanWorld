@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { DirectorEventForm } from "@/components/director-event-form";
 import { MetricChip } from "@/components/metric-chip";
+import { RunControlPanel } from "@/components/run-control-panel";
 import { SectionCard } from "@/components/section-card";
 import { getRun } from "@/lib/api";
 
@@ -28,11 +29,14 @@ export default async function RunPage({ params }: RunPageProps) {
 
         <SectionCard title="Run Status" description="来自后端 `/runs/{id}` 的实时数据。">
           {run ? (
-            <div className="grid gap-4 md:grid-cols-4">
-              <MetricChip label="Name" value={run.name} />
-              <MetricChip label="Status" value={run.status} />
-              <MetricChip label="Tick" value={run.current_tick ?? "-"} />
-              <MetricChip label="Tick Minutes" value={run.tick_minutes ?? "-"} />
+            <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-4">
+                <MetricChip label="Name" value={run.name} />
+                <MetricChip label="Status" value={run.status} />
+                <MetricChip label="Tick" value={run.current_tick ?? "-"} />
+                <MetricChip label="Tick Minutes" value={run.tick_minutes ?? "-"} />
+              </div>
+              <RunControlPanel runId={runId} status={run.status} />
             </div>
           ) : (
             <p className="text-sm text-slate-600">后端暂不可用，当前展示为占位状态。</p>

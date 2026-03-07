@@ -103,6 +103,18 @@ export async function createRun(name: string): Promise<CreateRunResponse | null>
   return safePost<CreateRunResponse | null>("/runs", { name }, null);
 }
 
+export async function startRun(runId: string): Promise<RunSummary | null> {
+  return safePost<RunSummary | null>(`/runs/${runId}/start`, {}, null);
+}
+
+export async function pauseRun(runId: string): Promise<RunSummary | null> {
+  return safePost<RunSummary | null>(`/runs/${runId}/pause`, {}, null);
+}
+
+export async function resumeRun(runId: string): Promise<RunSummary | null> {
+  return safePost<RunSummary | null>(`/runs/${runId}/resume`, {}, null);
+}
+
 export async function injectDirectorEvent(
   runId: string,
   input: {
