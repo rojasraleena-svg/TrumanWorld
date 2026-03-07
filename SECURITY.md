@@ -9,8 +9,8 @@
 请通过以下方式报告安全漏洞：
 
 1. **不要** 在公开 issue 中披露安全漏洞
-2. 通过 GitHub 的 [Private Vulnerability Reporting](https://github.com/your-org/truman-world/security/advisories/new) 功能提交漏洞报告
-3. 或者发送邮件至 [INSERT SECURITY EMAIL]
+2. 通过 GitHub 的 [Private Vulnerability Reporting](https://github.com/truman-ai/truman-world/security/advisories/new) 功能提交漏洞报告
+3. 或者发送邮件至 **trumanworld.maintainers@gmail.com**
 
 ### 报告内容
 

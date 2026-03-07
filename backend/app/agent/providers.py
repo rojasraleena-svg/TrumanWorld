@@ -151,8 +151,10 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
         2. 直接模式: 每次调用 query() 新建进程
         """
         if self._pool and self._pool.is_warmed_up(invocation.agent_id):
+            logger.debug(f"Using POOLED connection for agent: {invocation.agent_id}")
             return await self._decide_with_pool(invocation)
         else:
+            logger.debug(f"Using QUERY mode (new process) for agent: {invocation.agent_id}")
             return await self._decide_with_query(invocation)
 
     async def _decide_with_pool(self, invocation: RuntimeInvocation) -> RuntimeDecision:

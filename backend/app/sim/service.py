@@ -186,14 +186,17 @@ class SimulationService:
 
         This method is called without an active database session,
         allowing SDK calls to use anyio without greenlet conflicts.
-        """
-        intents: list[ActionIntent] = []
 
-        for agent_dict in agent_data:
+        Agent decisions are made in PARALLEL for performance.
+        """
+        import asyncio
+
+        async def decide_for_agent(agent_dict: dict) -> ActionIntent:
+            """Make decision for a single agent."""
             agent_id = agent_dict["id"]
             state = world.get_agent(agent_id)
             if state is None:
-                continue
+                return None
 
             nearby_agent_id = self._find_nearby_agent(world, agent_id, state.location_id)
             profile = agent_dict.get("profile", {})
@@ -212,18 +215,21 @@ class SimulationService:
                     event={},
                 )
                 intent.agent_id = agent_id
-                intents.append(intent)
+                return intent
             except (RuntimeError, ValueError, asyncio.CancelledError):
-                intents.append(
-                    self._fallback_intent(
-                        agent_id=agent_id,
-                        current_goal=agent_dict.get("current_goal"),
-                        current_location_id=agent_dict.get("current_location_id"),
-                        home_location_id=agent_dict.get("home_location_id"),
-                        nearby_agent_id=nearby_agent_id,
-                    )
+                return self._fallback_intent(
+                    agent_id=agent_id,
+                    current_goal=agent_dict.get("current_goal"),
+                    current_location_id=agent_dict.get("current_location_id"),
+                    home_location_id=agent_dict.get("home_location_id"),
+                    nearby_agent_id=nearby_agent_id,
                 )
 
+        # Execute all agent decisions in PARALLEL
+        results = await asyncio.gather(*[decide_for_agent(a) for a in agent_data])
+
+        # Filter out None results (agents without valid state)
+        intents = [r for r in results if r is not None]
         return intents
 
     async def _persist_results(

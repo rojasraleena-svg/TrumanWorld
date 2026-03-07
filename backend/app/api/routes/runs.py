@@ -81,13 +81,18 @@ async def create_run(
         registry = AgentRegistry(settings.project_root / "agents")
 
         # Get connection pool and warmup agents for this run
+        # IMPORTANT: Use agent_config_id (e.g., "alice") as the key, not full agent.id
         pool = await get_connection_pool()
         agent_repo = AgentRepository(session)
         agents = await agent_repo.list_for_run(str(created.id))
-        agent_ids = [a.id for a in agents if a.id]
-        if agent_ids:
-            logger.info(f"Warming up connection pool for {len(agent_ids)} agents")
-            await pool.warmup(agent_ids)
+        # Extract runtime agent IDs (agent_config_id or fallback to agent.id)
+        runtime_agent_ids = set()
+        for a in agents:
+            config_id = (a.profile or {}).get("agent_config_id")
+            runtime_agent_ids.add(config_id if config_id else a.id)
+        if runtime_agent_ids:
+            logger.info(f"Warming up connection pool for {len(runtime_agent_ids)} agents: {runtime_agent_ids}")
+            await pool.warmup(list(runtime_agent_ids))
 
         # Create agent runtime with connection pool
         agent_runtime = AgentRuntime(registry=registry, connection_pool=pool)
@@ -151,14 +156,19 @@ async def start_run(
         registry = AgentRegistry(settings.project_root / "agents")
 
         # Get connection pool and warmup agents for this run
+        # IMPORTANT: Use agent_config_id (e.g., "alice") as the key, not full agent.id
         pool = await get_connection_pool()
         agent_repo = AgentRepository(session)
         agents = await agent_repo.list_for_run(str(run_id))
-        agent_ids = [a.agent_id for a in agents if a.agent_id]
+        # Extract runtime agent IDs (agent_config_id or fallback to agent.id)
+        runtime_agent_ids = set()
+        for a in agents:
+            config_id = (a.profile or {}).get("agent_config_id")
+            runtime_agent_ids.add(config_id if config_id else a.id)
 
-        if agent_ids:
-            logger.info(f"Warming up connection pool for {len(agent_ids)} agents")
-            await pool.warmup(agent_ids)
+        if runtime_agent_ids:
+            logger.info(f"Warming up connection pool for {len(runtime_agent_ids)} agents: {runtime_agent_ids}")
+            await pool.warmup(list(runtime_agent_ids))
 
         # Create agent runtime with connection pool
         agent_runtime = AgentRuntime(registry=registry, connection_pool=pool)

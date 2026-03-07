@@ -30,7 +30,7 @@
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/your-org/truman-world.git
+git clone https://github.com/truman-ai/truman-world.git
 cd truman-world
 ```
 

@@ -90,5 +90,5 @@
 
 ## 🔗 相关链接
 
-- [GitHub 仓库](https://github.com/your-org/truman-world)
+- [GitHub 仓库](https://github.com/truman-ai/truman-world)
 - [README](../README.md)
