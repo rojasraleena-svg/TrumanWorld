@@ -28,6 +28,7 @@ logger = get_logger(__name__)
 
 class RuntimeInvocation(BaseModel):
     """Serializable invocation parameters."""
+
     agent_id: str
     task: str
     prompt: str
@@ -41,10 +42,11 @@ class RuntimeInvocation(BaseModel):
 @dataclass
 class RuntimeContext:
     """Runtime context holding non-serializable resources.
-    
+
     This class holds resources that cannot be serialized (like database engines)
     and should be passed alongside RuntimeInvocation.
     """
+
     db_engine: "AsyncEngine | None" = None
     run_id: str | None = None
     enable_memory_tools: bool = True

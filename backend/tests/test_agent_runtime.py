@@ -481,7 +481,9 @@ async def test_runtime_invocation_can_carry_session_id():
 
 
 @pytest.mark.asyncio
-async def test_claude_provider_passes_resume_option_when_session_provided(monkeypatch: pytest.MonkeyPatch):
+async def test_claude_provider_passes_resume_option_when_session_provided(
+    monkeypatch: pytest.MonkeyPatch,
+):
     """验证当提供 session_id 时，SDK 选项中包含 resume 参数。
 
     这是 session 恢复的核心逻辑。

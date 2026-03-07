@@ -147,14 +147,14 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
             if invocation.max_budget_usd >= 0.1
             else self.settings.agent_budget_usd
         )
-        
+
         # 确定 session_id：优先使用 invocation 中的，否则从连接池获取
         session_id = invocation.session_id
         if not session_id and self._pool:
             session_id = self._pool.get_session_id(invocation.agent_id)
             if session_id:
                 logger.debug(f"Auto-resuming session {session_id} for agent: {invocation.agent_id}")
-        
+
         options = ClaudeAgentOptions(
             max_turns=invocation.max_turns,
             max_budget_usd=budget,
@@ -164,11 +164,11 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
             system_prompt=build_system_prompt(),
             resume=session_id,  # 恢复之前的 session
         )
-        
+
         # Add MCP memory server if runtime context provides database engine
         if runtime_ctx and runtime_ctx.db_engine and runtime_ctx.enable_memory_tools:
             from app.agent.memory_mcp_server import create_memory_mcp_server
-            
+
             memory_server = create_memory_mcp_server(
                 engine=runtime_ctx.db_engine,
                 agent_id=invocation.agent_id,
@@ -181,7 +181,7 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
                     instance=memory_server,
                 )
             }
-        
+
         return options
 
     async def decide(
@@ -277,7 +277,7 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
         runtime_ctx: "RuntimeContext | None" = None,
     ) -> RuntimeDecision:
         """使用 query() 进行决策（原有逻辑)
-        
+
         支持 resume 参数恢复历史对话。
         """
         result_decision: RuntimeDecision | None = None
@@ -289,10 +289,12 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
             raise RuntimeError(msg)
 
         options = self._build_sdk_options(invocation, runtime_ctx=runtime_ctx)
-        
+
         # 日志记录 resume 状态
         if invocation.session_id:
-            logger.debug(f"Resuming session {invocation.session_id} for agent {invocation.agent_id}")
+            logger.debug(
+                f"Resuming session {invocation.session_id} for agent {invocation.agent_id}"
+            )
 
         # Build prompt that asks for JSON response
         json_schema = json.dumps(DECISION_OUTPUT_SCHEMA, indent=2)
@@ -356,7 +358,7 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
         if result_decision is None:
             msg = "Claude SDK returned no decision"
             raise RuntimeError(msg)
-        
+
         # 记录 session_id 用于追踪
         if captured_session_id:
             logger.debug(

@@ -91,7 +91,9 @@ async def create_run(
             config_id = (a.profile or {}).get("agent_config_id")
             runtime_agent_ids.add(config_id if config_id else a.id)
         if runtime_agent_ids:
-            logger.info(f"Warming up connection pool for {len(runtime_agent_ids)} agents: {runtime_agent_ids}")
+            logger.info(
+                f"Warming up connection pool for {len(runtime_agent_ids)} agents: {runtime_agent_ids}"
+            )
             await pool.warmup(list(runtime_agent_ids))
 
         # Create agent runtime with connection pool
@@ -167,7 +169,9 @@ async def start_run(
             runtime_agent_ids.add(config_id if config_id else a.id)
 
         if runtime_agent_ids:
-            logger.info(f"Warming up connection pool for {len(runtime_agent_ids)} agents: {runtime_agent_ids}")
+            logger.info(
+                f"Warming up connection pool for {len(runtime_agent_ids)} agents: {runtime_agent_ids}"
+            )
             await pool.warmup(list(runtime_agent_ids))
 
         # Create agent runtime with connection pool

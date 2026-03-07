@@ -306,9 +306,6 @@ class AgentConnectionPool:
         return None
 
 
-
-
-
 # ============ 全局连接池单例 ============
 
 _global_pool: AgentConnectionPool | None = None

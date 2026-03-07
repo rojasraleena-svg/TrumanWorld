@@ -25,13 +25,13 @@ def _format_memory_result(memories: list[dict[str, Any]]) -> str:
     """Format memory records for display to agent."""
     if not memories:
         return "没有找到相关记忆。"
-    
+
     lines = ["找到以下记忆："]
     for i, mem in enumerate(memories, 1):
         tick_info = f"Tick {mem.get('tick_no', '?')}"
-        summary = mem.get('summary') or mem.get('content', '')[:50]
+        summary = mem.get("summary") or mem.get("content", "")[:50]
         lines.append(f"{i}. [{tick_info}] {summary}")
-        if mem.get('related_agent_name'):
+        if mem.get("related_agent_name"):
             lines.append(f"   相关人物: {mem['related_agent_name']}")
     return "\n".join(lines)
 
@@ -46,11 +46,11 @@ async def _search_memories(
     from sqlalchemy import select, or_
     from sqlalchemy.ext.asyncio import AsyncSession
     from app.store.models import Memory, Agent
-    
+
     async with AsyncSession(engine) as session:
         agents_result = await session.execute(select(Agent.id, Agent.name))
         agent_names = {row.id: row.name for row in agents_result}
-        
+
         pattern = f"%{query}%"
         result = await session.execute(
             select(Memory)
@@ -65,7 +65,7 @@ async def _search_memories(
             .limit(limit)
         )
         memories = result.scalars().all()
-        
+
         return [
             {
                 "id": m.id,
@@ -90,11 +90,11 @@ async def _get_recent_memories(
     from sqlalchemy import select
     from sqlalchemy.ext.asyncio import AsyncSession
     from app.store.models import Memory, Agent
-    
+
     async with AsyncSession(engine) as session:
         agents_result = await session.execute(select(Agent.id, Agent.name))
         agent_names = {row.id: row.name for row in agents_result}
-        
+
         result = await session.execute(
             select(Memory)
             .where(Memory.agent_id == agent_id)
@@ -102,7 +102,7 @@ async def _get_recent_memories(
             .limit(limit)
         )
         memories = result.scalars().all()
-        
+
         return [
             {
                 "id": m.id,
@@ -129,7 +129,7 @@ async def _get_memories_about_agent(
     from sqlalchemy import select, or_
     from sqlalchemy.ext.asyncio import AsyncSession
     from app.store.models import Memory, Agent
-    
+
     async with AsyncSession(engine) as session:
         # Resolve agent ID if short name provided
         resolved_id = other_agent_id
@@ -146,11 +146,11 @@ async def _get_memories_about_agent(
             agent = result.scalar_one_or_none()
             if agent:
                 resolved_id = agent.id
-        
+
         # Get other agent's name
         other_agent = await session.get(Agent, resolved_id)
         other_name = other_agent.name if other_agent else resolved_id
-        
+
         result = await session.execute(
             select(Memory)
             .where(
@@ -161,7 +161,7 @@ async def _get_memories_about_agent(
             .limit(limit)
         )
         memories = result.scalars().all()
-        
+
         return [
             {
                 "id": m.id,
@@ -187,14 +187,14 @@ async def _get_memories_by_location(
     from sqlalchemy import select
     from sqlalchemy.ext.asyncio import AsyncSession
     from app.store.models import Memory, Agent, Location
-    
+
     async with AsyncSession(engine) as session:
         location = await session.get(Location, location_id)
         location_name = location.name if location else location_id
-        
+
         agents_result = await session.execute(select(Agent.id, Agent.name))
         agent_names = {row.id: row.name for row in agents_result}
-        
+
         result = await session.execute(
             select(Memory)
             .where(
@@ -205,7 +205,7 @@ async def _get_memories_by_location(
             .limit(limit)
         )
         memories = result.scalars().all()
-        
+
         return [
             {
                 "id": m.id,
@@ -315,25 +315,25 @@ def create_memory_mcp_server(
     run_id: str,
 ) -> Server:
     """Create an MCP server with memory tools for a specific agent.
-    
+
     This creates a new MCP server instance with handlers bound to the
     provided database engine and agent context.
-    
+
     Args:
         engine: SQLAlchemy async engine for database access
         agent_id: The agent whose memories will be queried
         run_id: The simulation run ID for context resolution
-    
+
     Returns:
         Configured MCP Server instance
     """
     server = Server("trumanworld-memory")
-    
+
     @server.list_tools()
     async def list_tools() -> list[Tool]:
         """Return available memory tools."""
         return MEMORY_TOOLS_DEFS
-    
+
     @server.call_tool()
     async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         """Execute a memory tool call."""
@@ -343,13 +343,11 @@ def create_memory_mcp_server(
                     engine, agent_id, arguments["query"], arguments.get("limit", 5)
                 )
                 return [TextContent(type="text", text=_format_memory_result(memories))]
-            
+
             elif name == "get_recent_memories":
-                memories = await _get_recent_memories(
-                    engine, agent_id, arguments.get("limit", 5)
-                )
+                memories = await _get_recent_memories(engine, agent_id, arguments.get("limit", 5))
                 return [TextContent(type="text", text=_format_memory_result(memories))]
-            
+
             elif name == "get_memories_about_agent":
                 memories = await _get_memories_about_agent(
                     engine,
@@ -359,18 +357,18 @@ def create_memory_mcp_server(
                     arguments.get("limit", 5),
                 )
                 return [TextContent(type="text", text=_format_memory_result(memories))]
-            
+
             elif name == "get_memories_by_location":
                 memories = await _get_memories_by_location(
                     engine, agent_id, arguments["location_id"], arguments.get("limit", 5)
                 )
                 return [TextContent(type="text", text=_format_memory_result(memories))]
-            
+
             else:
                 return [TextContent(type="text", text=f"未知工具: {name}")]
-                
+
         except Exception as e:
             logger.error(f"Error executing memory tool {name}: {e}")
             return [TextContent(type="text", text=f"查询记忆时出错: {e}")]
-    
+
     return server

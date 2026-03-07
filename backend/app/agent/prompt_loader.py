@@ -32,31 +32,35 @@ class PromptLoader:
         recent_events = context.get("recent_events", [])
         if recent_events:
             lines.append("# 最近对话")
-            lines.append("以下是最近发生的事件（按时间倒序）。你需要延续这些对话，而不是重复或忽略。")
+            lines.append(
+                "以下是最近发生的事件（按时间倒序）。你需要延续这些对话，而不是重复或忽略。"
+            )
             lines.append("")
             for evt in reversed(recent_events):  # 按时间正序显示
                 lines.append(self._format_event(evt))
             lines.append("")
 
-        lines.extend([
-            "# 决策任务",
-            "基于你的角色和上述对话历史，决定下一步动作。",
-            f"允许的动作只有：{', '.join(allowed_actions)}。",
-            "",
-            "# 输出约束",
-            "- 只能返回一个 JSON 对象",
-            "- JSON 仅可包含字段：`action_type`、`target_location_id`、`target_agent_id`、`message`、`payload`",
-            "- `action_type` 必须来自允许动作集合",
-            "- 当 `action_type=move` 时，应尽量提供 `target_location_id`",
-            "- 当 `action_type=talk` 时，必须提供 `target_agent_id` 与 `message`（30-200 字的自然对话）",
-            "- 如果信息不足，优先返回 `rest` 或 `work`，不要编造不存在的地点和人物",
-            "- **重要**：对话要延续之前的内容，不要重复已说过的话",
-            "",
-            "# 运行上下文",
-            "```json",
-            self._to_pretty_json(context),
-            "```",
-        ])
+        lines.extend(
+            [
+                "# 决策任务",
+                "基于你的角色和上述对话历史，决定下一步动作。",
+                f"允许的动作只有：{', '.join(allowed_actions)}。",
+                "",
+                "# 输出约束",
+                "- 只能返回一个 JSON 对象",
+                "- JSON 仅可包含字段：`action_type`、`target_location_id`、`target_agent_id`、`message`、`payload`",
+                "- `action_type` 必须来自允许动作集合",
+                "- 当 `action_type=move` 时，应尽量提供 `target_location_id`",
+                "- 当 `action_type=talk` 时，必须提供 `target_agent_id` 与 `message`（30-200 字的自然对话）",
+                "- 如果信息不足，优先返回 `rest` 或 `work`，不要编造不存在的地点和人物",
+                "- **重要**：对话要延续之前的内容，不要重复已说过的话",
+                "",
+                "# 运行上下文",
+                "```json",
+                self._to_pretty_json(context),
+                "```",
+            ]
+        )
         return "\n".join(lines)
 
     def _format_event(self, evt: dict[str, object]) -> str:
