@@ -1,0 +1,366 @@
+"""Context building logic for simulation agents.
+
+This module handles building world context, loading world state,
+and preparing context for agent decisions.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
+
+from app.director.observer import DirectorAssessment, DirectorObserver
+from app.director.planner import DirectorPlanner
+from app.sim.action_resolver import ActionIntent
+from app.sim.world import AgentState, LocationState, WorldState
+from app.store.repositories import AgentRepository, EventRepository, LocationRepository
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from app.store.models import Agent, Event, SimulationRun
+
+
+DEFAULT_WORLD_START_TIME = datetime(2026, 3, 2, 7, 0, tzinfo=UTC)
+
+
+class ContextBuilder:
+    """Builds context for agent decisions in simulation.
+
+    This class is responsible for:
+    - Loading world state from database
+    - Building agent world context for decisions
+    - Extracting Truman suspicion scores
+    - Finding nearby agents
+    - Formatting events for context injection
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self.agent_repo = AgentRepository(session)
+        self.location_repo = LocationRepository(session)
+        self.event_repo = EventRepository(session)
+
+    async def load_world(self, run_id: str, run: SimulationRun, tick_minutes: int) -> WorldState:
+        """Load world state from database.
+
+        Args:
+            run_id: The simulation run ID
+            run: The simulation run object
+            tick_minutes: Minutes per tick
+
+        Returns:
+            WorldState with locations and agents
+        """
+        locations = await self.location_repo.list_for_run(run_id)
+        agents = await self.agent_repo.list_for_run(run_id)
+
+        location_states = {
+            location.id: LocationState(
+                id=location.id,
+                name=location.name,
+                capacity=location.capacity,
+                occupants=set(),
+            )
+            for location in locations
+        }
+
+        agent_states: dict[str, AgentState] = {}
+        for agent in agents:
+            location_id = agent.current_location_id or agent.home_location_id
+            if location_id is None:
+                location_id = next(iter(location_states.keys()), "unknown")
+
+            agent_states[agent.id] = AgentState(
+                id=agent.id,
+                name=agent.name,
+                location_id=location_id,
+                status=agent.status or {},
+            )
+            if location_id in location_states:
+                location_states[location_id].occupants.add(agent.id)
+
+        return WorldState(
+            current_time=self._get_run_world_time(run),
+            tick_minutes=tick_minutes,
+            locations=location_states,
+            agents=agent_states,
+        )
+
+    def _get_run_world_time(self, run: SimulationRun) -> datetime:
+        """Calculate current world time from run metadata."""
+        metadata = run.metadata_json or {}
+        raw_start = metadata.get("world_start_time")
+        if isinstance(raw_start, str):
+            try:
+                start_time = datetime.fromisoformat(raw_start)
+            except ValueError:
+                start_time = DEFAULT_WORLD_START_TIME
+        else:
+            start_time = DEFAULT_WORLD_START_TIME
+
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=UTC)
+
+        return start_time + timedelta(minutes=run.current_tick * run.tick_minutes)
+
+    def build_agent_world_context(
+        self,
+        *,
+        world: WorldState,
+        current_goal: str | None,
+        current_location_id: str | None,
+        home_location_id: str | None,
+        nearby_agent_id: str | None,
+        current_status: dict | None = None,
+        truman_suspicion_score: float = 0.0,
+        world_role: str | None = None,
+        director_scene_goal: str | None = None,
+        director_priority: str | None = None,
+        director_message_hint: str | None = None,
+        director_target_agent_id: str | None = None,
+        director_location_hint: str | None = None,
+        director_reason: str | None = None,
+    ) -> dict:
+        """Build context dict for agent decision making.
+
+        Args:
+            world: Current world state
+            current_goal: Agent's current goal
+            current_location_id: Agent's current location
+            home_location_id: Agent's home location
+            nearby_agent_id: ID of nearby agent for interaction
+            current_status: Agent's current status dict
+            truman_suspicion_score: Truman's suspicion score
+            world_role: Agent's role (truman/cast)
+            director_*: Director guidance fields
+
+        Returns:
+            Context dict for agent runtime
+        """
+        context = {
+            "current_goal": current_goal,
+            "current_location_id": current_location_id,
+            "home_location_id": home_location_id,
+            "nearby_agent_id": nearby_agent_id,
+            "self_status": current_status or {},
+            "truman_suspicion_score": truman_suspicion_score,
+            **world.time_context(),
+        }
+        if world_role:
+            context["world_role"] = world_role
+        if director_scene_goal:
+            context["director_scene_goal"] = director_scene_goal
+            context["director_priority"] = director_priority or "advisory"
+            context["director_message_hint"] = director_message_hint
+            context["director_target_agent_id"] = director_target_agent_id
+            context["director_location_hint"] = director_location_hint
+            context["director_reason"] = director_reason
+        return context
+
+    def find_nearby_agent(self, world: WorldState, agent_id: str, location_id: str) -> str | None:
+        """Find a nearby agent at the same location.
+
+        Args:
+            world: Current world state
+            agent_id: The agent looking for nearby agents
+            location_id: The location to search
+
+        Returns:
+            ID of a nearby agent, or None if none found
+        """
+        location = world.get_location(location_id)
+        if location is None:
+            return None
+
+        for occupant_id in sorted(location.occupants):
+            if occupant_id != agent_id:
+                return occupant_id
+        return None
+
+    def extract_truman_suspicion_from_agent_data(
+        self,
+        agent_data: list[dict],
+        world: WorldState,
+    ) -> float:
+        """Extract Truman's suspicion score from agent data.
+
+        Args:
+            agent_data: List of agent data dicts
+            world: Current world state
+
+        Returns:
+            Truman's suspicion score, or 0.0 if not found
+        """
+        for agent_dict in agent_data:
+            profile = agent_dict.get("profile", {}) or {}
+            if profile.get("world_role") != "truman":
+                continue
+            state = world.get_agent(agent_dict["id"])
+            if state is None:
+                continue
+            return float((state.status or {}).get("suspicion_score", 0.0) or 0.0)
+        return 0.0
+
+    def extract_truman_suspicion_from_agents(
+        self,
+        agents: list[Agent],
+        world: WorldState,
+    ) -> float:
+        """Extract Truman's suspicion score from agent objects.
+
+        Args:
+            agents: List of Agent objects
+            world: Current world state
+
+        Returns:
+            Truman's suspicion score, or 0.0 if not found
+        """
+        for agent in agents:
+            if (agent.profile or {}).get("world_role") != "truman":
+                continue
+            state = world.get_agent(agent.id)
+            if state is None:
+                continue
+            return float((state.status or {}).get("suspicion_score", 0.0) or 0.0)
+        return 0.0
+
+    def profile_with_director_plan(self, agent: Agent, plan) -> dict:
+        """Merge director plan into agent profile.
+
+        Args:
+            agent: The agent to update
+            plan: Director plan (may be None)
+
+        Returns:
+            Updated profile dict with director guidance
+        """
+        profile = dict(agent.profile or {})
+        if plan and agent.id in plan.target_cast_ids:
+            profile.update(
+                {
+                    "director_scene_goal": plan.scene_goal,
+                    "director_priority": plan.priority,
+                    "director_message_hint": plan.message_hint,
+                    "director_target_agent_id": plan.target_agent_id,
+                    "director_location_hint": plan.location_hint,
+                    "director_reason": plan.reason,
+                }
+            )
+        return profile
+
+    def format_event_for_context(
+        self,
+        evt: Event,
+        agent_states: dict[str, AgentState],
+        location_states: dict[str, LocationState],
+    ) -> dict:
+        """Format an Event object for context injection.
+
+        Args:
+            evt: The event to format
+            agent_states: Map of agent IDs to states
+            location_states: Map of location IDs to states
+
+        Returns:
+            Dict with event info suitable for agent context
+        """
+        result = {
+            "event_type": evt.event_type,
+            "tick_no": evt.tick_no,
+        }
+
+        # Add actor name
+        if evt.actor_agent_id and evt.actor_agent_id in agent_states:
+            result["actor_name"] = agent_states[evt.actor_agent_id].name
+        else:
+            result["actor_name"] = "某人"
+
+        # Add target name for talk events
+        if evt.target_agent_id and evt.target_agent_id in agent_states:
+            result["target_name"] = agent_states[evt.target_agent_id].name
+
+        # Add location name
+        if evt.location_id and evt.location_id in location_states:
+            result["location_name"] = location_states[evt.location_id].name
+
+        # Add message for talk events
+        payload = evt.payload or {}
+        if "message" in payload:
+            result["message"] = payload["message"]
+
+        return result
+
+
+async def build_director_plan(
+    run_id: str,
+    agents: list[Agent],
+    session: AsyncSession,
+) -> object:
+    """Build director plan for the current tick.
+
+    Args:
+        run_id: The simulation run ID
+        agents: List of agents in the simulation
+        session: Database session
+
+    Returns:
+        Director plan object, or None
+    """
+    run_repo = AgentRepository(session)
+    event_repo = EventRepository(session)
+
+    # Get run to access current tick
+    from app.store.repositories import RunRepository
+    run_repo = RunRepository(session)
+    run = await run_repo.get(run_id)
+    if run is None:
+        return None
+
+    events = await event_repo.list_for_run(run_id, limit=20)
+
+    observer = DirectorObserver()
+    assessment = observer.assess(
+        run_id=run_id,
+        current_tick=run.current_tick,
+        agents=list(agents),
+        events=list(events),
+    )
+    planner = DirectorPlanner()
+    return planner.build_plan(assessment=assessment, agents=list(agents))
+
+
+async def observe_run(
+    run_id: str,
+    session: AsyncSession,
+    event_limit: int = 20,
+) -> DirectorAssessment:
+    """Observe run and return assessment.
+
+    Args:
+        run_id: The simulation run ID
+        session: Database session
+        event_limit: Max events to consider
+
+    Returns:
+        DirectorAssessment with suspicion and risk info
+    """
+    run_repo = AgentRepository(session)
+    event_repo = EventRepository(session)
+
+    from app.store.repositories import RunRepository
+    run_repo_obj = RunRepository(session)
+    run = await run_repo_obj.get(run_id)
+    if run is None:
+        msg = f"Run not found: {run_id}"
+        raise ValueError(msg)
+
+    agents = await run_repo.list_for_run(run_id)
+    events = await event_repo.list_for_run(run_id, limit=event_limit)
+
+    observer = DirectorObserver()
+    return observer.assess(
+        run_id=run_id,
+        current_tick=run.current_tick,
+        agents=list(agents),
+        events=list(events),
+    )

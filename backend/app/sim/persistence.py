@@ -1,0 +1,406 @@
+"""Persistence logic for simulation ticks.
+
+This module handles persisting agent locations, events, memories, relationships,
+and Truman suspicion scores after each simulation tick.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+from uuid import uuid4
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.sim.runner import TickResult
+from app.sim.world import AgentState, LocationState, WorldState
+from app.store.repositories import (
+    AgentRepository,
+    EventRepository,
+    LocationRepository,
+    MemoryRepository,
+    RelationshipRepository,
+    RunRepository,
+    build_event,
+)
+from app.store.models import Event, Memory
+
+if TYPE_CHECKING:
+    from app.store.models import Agent
+
+
+class PersistenceManager:
+    """Manages persistence of simulation tick results.
+
+    This class is responsible for:
+    - Persisting agent locations after movement
+    - Creating and storing events (accepted and rejected)
+    - Building and storing memories from events
+    - Updating relationships based on interactions
+    - Updating Truman suspicion scores
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self.run_repo = RunRepository(session)
+        self.agent_repo = AgentRepository(session)
+        self.location_repo = LocationRepository(session)
+        self.event_repo = EventRepository(session)
+        self.memory_repo = MemoryRepository(session)
+        self.relationship_repo = RelationshipRepository(session)
+
+    async def persist_tick_results(
+        self,
+        run_id: str,
+        result: TickResult,
+        world: WorldState,
+        new_tick: int,
+    ) -> list[Event]:
+        """Persist all tick results including agent locations, events, memories, and relationships.
+
+        Args:
+            run_id: The simulation run ID
+            result: The tick result containing accepted/rejected actions
+            world: The world state after the tick
+            new_tick: The new tick number
+
+        Returns:
+            List of persisted events for further processing
+        """
+        # Update agent locations
+        agents = await self.agent_repo.list_for_run(run_id)
+        for agent in agents:
+            state = world.get_agent(agent.id)
+            if state is not None:
+                agent.current_location_id = state.location_id
+        await self.session.commit()
+
+        # Update tick number
+        run = await self.run_repo.get(run_id)
+        if run:
+            await self.run_repo.update_tick(run, new_tick)
+
+        # Build and persist events
+        events = self._build_tick_events(run_id, result)
+        if events:
+            persisted = await self.event_repo.create_many(events)
+            await self.persist_tick_memories(run_id, persisted)
+            await self.persist_tick_relationships(run_id, persisted)
+            await self.persist_truman_suspicion(run_id, persisted)
+            return persisted
+        return []
+
+    def _build_tick_events(self, run_id: str, result: TickResult) -> list[Event]:
+        """Build event objects from tick results."""
+        events = [
+            build_event(
+                run_id=run_id,
+                tick_no=result.tick_no,
+                world_time=result.world_time,
+                action_type=item.action_type,
+                payload=item.event_payload,
+                accepted=True,
+            )
+            for item in result.accepted
+        ]
+        events.extend(
+            build_event(
+                run_id=run_id,
+                tick_no=result.tick_no,
+                world_time=result.world_time,
+                action_type=item.action_type,
+                payload={"reason": item.reason, **item.event_payload},
+                accepted=False,
+            )
+            for item in result.rejected
+        )
+        return events
+
+    async def persist_tick_memories(self, run_id: str, events: list[Event]) -> None:
+        """Persist memories from tick events."""
+        agent_name_map = {a.id: a.name for a in await self.agent_repo.list_for_run(run_id)}
+        location_name_map = {
+            loc.id: loc.name for loc in await self.location_repo.list_for_run(run_id)
+        }
+        memories: list[Memory] = []
+        for event in events:
+            if event.event_type.endswith("_rejected") or event.actor_agent_id is None:
+                continue
+
+            for agent_id, content, summary, related_agent_id in self._build_memory_records(
+                event, agent_name_map, location_name_map
+            ):
+                memories.append(
+                    Memory(
+                        id=str(uuid4()),
+                        run_id=run_id,
+                        agent_id=agent_id,
+                        tick_no=event.tick_no,
+                        memory_type="episodic_short",
+                        memory_category="short_term",
+                        content=content,
+                        summary=summary,
+                        importance=event.importance,
+                        related_agent_id=related_agent_id,
+                        location_id=event.location_id,
+                        source_event_id=event.id,
+                        metadata_json={"event_type": event.event_type},
+                    )
+                )
+
+        if memories:
+            await self.memory_repo.create_many(memories)
+
+    async def persist_tick_memories_with_session(
+        self,
+        session: AsyncSession,
+        run_id: str,
+        events: list[Event],
+    ) -> None:
+        """Persist memories using a provided session (for isolated tick operations)."""
+        agent_repo = AgentRepository(session)
+        agents = await agent_repo.list_for_run(run_id)
+        agent_name_map = {a.id: a.name for a in agents}
+
+        location_repo = LocationRepository(session)
+        locations = await location_repo.list_for_run(run_id)
+        location_name_map = {loc.id: loc.name for loc in locations}
+
+        memories: list[Memory] = []
+        for event in events:
+            if event.event_type.endswith("_rejected") or event.actor_agent_id is None:
+                continue
+
+            for agent_id, content, summary, related_agent_id in self._build_memory_records(
+                event, agent_name_map, location_name_map
+            ):
+                memories.append(
+                    Memory(
+                        id=str(uuid4()),
+                        run_id=run_id,
+                        agent_id=agent_id,
+                        tick_no=event.tick_no,
+                        memory_type="episodic_short",
+                        memory_category="short_term",
+                        content=content,
+                        summary=summary,
+                        importance=event.importance,
+                        related_agent_id=related_agent_id,
+                        location_id=event.location_id,
+                        source_event_id=event.id,
+                        metadata_json={"event_type": event.event_type},
+                    )
+                )
+
+        if memories:
+            memory_repo = MemoryRepository(session)
+            await memory_repo.create_many(memories)
+
+    async def persist_tick_relationships(self, run_id: str, events: list[Event]) -> None:
+        """Persist relationships from talk events."""
+        for event in events:
+            if event.event_type != "talk":
+                continue
+            if event.actor_agent_id is None or event.target_agent_id is None:
+                continue
+
+            await self.relationship_repo.upsert_interaction(
+                run_id=run_id,
+                agent_id=event.actor_agent_id,
+                other_agent_id=event.target_agent_id,
+                familiarity_delta=0.1,
+                trust_delta=0.05,
+                affinity_delta=0.05,
+            )
+            await self.relationship_repo.upsert_interaction(
+                run_id=run_id,
+                agent_id=event.target_agent_id,
+                other_agent_id=event.actor_agent_id,
+                familiarity_delta=0.1,
+                trust_delta=0.05,
+                affinity_delta=0.05,
+            )
+
+    async def persist_tick_relationships_with_session(
+        self,
+        session: AsyncSession,
+        run_id: str,
+        events: list[Event],
+    ) -> None:
+        """Persist relationships using a provided session."""
+        rel_repo = RelationshipRepository(session)
+        for event in events:
+            if event.event_type != "talk":
+                continue
+            if event.actor_agent_id is None or event.target_agent_id is None:
+                continue
+
+            await rel_repo.upsert_interaction(
+                run_id=run_id,
+                agent_id=event.actor_agent_id,
+                other_agent_id=event.target_agent_id,
+                familiarity_delta=0.1,
+                trust_delta=0.05,
+                affinity_delta=0.05,
+            )
+            await rel_repo.upsert_interaction(
+                run_id=run_id,
+                agent_id=event.target_agent_id,
+                other_agent_id=event.actor_agent_id,
+                familiarity_delta=0.1,
+                trust_delta=0.05,
+                affinity_delta=0.05,
+            )
+
+    async def persist_truman_suspicion(self, run_id: str, events: list[Event]) -> None:
+        """Update Truman suspicion score based on events."""
+        agents = await self.agent_repo.list_for_run(run_id)
+        changed = False
+        for agent in agents:
+            if (agent.profile or {}).get("world_role") != "truman":
+                continue
+            delta = self._calculate_suspicion_delta(agent.id, events)
+            if delta == 0.0:
+                continue
+            status = dict(agent.status or {})
+            current = float(status.get("suspicion_score", 0.0))
+            status["suspicion_score"] = max(0.0, min(1.0, round(current + delta, 4)))
+            agent.status = status
+            changed = True
+        if changed:
+            await self.session.commit()
+
+    async def persist_truman_suspicion_with_session(
+        self,
+        session: AsyncSession,
+        run_id: str,
+        events: list[Event],
+    ) -> None:
+        """Update Truman suspicion score using a provided session."""
+        agent_repo = AgentRepository(session)
+        agents = await agent_repo.list_for_run(run_id)
+        changed = False
+        for agent in agents:
+            if (agent.profile or {}).get("world_role") != "truman":
+                continue
+            delta = self._calculate_suspicion_delta(agent.id, events)
+            if delta == 0.0:
+                continue
+            status = dict(agent.status or {})
+            current = float(status.get("suspicion_score", 0.0))
+            status["suspicion_score"] = max(0.0, min(1.0, round(current + delta, 4)))
+            agent.status = status
+            changed = True
+        if changed:
+            await session.commit()
+
+    async def persist_agent_locations(self, run_id: str, world: WorldState) -> None:
+        """Update agent locations after tick."""
+        agents = await self.agent_repo.list_for_run(run_id)
+        for agent in agents:
+            state = world.get_agent(agent.id)
+            if state is not None:
+                agent.current_location_id = state.location_id
+        await self.session.commit()
+
+    def _build_memory_records(
+        self,
+        event: Event,
+        agent_name_map: dict[str, str] | None = None,
+        location_name_map: dict[str, str] | None = None,
+    ) -> list[tuple[str, str, str, str | None]]:
+        """Build memory records from an event.
+
+        Returns list of tuples: (agent_id, content, summary, related_agent_id)
+        """
+        payload = event.payload or {}
+        _agents = agent_name_map or {}
+        _locations = location_name_map or {}
+
+        def agent_name(agent_id: str | None) -> str:
+            if not agent_id:
+                return "someone"
+            return _agents.get(agent_id, agent_id)
+
+        def location_name(loc_id: str | None) -> str:
+            if not loc_id:
+                return "unknown"
+            return _locations.get(loc_id, loc_id)
+
+        if event.event_type == "move":
+            destination = location_name(str(payload.get("to_location_id", "")) or None)
+            origin = location_name(str(payload.get("from_location_id", "")) or None)
+            return [
+                (
+                    event.actor_agent_id,
+                    f"Moved from {origin} to {destination}.",
+                    f"Moved to {destination}",
+                    None,
+                )
+            ]
+
+        if event.event_type == "talk":
+            target_id = str(payload.get("target_agent_id") or event.target_agent_id or "")
+            loc_id = str(payload.get("location_id") or "")
+            target = agent_name(target_id)
+            actor = agent_name(event.actor_agent_id)
+            loc = location_name(loc_id)
+            message = payload.get("message", "")
+
+            if message:
+                actor_content = f'Talked with {target} at {loc}: "{message}"'
+                actor_summary = (
+                    f"Talked with {target}: {message[:30]}{'...' if len(message) > 30 else ''}"
+                )
+                target_content = f'{actor} said: "{message}"'
+                target_summary = f"{actor} said: {message[:30]}{'...' if len(message) > 30 else ''}"
+            else:
+                actor_content = f"Talked with {target} at {loc}."
+                actor_summary = f"Talked with {target}"
+                target_content = f"Talked with {actor} at {loc}."
+                target_summary = f"Talked with {actor}"
+
+            records: list[tuple[str, str, str, str | None]] = [
+                (event.actor_agent_id, actor_content, actor_summary, event.target_agent_id)
+            ]
+            if event.target_agent_id:
+                records.append(
+                    (event.target_agent_id, target_content, target_summary, event.actor_agent_id)
+                )
+            return records
+
+        if event.event_type == "work":
+            return [(event.actor_agent_id, "Worked during this tick.", "Worked", None)]
+
+        if event.event_type == "rest":
+            return [(event.actor_agent_id, "Rested during this tick.", "Rested", None)]
+
+        return [
+            (
+                event.actor_agent_id,
+                f"Experienced event {event.event_type}.",
+                f"Event: {event.event_type}",
+                event.target_agent_id,
+            )
+        ]
+
+    def _calculate_suspicion_delta(self, agent_id: str, events: list[Event]) -> float:
+        """Calculate suspicion score delta for Truman based on events."""
+        delta = 0.0
+        for event in events:
+            payload = event.payload or {}
+            involved = event.actor_agent_id == agent_id or event.target_agent_id == agent_id
+            if not involved and payload.get("agent_id") != agent_id:
+                continue
+
+            if event.event_type.endswith("_rejected"):
+                delta += 0.12
+            elif event.event_type.startswith("director_"):
+                delta += 0.2
+            elif event.event_type == "talk":
+                delta -= 0.02
+            elif event.event_type in {"rest", "work"}:
+                delta -= 0.01
+            elif event.event_type == "move":
+                delta -= 0.005
+        return delta
