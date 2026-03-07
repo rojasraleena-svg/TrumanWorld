@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING
 
 from app.director.observer import DirectorAssessment, DirectorObserver
 from app.director.planner import DirectorPlanner
-from app.sim.action_resolver import ActionIntent
 from app.sim.world import AgentState, LocationState, WorldState
 from app.store.repositories import AgentRepository, EventRepository, LocationRepository
 
@@ -137,6 +136,42 @@ class ContextBuilder:
         Returns:
             Context dict for agent runtime
         """
+        return self._build_agent_world_context_impl(
+            world=world,
+            current_goal=current_goal,
+            current_location_id=current_location_id,
+            home_location_id=home_location_id,
+            nearby_agent_id=nearby_agent_id,
+            current_status=current_status,
+            truman_suspicion_score=truman_suspicion_score,
+            world_role=world_role,
+            director_scene_goal=director_scene_goal,
+            director_priority=director_priority,
+            director_message_hint=director_message_hint,
+            director_target_agent_id=director_target_agent_id,
+            director_location_hint=director_location_hint,
+            director_reason=director_reason,
+        )
+
+    @staticmethod
+    def _build_agent_world_context_impl(
+        *,
+        world: WorldState,
+        current_goal: str | None,
+        current_location_id: str | None,
+        home_location_id: str | None,
+        nearby_agent_id: str | None,
+        current_status: dict | None = None,
+        truman_suspicion_score: float = 0.0,
+        world_role: str | None = None,
+        director_scene_goal: str | None = None,
+        director_priority: str | None = None,
+        director_message_hint: str | None = None,
+        director_target_agent_id: str | None = None,
+        director_location_hint: str | None = None,
+        director_reason: str | None = None,
+    ) -> dict:
+        """Static implementation for building agent world context."""
         context = {
             "current_goal": current_goal,
             "current_location_id": current_location_id,
@@ -168,6 +203,11 @@ class ContextBuilder:
         Returns:
             ID of a nearby agent, or None if none found
         """
+        return self._find_nearby_agent_impl(world, agent_id, location_id)
+
+    @staticmethod
+    def _find_nearby_agent_impl(world: WorldState, agent_id: str, location_id: str) -> str | None:
+        """Static implementation for finding nearby agent."""
         location = world.get_location(location_id)
         if location is None:
             return None
@@ -191,6 +231,14 @@ class ContextBuilder:
         Returns:
             Truman's suspicion score, or 0.0 if not found
         """
+        return self._extract_truman_suspicion_from_agent_data_impl(agent_data, world)
+
+    @staticmethod
+    def _extract_truman_suspicion_from_agent_data_impl(
+        agent_data: list[dict],
+        world: WorldState,
+    ) -> float:
+        """Static implementation for extracting Truman suspicion from agent data."""
         for agent_dict in agent_data:
             profile = agent_dict.get("profile", {}) or {}
             if profile.get("world_role") != "truman":

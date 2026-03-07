@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
-from app.infra.db import async_engine, get_db_session_context
+from app.infra.db import get_db_session_context
 from app.infra.logging import get_logger, info
 from app.infra.settings import get_settings
 from app.store.repositories import RunRepository

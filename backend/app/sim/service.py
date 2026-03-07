@@ -35,7 +35,7 @@ from app.store.repositories import (
     RunRepository,
     build_event,
 )
-from app.store.models import Agent, Event, Location
+from app.store.models import Agent, Location
 
 if TYPE_CHECKING:
     from app.infra.db import async_engine
@@ -260,12 +260,12 @@ class SimulationService:
             if state is None:
                 return None
 
-            nearby_agent_id = self._context_builder.find_nearby_agent(
+            nearby_agent_id = ContextBuilder._find_nearby_agent_impl(
                 world, agent_id, state.location_id
             )
             profile = agent_dict.get("profile", {})
             runtime_agent_id = profile.get("agent_config_id") or agent_id
-            truman_suspicion_score = self._context_builder.extract_truman_suspicion_from_agent_data(
+            truman_suspicion_score = ContextBuilder._extract_truman_suspicion_from_agent_data_impl(
                 agent_data, world
             )
 
@@ -281,7 +281,7 @@ class SimulationService:
             try:
                 intent = await self.agent_runtime.react(
                     runtime_agent_id,
-                    world=self._context_builder.build_agent_world_context(
+                    world=ContextBuilder._build_agent_world_context_impl(
                         world=world,
                         current_goal=agent_dict.get("current_goal"),
                         current_location_id=agent_dict.get("current_location_id"),

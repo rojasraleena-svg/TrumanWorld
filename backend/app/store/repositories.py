@@ -84,7 +84,7 @@ class RunRepository:
     async def list_runs_to_restore(self) -> Sequence[SimulationRun]:
         """Get all runs that were running before restart and can be restored."""
         stmt = select(SimulationRun).where(
-            SimulationRun.was_running_before_restart == True,
+            SimulationRun.was_running_before_restart.is_(True),
             SimulationRun.status == "paused",
         )
         result = await self.session.execute(stmt)

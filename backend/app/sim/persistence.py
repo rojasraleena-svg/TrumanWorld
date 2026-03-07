@@ -6,14 +6,13 @@ and Truman suspicion scores after each simulation tick.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.sim.runner import TickResult
-from app.sim.world import AgentState, LocationState, WorldState
+from app.sim.world import WorldState
 from app.store.repositories import (
     AgentRepository,
     EventRepository,
@@ -26,7 +25,7 @@ from app.store.repositories import (
 from app.store.models import Event, Memory
 
 if TYPE_CHECKING:
-    from app.store.models import Agent
+    pass
 
 
 class PersistenceManager:
