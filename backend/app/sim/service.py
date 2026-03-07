@@ -180,7 +180,7 @@ class SimulationService:
 
             # Second pass: build agent_data
             scenario = self._scenario.with_session(read_session)
-            assessment = scenario.assess(
+            scenario.assess(
                 run_id=run_id,
                 current_tick=current_tick,
                 agents=list(agents),

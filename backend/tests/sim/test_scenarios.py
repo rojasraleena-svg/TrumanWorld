@@ -7,7 +7,7 @@ from app.agent.registry import AgentRegistry
 from app.agent.runtime import AgentRuntime
 from app.scenario.open_world.scenario import OpenWorldScenario
 from app.scenario.truman_world.scenario import TrumanWorldScenario
-from app.store.models import Agent, Event, SimulationRun
+from app.store.models import Event, SimulationRun
 from app.store.repositories import AgentRepository
 
 
