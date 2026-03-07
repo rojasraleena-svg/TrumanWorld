@@ -21,33 +21,76 @@ logger = get_logger(__name__)
 
 
 class RunCreateRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
-    seed_demo: bool = True
+    """创建新的模拟运行请求"""
+
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="运行名称",
+        examples=["My First World", "Alice Town"],
+    )
+    seed_demo: bool = Field(
+        default=True,
+        description="是否自动填充演示数据（agent、地点等）",
+        examples=[True],
+    )
 
 
 class RunResponse(BaseModel):
-    id: UUID
-    name: str
-    status: str
-    current_tick: int | None = None
-    tick_minutes: int | None = None
+    """模拟运行响应"""
+
+    id: UUID = Field(..., description="运行 ID")
+    name: str = Field(..., description="运行名称")
+    status: str = Field(..., description="运行状态", examples=["running", "paused", "stopped"])
+    current_tick: int | None = Field(None, description="当前 tick 数")
+    tick_minutes: int | None = Field(None, description="每个 tick 代表的分钟数")
 
 
 class DirectorEventRequest(BaseModel):
-    event_type: str = Field(min_length=1, max_length=50)
-    payload: dict = Field(default_factory=dict)
-    location_id: str | None = None
-    importance: float = Field(default=0.5, ge=0.0, le=1.0)
+    """导演事件注入请求"""
+
+    event_type: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="事件类型",
+        examples=["activity", "shutdown", "broadcast", "weather_change"],
+    )
+    payload: dict = Field(
+        default_factory=dict,
+        description="事件负载数据",
+        examples=[{"message": "咖啡馆举办周末派对", "duration_hours": 2}],
+    )
+    location_id: str | None = Field(
+        None,
+        description="事件发生地点 ID",
+        examples=["downtown_cafe"],
+    )
+    importance: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="事件重要性（0-1）",
+        examples=[0.8],
+    )
 
 
 class TickResponse(BaseModel):
-    run_id: UUID
-    tick_no: int
-    accepted_count: int
-    rejected_count: int
+    """Tick 推进响应"""
+
+    run_id: UUID = Field(..., description="运行 ID")
+    tick_no: int = Field(..., description="tick 编号")
+    accepted_count: int = Field(..., description="接受的动作数量")
+    rejected_count: int = Field(..., description="拒绝的动作数量")
 
 
-@router.post("", response_model=RunResponse)
+@router.post(
+    "",
+    response_model=RunResponse,
+    summary="创建新运行",
+    description="创建一个新的 AI 模拟运行，可选择自动填充演示数据",
+)
 async def create_run(
     payload: RunCreateRequest,
     session: AsyncSession = Depends(get_db_session),
@@ -110,7 +153,12 @@ async def create_run(
     return RunResponse(id=UUID(created.id), name=created.name, status=created.status)
 
 
-@router.get("", response_model=list[RunResponse])
+@router.get(
+    "",
+    response_model=list[RunResponse],
+    summary="列出所有运行",
+    description="获取所有模拟运行的列表",
+)
 async def list_runs(
     session: AsyncSession = Depends(get_db_session),
 ) -> list[RunResponse]:
@@ -130,7 +178,12 @@ async def list_runs(
     ]
 
 
-@router.post("/{run_id}/start", response_model=RunResponse)
+@router.post(
+    "/{run_id}/start",
+    response_model=RunResponse,
+    summary="启动运行",
+    description="启动模拟运行，开始自动 tick 调度",
+)
 async def start_run(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),
@@ -188,7 +241,12 @@ async def start_run(
     return RunResponse(id=run_id, name=updated.name, status=updated.status)
 
 
-@router.post("/{run_id}/pause", response_model=RunResponse)
+@router.post(
+    "/{run_id}/pause",
+    response_model=RunResponse,
+    summary="暂停运行",
+    description="暂停模拟运行，停止 tick 调度",
+)
 async def pause_run(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),
@@ -207,7 +265,12 @@ async def pause_run(
     return RunResponse(id=run_id, name=updated.name, status=updated.status)
 
 
-@router.post("/{run_id}/resume", response_model=RunResponse)
+@router.post(
+    "/{run_id}/resume",
+    response_model=RunResponse,
+    summary="恢复运行",
+    description="恢复已暂停的模拟运行",
+)
 async def resume_run(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),
@@ -220,7 +283,12 @@ async def resume_run(
     return RunResponse(id=run_id, name=updated.name, status=updated.status)
 
 
-@router.post("/{run_id}/tick", response_model=TickResponse)
+@router.post(
+    "/{run_id}/tick",
+    response_model=TickResponse,
+    summary="推进 Tick",
+    description="手动推进模拟运行的一个 tick，执行 agent 动作和世界更新",
+)
 async def advance_run_tick(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),
@@ -246,7 +314,11 @@ async def advance_run_tick(
     )
 
 
-@router.get("/{run_id}")
+@router.get(
+    "/{run_id}",
+    summary="获取运行详情",
+    description="获取指定模拟运行的详细状态信息",
+)
 async def get_run(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),
@@ -264,7 +336,11 @@ async def get_run(
     }
 
 
-@router.get("/{run_id}/timeline")
+@router.get(
+    "/{run_id}/timeline",
+    summary="获取时间线",
+    description="获取模拟运行的完整事件时间线",
+)
 async def get_timeline(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),
@@ -291,7 +367,11 @@ async def get_timeline(
     }
 
 
-@router.get("/{run_id}/world")
+@router.get(
+    "/{run_id}/world",
+    summary="获取世界快照",
+    description="获取模拟世界的实时快照，包括地点、agent 分布和最近事件",
+)
 async def get_world_snapshot(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),
@@ -364,7 +444,23 @@ async def get_world_snapshot(
     }
 
 
-@router.post("/{run_id}/director/events")
+@router.post(
+    "/{run_id}/director/events",
+    summary="导演事件注入",
+    description="""
+**导演系统 - 注入事件**
+
+作为导演向模拟世界注入事件，影响 agent 行为和世界走向。
+
+支持的事件类型：
+- `activity`: 举办活动（如"咖啡馆派对"）
+- `shutdown`: 临时关闭地点
+- `broadcast`: 全服广播消息
+- `weather_change`: 天气变化
+
+注意：导演系统仅限于简单世界事件，不允许直接修改 agent 属性或关系。
+    """,
+)
 async def inject_director_event(
     run_id: UUID,
     payload: DirectorEventRequest,
@@ -385,7 +481,17 @@ async def inject_director_event(
     return {"run_id": str(run_id), "status": "queued"}
 
 
-@router.delete("/{run_id}")
+@router.delete(
+    "/{run_id}",
+    summary="删除运行",
+    description="""
+**删除模拟运行**
+
+删除指定运行及其所有关联数据（agents、locations、events、memories、relationships）。
+
+这是一个破坏性操作，无法撤销。
+    """,
+)
 async def delete_run(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),

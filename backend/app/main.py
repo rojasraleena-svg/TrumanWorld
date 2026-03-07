@@ -18,7 +18,58 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="AI Truman World API",
         version="0.1.0",
-        description="MVP backend for the TrumanWorld simulation system.",
+        description="""
+## AI Truman World - AI 社会模拟系统
+
+一个可持续运行、可观察、可回放的 AI 社会模拟系统。创建 10-20 个拥有独立人格的 AI agent，让它们在小镇中生活、社交、成长。
+
+### 核心功能
+
+- **Run 管理**: 创建、启动、暂停、恢复模拟运行
+- **Agent 观测**: 查看任意 agent 的状态、记忆、关系和事件
+- **时间线**: 获取完整的事件时间线
+- **世界快照**: 查看世界状态的实时快照
+- **导演系统**: 注入事件影响世界走向
+
+### 技术栈
+
+- **Backend**: Python + FastAPI
+- **AI Cognition**: Claude Agent SDK
+- **Database**: PostgreSQL + pgvector
+- **Cache**: Redis
+        """,
+        openapi_tags=[
+            {
+                "name": "health",
+                "description": "健康检查接口",
+            },
+            {
+                "name": "runs",
+                "description": """
+**模拟运行管理**
+
+创建和控制 AI 模拟运行 (Run)，包括：
+- 创建新 run（可选填充演示数据）
+- 启动/暂停/恢复运行
+- 删除 run
+- 查看 run 列表和详情
+- 推进 tick
+                """,
+            },
+            {
+                "name": "agents",
+                "description": """
+**Agent 观测**
+
+查看模拟运行中的 agent 详细信息：
+- 列出所有 agent
+- 获取 agent 详情（状态、记忆、关系、事件）
+                """,
+            },
+        ],
+        openapi_url="/api/openapi.json",
+        docs_url="/api/docs",
+        redoc_url="/api/redoc",
     )
     app.add_middleware(
         CORSMiddleware,

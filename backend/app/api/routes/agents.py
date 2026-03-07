@@ -15,7 +15,11 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-@router.get("")
+@router.get(
+    "",
+    summary="列出所有 Agent",
+    description="获取指定运行中所有 agent 的基本信息列表",
+)
 async def list_agents(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),
@@ -43,7 +47,19 @@ async def list_agents(
     }
 
 
-@router.get("/{agent_id}")
+@router.get(
+    "/{agent_id}",
+    summary="获取 Agent 详情",
+    description="""
+**获取 Agent 完整信息**
+
+返回指定 agent 的详细信息，包括：
+- 基本状态（名称、职业、状态、当前目标）
+- 最近事件（带 agent 和地点名称）
+- 记忆列表（短期、情景、反思）
+- 关系网络（熟悉度、信任度、亲和力）
+    """,
+)
 async def get_agent(
     run_id: UUID,
     agent_id: str,
