@@ -6,6 +6,12 @@ export type RunSummary = {
   tick_minutes?: number;
 };
 
+export type CreateRunResponse = {
+  id: string;
+  name: string;
+  status: string;
+};
+
 export type TimelineEvent = {
   id: string;
   tick_no: number;
@@ -60,6 +66,27 @@ async function safeFetch<T>(path: string, fallback: T): Promise<T> {
   }
 }
 
+async function safePost<T>(path: string, body: unknown, fallback: T): Promise<T> {
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      return fallback;
+    }
+
+    return (await response.json()) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function getRun(runId: string): Promise<RunSummary | null> {
   return safeFetch<RunSummary | null>(`/runs/${runId}`, null);
 }
@@ -70,4 +97,20 @@ export async function getTimeline(runId: string): Promise<{ run_id: string; even
 
 export async function getAgent(runId: string, agentId: string): Promise<AgentDetails | null> {
   return safeFetch<AgentDetails | null>(`/runs/${runId}/agents/${agentId}`, null);
+}
+
+export async function createRun(name: string): Promise<CreateRunResponse | null> {
+  return safePost<CreateRunResponse | null>("/runs", { name }, null);
+}
+
+export async function injectDirectorEvent(
+  runId: string,
+  input: {
+    event_type: string;
+    payload: Record<string, unknown>;
+    location_id?: string;
+    importance?: number;
+  },
+): Promise<{ run_id: string; status: string } | null> {
+  return safePost<{ run_id: string; status: string } | null>(`/runs/${runId}/director/events`, input, null);
 }

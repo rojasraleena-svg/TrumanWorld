@@ -1,4 +1,6 @@
 import { NavLink } from "@/components/nav-link";
+import { CreateRunForm } from "@/components/create-run-form";
+import { SectionCard } from "@/components/section-card";
 
 export default function HomePage() {
   return (
@@ -31,6 +33,10 @@ export default function HomePage() {
             检查单个 agent 的状态、记忆和关系。
           </NavLink>
         </section>
+
+        <SectionCard title="Create Run" description="最小导演控制动作：创建新的模拟运行。">
+          <CreateRunForm />
+        </SectionCard>
       </div>
     </main>
   );

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DirectorEventForm } from "@/components/director-event-form";
 import { MetricChip } from "@/components/metric-chip";
 import { SectionCard } from "@/components/section-card";
 import { getRun } from "@/lib/api";
@@ -57,8 +58,11 @@ export default async function RunPage({ params }: RunPageProps) {
             </Link>
           </SectionCard>
         </div>
+
+        <SectionCard title="Director Event Injection" description="向世界注入一个简单事件。">
+          <DirectorEventForm runId={runId} />
+        </SectionCard>
       </div>
     </main>
   );
 }
-
