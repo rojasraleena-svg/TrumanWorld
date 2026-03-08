@@ -156,12 +156,14 @@ class TrumanWorldCoordinator:
         nearby_agent_id: str | None,
         current_location_id: str | None,
         home_location_id: str | None,
+        agent_id: str | None = None,
     ):
         return build_truman_world_decision(
             world=world,
             nearby_agent_id=nearby_agent_id,
             current_location_id=current_location_id,
             home_location_id=home_location_id,
+            agent_id=agent_id,
         )
 
     def fallback_intent(

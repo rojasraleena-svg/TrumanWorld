@@ -67,7 +67,7 @@ def build_default_talk_message() -> str:
 
 
 HeuristicDecisionHook = Callable[
-    ["RuntimeWorldContext", str | None, str | None, str | None],
+    ["RuntimeWorldContext", str | None, str | None, str | None, str | None],
     RuntimeDecision | None,
 ]
 
@@ -104,11 +104,13 @@ class HeuristicDecisionProvider(AgentDecisionProvider):
             )
 
         if self._decision_hook is not None:
+            agent_id = getattr(invocation, "agent_id", None)
             hook_decision = self._decision_hook(
                 world=world,
                 nearby_agent_id=nearby_agent_id,
                 current_location_id=current_location_id,
                 home_location_id=home_location_id,
+                agent_id=agent_id,
             )
             if hook_decision is not None:
                 return hook_decision

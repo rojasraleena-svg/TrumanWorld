@@ -243,7 +243,7 @@ class TrumanWorldSeedBuilder:
             name="Meryl",
             occupation="医院职员",
             home_location_id=f"{run_id}-apartment",
-            current_location_id=f"{run_id}-hospital",
+            current_location_id=f"{run_id}-apartment",
             current_goal="work",
             personality={"agreeableness": 0.72, "conscientiousness": 0.7},
             profile=build_scenario_agent_profile(
