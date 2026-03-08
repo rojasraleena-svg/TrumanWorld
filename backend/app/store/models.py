@@ -135,3 +135,40 @@ class Memory(Base):
     consolidated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DirectorMemory(Base):
+    """导演干预记忆 - 记录导演的决策历史和干预效果"""
+
+    __tablename__ = "director_memories"
+    __table_args__ = (
+        Index("ix_director_memories_run_id_tick_no", "run_id", "tick_no"),
+        Index("ix_director_memories_run_id_scene_goal", "run_id", "scene_goal"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("simulation_runs.id"), nullable=False)
+    tick_no: Mapped[int] = mapped_column(Integer, default=0)
+    # 场景目标
+    scene_goal: Mapped[str] = mapped_column(String(50), nullable=False)
+    # 目标 cast agent
+    target_cast_ids: Mapped[str] = mapped_column(Text, nullable=False)  # JSON array
+    # 干预优先级
+    priority: Mapped[str] = mapped_column(String(20), default="advisory")
+    urgency: Mapped[str] = mapped_column(String(20), default="advisory")
+    # 干预内容
+    message_hint: Mapped[str | None] = mapped_column(Text)
+    target_agent_id: Mapped[str | None] = mapped_column(String(64))
+    reason: Mapped[str | None] = mapped_column(Text)
+    # 效果追踪
+    was_executed: Mapped[bool] = mapped_column(default=False)
+    effectiveness_score: Mapped[float | None] = mapped_column(Float)
+    # 触发时的世界状态快照
+    trigger_suspicion_score: Mapped[float] = mapped_column(Float, default=0.0)
+    trigger_continuity_risk: Mapped[str] = mapped_column(String(20), default="stable")
+    # 冷却信息
+    cooldown_ticks: Mapped[int] = mapped_column(Integer, default=3)
+    cooldown_until_tick: Mapped[int | None] = mapped_column(Integer)
+    # 元数据
+    metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

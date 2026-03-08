@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from uuid import uuid4
 
@@ -8,7 +9,15 @@ from datetime import UTC, datetime
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.store.models import Agent, Event, Location, Memory, Relationship, SimulationRun
+from app.store.models import (
+    Agent,
+    DirectorMemory,
+    Event,
+    Location,
+    Memory,
+    Relationship,
+    SimulationRun,
+)
 
 
 class RunRepository:
@@ -254,3 +263,118 @@ class LocationRepository:
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
+
+
+class DirectorMemoryRepository:
+    """导演干预记忆持久化"""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def create(
+        self,
+        run_id: str,
+        tick_no: int,
+        scene_goal: str,
+        target_cast_ids: list[str],
+        priority: str = "advisory",
+        urgency: str = "advisory",
+        message_hint: str | None = None,
+        target_agent_id: str | None = None,
+        reason: str | None = None,
+        trigger_suspicion_score: float = 0.0,
+        trigger_continuity_risk: str = "stable",
+        cooldown_ticks: int = 3,
+    ) -> DirectorMemory:
+        """创建导演干预记忆"""
+        memory = DirectorMemory(
+            id=str(uuid4()),
+            run_id=run_id,
+            tick_no=tick_no,
+            scene_goal=scene_goal,
+            target_cast_ids=json.dumps(target_cast_ids),
+            priority=priority,
+            urgency=urgency,
+            message_hint=message_hint,
+            target_agent_id=target_agent_id,
+            reason=reason,
+            trigger_suspicion_score=trigger_suspicion_score,
+            trigger_continuity_risk=trigger_continuity_risk,
+            cooldown_ticks=cooldown_ticks,
+            cooldown_until_tick=tick_no + cooldown_ticks,
+        )
+        self.session.add(memory)
+        await self.session.commit()
+        await self.session.refresh(memory)
+        return memory
+
+    async def list_for_run(
+        self,
+        run_id: str,
+        limit: int = 20,
+    ) -> Sequence[DirectorMemory]:
+        """获取指定 run 的导演干预历史"""
+        stmt: Select[tuple[DirectorMemory]] = (
+            select(DirectorMemory)
+            .where(DirectorMemory.run_id == run_id)
+            .order_by(DirectorMemory.tick_no.desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_recent_goals(
+        self,
+        run_id: str,
+        current_tick: int,
+        lookback_ticks: int = 10,
+    ) -> list[str]:
+        """获取最近干预的场景目标列表（用于避免重复干预）"""
+        stmt: Select[tuple[DirectorMemory]] = select(DirectorMemory).where(
+            DirectorMemory.run_id == run_id,
+            DirectorMemory.tick_no >= current_tick - lookback_ticks,
+        )
+        result = await self.session.execute(stmt)
+        memories = result.scalars().all()
+        return [m.scene_goal for m in memories]
+
+    async def get_active_cooldowns(
+        self,
+        run_id: str,
+        current_tick: int,
+    ) -> list[str]:
+        """获取当前仍在冷却期的场景目标"""
+        stmt: Select[tuple[DirectorMemory]] = select(DirectorMemory).where(
+            DirectorMemory.run_id == run_id,
+            DirectorMemory.cooldown_until_tick > current_tick,
+        )
+        result = await self.session.execute(stmt)
+        memories = result.scalars().all()
+        return [m.scene_goal for m in memories]
+
+    async def mark_executed(
+        self,
+        memory_id: str,
+        effectiveness_score: float | None = None,
+    ) -> DirectorMemory | None:
+        """标记干预已执行"""
+        memory = await self.session.get(DirectorMemory, memory_id)
+        if memory is None:
+            return None
+        memory.was_executed = True
+        memory.effectiveness_score = effectiveness_score
+        await self.session.commit()
+        await self.session.refresh(memory)
+        return memory
+
+    async def get_latest_suspicion_score(self, run_id: str) -> float:
+        """获取最近一次干预时记录的怀疑度"""
+        stmt: Select[tuple[DirectorMemory]] = (
+            select(DirectorMemory)
+            .where(DirectorMemory.run_id == run_id)
+            .order_by(DirectorMemory.tick_no.desc())
+            .limit(1)
+        )
+        result = await self.session.execute(stmt)
+        memory = result.scalar_one_or_none()
+        return memory.trigger_suspicion_score if memory else 0.0
