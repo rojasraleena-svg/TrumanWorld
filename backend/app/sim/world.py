@@ -6,12 +6,48 @@ from datetime import datetime, timedelta
 from typing import Any
 
 
+# 职业外观映射：定义不同职业的可观察特征
+OCCUPATION_APPEARANCE = {
+    "insurance clerk": {
+        "appearance": "穿着正装",
+        "typical_activity": "处理文件",
+        "typical_location": "办公室",
+    },
+    "hospital staff": {
+        "appearance": "穿着便装，可能刚下班",
+        "typical_activity": "通勤或休息",
+        "typical_location": "医院或家中",
+    },
+    "office coworker": {
+        "appearance": "穿着正装",
+        "typical_activity": "处理文件",
+        "typical_location": "办公室",
+    },
+    "barista": {
+        "appearance": "穿着围裙",
+        "typical_activity": "制作咖啡",
+        "typical_location": "咖啡馆",
+    },
+    "shop regular": {
+        "appearance": "穿着休闲",
+        "typical_activity": "喝咖啡或看书",
+        "typical_location": "公共空间",
+    },
+    "resident": {
+        "appearance": "穿着休闲",
+        "typical_activity": "日常活动",
+        "typical_location": "小镇各处",
+    },
+}
+
+
 @dataclass
 class LocationState:
     id: str
     name: str
     capacity: int = 10
     occupants: set[str] = field(default_factory=set)
+    location_type: str | None = None  # 新增：地点类型
 
 
 @dataclass
@@ -20,6 +56,33 @@ class AgentState:
     name: str
     location_id: str
     status: dict[str, Any] = field(default_factory=dict)
+    occupation: str | None = None  # 新增：职业
+    workplace_id: str | None = None  # 新增：工作地点 ID
+
+    def get_observable_cues(self, location_type: str | None = None) -> dict[str, Any]:
+        """返回可观察的行为线索，基于职业和当前场景推断"""
+        cues = {}
+
+        # 获取职业对应的外观特征
+        if self.occupation and self.occupation in OCCUPATION_APPEARANCE:
+            occupation_cues = OCCUPATION_APPEARANCE[self.occupation]
+            cues["appearance"] = occupation_cues["appearance"]
+            cues["typical_activity"] = occupation_cues["typical_activity"]
+
+            # 根据当前地点调整行为推断
+            if location_type == "cafe":
+                if self.occupation == "barista":
+                    cues["current_activity_hint"] = "在咖啡机后面忙碌"
+                else:
+                    cues["current_activity_hint"] = "坐在座位上"
+            elif location_type == "office":
+                cues["current_activity_hint"] = "在工位上工作"
+            elif location_type == "home":
+                cues["current_activity_hint"] = "在家休息"
+            elif location_type == "plaza":
+                cues["current_activity_hint"] = "在广场散步或闲逛"
+
+        return cues
 
 
 class WorldState:
@@ -47,6 +110,7 @@ class WorldState:
                     "name": location.name,
                     "capacity": location.capacity,
                     "occupants": sorted(location.occupants),
+                    "location_type": location.location_type,
                 }
                 for location_id, location in self.locations.items()
             },
@@ -55,10 +119,33 @@ class WorldState:
                     "name": agent.name,
                     "location_id": agent.location_id,
                     "status": deepcopy(agent.status),
+                    "occupation": agent.occupation,
+                    "workplace_id": agent.workplace_id,
                 }
                 for agent_id, agent in self.agents.items()
             },
         }
+
+    def get_observable_agents_at_location(self, location_id: str) -> list[dict[str, Any]]:
+        """获取某地点所有 agent 的可观察信息"""
+        location = self.locations.get(location_id)
+        if location is None:
+            return []
+
+        result = []
+        for agent_id in location.occupants:
+            agent = self.agents.get(agent_id)
+            if agent is None:
+                continue
+
+            observable = {
+                "id": agent.id,
+                "name": agent.name,
+                "observable_cues": agent.get_observable_cues(location.location_type),
+            }
+            result.append(observable)
+
+        return result
 
     def time_context(self) -> dict[str, Any]:
         weekday = self.current_time.weekday()

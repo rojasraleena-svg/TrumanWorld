@@ -57,6 +57,7 @@ class ContextBuilder:
                 name=location.name,
                 capacity=location.capacity,
                 occupants=set(),
+                location_type=location.location_type,
             )
             for location in locations
         }
@@ -67,11 +68,17 @@ class ContextBuilder:
             if location_id is None:
                 location_id = next(iter(location_states.keys()), "unknown")
 
+            # 从 profile 中获取工作地点信息
+            profile = agent.profile or {}
+            workplace_id = profile.get("workplace_location_id")
+
             agent_states[agent.id] = AgentState(
                 id=agent.id,
                 name=agent.name,
                 location_id=location_id,
                 status=agent.status or {},
+                occupation=agent.occupation,
+                workplace_id=workplace_id,
             )
             if location_id in location_states:
                 location_states[location_id].occupants.add(agent.id)
@@ -162,6 +169,34 @@ class ContextBuilder:
             "truman_suspicion_score": truman_suspicion_score,
             **world.time_context(),
         }
+
+        # 添加当前地点的可观察信息
+        if current_location_id:
+            location = world.get_location(current_location_id)
+            if location:
+                context["current_location_name"] = location.name
+                context["current_location_type"] = location.location_type
+
+                # 添加同地点其他 agent 的可观察信息
+                observable_agents = world.get_observable_agents_at_location(current_location_id)
+                # 过滤掉自己
+                context["observable_others"] = [
+                    a for a in observable_agents if a["id"] != nearby_agent_id
+                ]
+
+        # 添加附近 agent 的详细信息（如果有）
+        if nearby_agent_id:
+            nearby_agent = world.get_agent(nearby_agent_id)
+            if nearby_agent:
+                nearby_location = world.get_location(nearby_agent.location_id)
+                context["nearby_agent"] = {
+                    "id": nearby_agent.id,
+                    "name": nearby_agent.name,
+                    "observable_cues": nearby_agent.get_observable_cues(
+                        nearby_location.location_type if nearby_location else None
+                    ),
+                }
+
         if world_role:
             context["world_role"] = world_role
         if director_scene_goal:
