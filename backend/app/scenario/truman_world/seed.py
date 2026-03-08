@@ -216,6 +216,16 @@ class TrumanWorldSeedBuilder:
             y=2,
             attributes={"kind": "private"},
         )
+        mall = Location(
+            id=f"{run_id}-mall",
+            run_id=run_id,
+            name="港湾商场",
+            location_type="shop",
+            capacity=12,
+            x=3,
+            y=2,
+            attributes={"kind": "commercial"},
+        )
 
         truman = Agent(
             id=f"{run_id}-truman",
@@ -344,7 +354,7 @@ class TrumanWorldSeedBuilder:
             metadata["world_start_time"] = DEFAULT_WORLD_START_TIME.isoformat()
             run.metadata_json = metadata
 
-        self.session.add_all([plaza, apartment, office, cafe, hospital, bachelor_apt])
+        self.session.add_all([plaza, apartment, office, cafe, hospital, bachelor_apt, mall])
         await self.session.flush()
         self.session.add_all([truman, spouse, friend, neighbor, alice])
         await self.session.flush()

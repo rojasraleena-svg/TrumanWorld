@@ -30,7 +30,7 @@ async def build_agent_recent_events(
 
     for agent in agents:
         include_director_system_events = get_world_role(agent.profile) == "cast"
-        current_location_id = agent_states.get(agent.id, AgentState()).location_id
+        current_location_id = agent_states[agent.id].location_id if agent.id in agent_states else None
         recent_events = await agent_repo.list_recent_events(
             run_id,
             agent.id,

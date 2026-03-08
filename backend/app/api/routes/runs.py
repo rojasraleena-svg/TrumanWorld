@@ -24,6 +24,7 @@ from app.infra.logging import get_logger
 from app.scenario.truman_world.types import get_agent_config_id
 from app.sim.context import get_run_world_time
 from app.sim.run_lifecycle import ensure_run_started, pause_run_execution
+from app.sim.scheduler import get_scheduler
 from app.sim.service import SimulationService
 from app.store.models import Agent, Event, Location, SimulationRun
 from app.store.repositories import (

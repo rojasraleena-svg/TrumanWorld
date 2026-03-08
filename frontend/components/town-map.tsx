@@ -49,6 +49,10 @@ const SVG_W = 700;
 const SVG_H = 440;
 const PADDING = 88;
 const VIEWBOX_MIN_WIDTH = 300;
+// 缩小时 viewBox 可超出 SVG 画布，设为 SVG_W 的 2 倍即可缩小到原始大小的 50%
+const VIEWBOX_MAX_WIDTH = SVG_W * 2;
+// 节点整体缩放系数，1.0 = 原始大小
+const NODE_SCALE = 0.7;
 
 type ViewBox = {
   x: number;
@@ -61,7 +65,7 @@ const LOCATION_STYLES: Record<string, { icon: string; color: string; bgColor: st
   cafe: { icon: "☕", color: "#d97706", bgColor: "#fef3c7", label: "咖啡馆" },
   plaza: { icon: "🌳", color: "#0284c7", bgColor: "#e0f2fe", label: "广场" },
   park: { icon: "🌲", color: "#059669", bgColor: "#d1fae5", label: "公园" },
-  shop: { icon: "🏪", color: "#7c3aed", bgColor: "#ede9fe", label: "商店" },
+  shop: { icon: "🏪", color: "#7c3aed", bgColor: "#ede9fe", label: "商场" },
   home: { icon: "🏠", color: "#db2777", bgColor: "#fce7f3", label: "住宅" },
   office: { icon: "🏢", color: "#0369a1", bgColor: "#e0f2fe", label: "办公室" },
   hospital: { icon: "🏥", color: "#dc2626", bgColor: "#fee2e2", label: "医院" },
@@ -89,10 +93,10 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function clampViewBox(next: ViewBox): ViewBox {
-  const width = clamp(next.width, VIEWBOX_MIN_WIDTH, SVG_W);
+  const width = clamp(next.width, VIEWBOX_MIN_WIDTH, VIEWBOX_MAX_WIDTH);
   const height = (width / SVG_W) * SVG_H;
-  const x = clamp(next.x, 0, SVG_W - width);
-  const y = clamp(next.y, 0, SVG_H - height);
+  const x = clamp(next.x, -(width - SVG_W) / 2, SVG_W - width / 2);
+  const y = clamp(next.y, -(height - SVG_H) / 2, SVG_H - height / 2);
 
   return { x, y, width, height };
 }
@@ -351,7 +355,7 @@ export function TownMap({
               { color: "bg-amber-500", label: "咖啡馆" },
               { color: "bg-sky-500", label: "广场" },
               { color: "bg-emerald-500", label: "公园" },
-              { color: "bg-violet-500", label: "商店" },
+              { color: "bg-violet-500", label: "商场" },
               { color: "bg-pink-500", label: "住宅" },
               { color: "bg-blue-500", label: "办公室" },
               { color: "bg-red-500", label: "医院" },
@@ -476,7 +480,7 @@ export function TownMap({
             </filter>
             {/* Agent logo 圆形裁剪 */}
             <clipPath id="agentLogoClip">
-              <circle cx="0" cy="0" r="11" />
+              <circle cx="0" cy="0" r={11 * NODE_SCALE} />
             </clipPath>
           </defs>
 
@@ -537,7 +541,7 @@ export function TownMap({
           {nodes.map((node) => {
             const style = LOCATION_STYLES[node.type] ?? LOCATION_STYLES.default;
             const isHighlighted = node.id === highlightedLocationId;
-            const outerRadius = 32 + node.capacity * 2.5;
+            const outerRadius = (32 + node.capacity * 2.5) * NODE_SCALE;
             const heatLevel = getHeatLevel(node.heat);
             const hasHeat = node.heat > 0.15;
 
@@ -574,7 +578,7 @@ export function TownMap({
                   <motion.circle
                     cx={node.svgX}
                     cy={node.svgY}
-                    r={outerRadius + 15 + node.heat * 20}
+                    r={outerRadius + 15 * NODE_SCALE + node.heat * 20 * NODE_SCALE}
                     fill={heatLevel.glowColor}
                     filter={node.heat > 0.6 ? "url(#heatGlowStrong)" : "url(#heatGlow)"}
                     initial={{ opacity: 0 }}
@@ -608,7 +612,7 @@ export function TownMap({
                   <motion.circle
                     cx={node.svgX}
                     cy={node.svgY}
-                    r={outerRadius + 8}
+                    r={outerRadius + 8 * NODE_SCALE}
                     fill="none"
                     stroke={heatLevel.color}
                     strokeWidth={2 + node.heat * 2}
@@ -630,7 +634,7 @@ export function TownMap({
                   <motion.circle
                     cx={node.svgX}
                     cy={node.svgY}
-                    r={24}
+                    r={24 * NODE_SCALE}
                     fill="rgba(251, 191, 36, 0.3)"
                     filter="url(#heatGlow)"
                     initial={{ opacity: 0.3 }}
@@ -641,7 +645,7 @@ export function TownMap({
                 <circle
                   cx={node.svgX}
                   cy={node.svgY}
-                  r={28}
+                  r={28 * NODE_SCALE}
                   fill={timeStyle.isDark ? "rgba(30, 41, 59, 0.95)" : "rgba(255,255,255,0.96)"}
                   stroke={style.color}
                   strokeWidth={isHighlighted ? 5 : 3}
@@ -651,31 +655,31 @@ export function TownMap({
                 {timeStyle.isDark && node.occupantCount > 0 && (
                   <>
                     <rect
-                      x={node.svgX - 8}
-                      y={node.svgY - 6}
-                      width={6}
-                      height={6}
+                      x={node.svgX - 8 * NODE_SCALE}
+                      y={node.svgY - 6 * NODE_SCALE}
+                      width={6 * NODE_SCALE}
+                      height={6 * NODE_SCALE}
                       fill="rgba(251, 191, 36, 0.8)"
                       rx={1}
                     />
                     <rect
-                      x={node.svgX + 2}
-                      y={node.svgY - 6}
-                      width={6}
-                      height={6}
+                      x={node.svgX + 2 * NODE_SCALE}
+                      y={node.svgY - 6 * NODE_SCALE}
+                      width={6 * NODE_SCALE}
+                      height={6 * NODE_SCALE}
                       fill="rgba(251, 191, 36, 0.6)"
                       rx={1}
                     />
                   </>
                 )}
-                <text x={node.svgX} y={node.svgY + 8} textAnchor="middle" fontSize="24">
+                <text x={node.svgX} y={node.svgY + 8 * NODE_SCALE} textAnchor="middle" fontSize={24 * NODE_SCALE}>
                   {style.icon}
                 </text>
                 <text
                   x={node.svgX}
-                  y={node.svgY + outerRadius + 22}
+                  y={node.svgY + outerRadius + 22 * NODE_SCALE}
                   textAnchor="middle"
-                  fontSize="13"
+                  fontSize={13 * NODE_SCALE}
                   fontWeight="700"
                   fill="#334155"
                 >
@@ -685,18 +689,18 @@ export function TownMap({
                 {node.occupantCount > 0 ? (
                   <>
                     <circle
-                      cx={node.svgX + 22}
-                      cy={node.svgY - 20}
-                      r={12}
+                      cx={node.svgX + 22 * NODE_SCALE}
+                      cy={node.svgY - 20 * NODE_SCALE}
+                      r={12 * NODE_SCALE}
                       fill="#ef4444"
                       stroke="white"
                       strokeWidth={3}
                     />
                     <text
-                      x={node.svgX + 22}
-                      y={node.svgY - 16}
+                      x={node.svgX + 22 * NODE_SCALE}
+                      y={node.svgY - 16 * NODE_SCALE}
                       textAnchor="middle"
-                      fontSize="10"
+                      fontSize={10 * NODE_SCALE}
                       fontWeight="700"
                       fill="white"
                     >
@@ -708,7 +712,7 @@ export function TownMap({
                 {node.occupants.map((agent, index) => {
                   // agent 头像只分布在上半圆（避开下方的地点名称）
                   // 角度范围：-150° 到 150°（避开下方 60° 区域）
-                  const ringRadius = outerRadius + 22;
+                  const ringRadius = outerRadius + 22 * NODE_SCALE;
                   const totalAgents = node.occupants.length;
                   const startAngle = (-150 * Math.PI) / 180;
                   const endAngle = (150 * Math.PI) / 180;
@@ -756,10 +760,10 @@ export function TownMap({
                       <circle
                         cx={agentX}
                         cy={agentY}
-                        r={16}
+                        r={16 * NODE_SCALE}
                         fill="rgba(255,255,255,0.92)"
                         stroke={fill}
-                        strokeWidth={4}
+                        strokeWidth={4 * NODE_SCALE}
                         filter="url(#softShadow)"
                       />
                       {hasLogo ? (
@@ -768,16 +772,16 @@ export function TownMap({
                           <g transform={`translate(${agentX}, ${agentY})`} clipPath="url(#agentLogoClip)">
                             <image
                               href={`/agents/${agent.config_id}.svg`}
-                              x={-11}
-                              y={-11}
-                              width={22}
-                              height={22}
+                              x={-11 * NODE_SCALE}
+                              y={-11 * NODE_SCALE}
+                              width={22 * NODE_SCALE}
+                              height={22 * NODE_SCALE}
                             />
                           </g>
                           <circle
                             cx={agentX}
                             cy={agentY}
-                            r={11}
+                            r={11 * NODE_SCALE}
                             fill="none"
                             stroke={fill}
                             strokeWidth={2}
@@ -787,12 +791,12 @@ export function TownMap({
                       ) : (
                         // 默认显示首字母
                         <>
-                          <circle cx={agentX} cy={agentY} r={11} fill={fill} opacity={0.9} />
+                          <circle cx={agentX} cy={agentY} r={11 * NODE_SCALE} fill={fill} opacity={0.9} />
                           <text
                             x={agentX}
-                            y={agentY + 4}
+                            y={agentY + 4 * NODE_SCALE}
                             textAnchor="middle"
-                            fontSize="10"
+                            fontSize={10 * NODE_SCALE}
                             fontWeight="700"
                             fill="white"
                           >
