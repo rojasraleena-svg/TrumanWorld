@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type WheelEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { AgentSummary, WorldSnapshot } from "@/lib/types";
+import { calculateLocationHeat, getHeatLevel, getTimeOfDay, getTimeOfDayStyle } from "@/lib/world-utils";
 
 interface LocationNode {
   id: string;
@@ -13,6 +14,7 @@ interface LocationNode {
   capacity: number;
   occupantCount: number;
   occupants: AgentSummary[];
+  heat: number;
 }
 
 interface PositionedLocationNode extends LocationNode {
@@ -54,13 +56,14 @@ type ViewBox = {
   height: number;
 };
 
-const LOCATION_STYLES: Record<string, { icon: string; color: string; bgColor: string }> = {
-  cafe: { icon: "☕", color: "#d97706", bgColor: "#fef3c7" },
-  plaza: { icon: "🌳", color: "#0284c7", bgColor: "#e0f2fe" },
-  park: { icon: "🌲", color: "#059669", bgColor: "#d1fae5" },
-  shop: { icon: "🏪", color: "#7c3aed", bgColor: "#ede9fe" },
-  home: { icon: "🏠", color: "#db2777", bgColor: "#fce7f3" },
-  default: { icon: "📍", color: "#64748b", bgColor: "#f8fafc" },
+const LOCATION_STYLES: Record<string, { icon: string; color: string; bgColor: string; label: string }> = {
+  cafe: { icon: "☕", color: "#d97706", bgColor: "#fef3c7", label: "咖啡馆" },
+  plaza: { icon: "🌳", color: "#0284c7", bgColor: "#e0f2fe", label: "广场" },
+  park: { icon: "🌲", color: "#059669", bgColor: "#d1fae5", label: "公园" },
+  shop: { icon: "🏪", color: "#7c3aed", bgColor: "#ede9fe", label: "商店" },
+  home: { icon: "🏠", color: "#db2777", bgColor: "#fce7f3", label: "住宅" },
+  office: { icon: "🏢", color: "#0369a1", bgColor: "#e0f2fe", label: "办公室" },
+  default: { icon: "📍", color: "#64748b", bgColor: "#f8fafc", label: "地点" },
 };
 
 function agentColor(agentId: string): string {
@@ -102,6 +105,7 @@ function buildMapData(world: WorldSnapshot) {
     capacity: location.capacity,
     occupantCount: location.occupants.length,
     occupants: location.occupants,
+    heat: calculateLocationHeat(location.id, world.recent_events),
   }));
 
   const xValues = rawNodes.map((node) => node.x);
@@ -190,6 +194,11 @@ export function TownMap({
   } | null>(null);
 
   const { nodes, links, movePaths } = useMemo(() => buildMapData(world), [world]);
+
+  // 昼夜循环效果
+  const hour = world.world_clock?.hour ?? 12;
+  const timeOfDay = getTimeOfDay(hour);
+  const timeStyle = getTimeOfDayStyle(timeOfDay);
 
   const linkCoordinates = links
     .map((link) => {
@@ -287,58 +296,127 @@ export function TownMap({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45 }}
-      className="flex h-full min-h-[460px] flex-col rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur"
+      className={`flex h-full min-h-[460px] flex-col rounded-[28px] border p-4 shadow-sm backdrop-blur transition-colors duration-1000 ${
+        timeStyle.isDark 
+          ? "border-slate-700/50 bg-slate-800/80" 
+          : "border-white/70 bg-white/80"
+      }`}
     >
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-xs uppercase tracking-[0.22em] text-moss">小镇地图</div>
-          <p className="mt-1 text-sm text-slate-500">拖拽平移、滚轮缩放，点击地点或居民查看更多信息。</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase tracking-[0.22em] text-moss">小镇地图</span>
+            {/* 当前时段指示 */}
+            <span className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs ${
+              timeStyle.isDark 
+                ? "bg-slate-700 text-slate-200" 
+                : "bg-slate-100 text-slate-600"
+            }`}>
+              <span>{timeStyle.icon}</span>
+              <span>{timeStyle.label}</span>
+              <span className="text-slate-400">
+                {world.world_clock?.time ?? `${hour}:00`}
+              </span>
+            </span>
+          </div>
+          <p className={`mt-1 text-sm ${timeStyle.isDark ? "text-slate-400" : "text-slate-500"}`}>
+            拖拽平移、滚轮缩放，点击地点查看详情。夜晚时有人的地点会亮灯。
+          </p>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-slate-500">
-          <span className="flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1">
+        <div className={`flex flex-wrap items-center justify-end gap-2 text-xs ${timeStyle.isDark ? "text-slate-400" : "text-slate-500"}`}>
+          {/* 地点类型图例 */}
+          <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 ${timeStyle.isDark ? "bg-slate-700" : "bg-slate-50"}`}>
             <span className="h-2 w-2 rounded-full bg-amber-500" />
             咖啡馆
           </span>
-          <span className="flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1">
+          <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 ${timeStyle.isDark ? "bg-slate-700" : "bg-slate-50"}`}>
             <span className="h-2 w-2 rounded-full bg-sky-500" />
             广场
           </span>
-          <span className="flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1">
+          <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 ${timeStyle.isDark ? "bg-slate-700" : "bg-slate-50"}`}>
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
             公园
           </span>
-          <span className="flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1">
+          <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 ${timeStyle.isDark ? "bg-slate-700" : "bg-slate-50"}`}>
             <span className="h-2 w-2 rounded-full bg-violet-500" />
             商店
           </span>
-          <span className="flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1">
+          <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 ${timeStyle.isDark ? "bg-slate-700" : "bg-slate-50"}`}>
             <span className="h-2 w-2 rounded-full bg-pink-500" />
             住宅
           </span>
+          {/* 分隔线 */}
+          <span className={`h-4 w-px ${timeStyle.isDark ? "bg-slate-600" : "bg-slate-200"}`} />
+          {/* 热力等级图例 */}
+          <span className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-red-700">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-red-500 shadow-sm shadow-red-400" />
+            非常活跃
+          </span>
+          <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+            <span className="h-2 w-2 rounded-full bg-amber-500" />
+            较活跃
+          </span>
+          <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            一般
+          </span>
+          {/* 夜晚灯光图例 */}
+          {timeStyle.isDark && (
+            <>
+              <span className={`h-4 w-px ${timeStyle.isDark ? "bg-slate-600" : "bg-slate-200"}`} />
+              <span className="flex items-center gap-1 rounded-full bg-amber-100/50 px-2.5 py-1 text-amber-300">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+                灯亮
+              </span>
+            </>
+          )}
+          {/* 控制按钮 */}
+          <span className={`h-4 w-px ${timeStyle.isDark ? "bg-slate-600" : "bg-slate-200"}`} />
           <button
             type="button"
             onClick={() => zoomMap(0.85)}
-            className="rounded-full border border-slate-200 bg-white px-2 py-1 text-slate-600 transition hover:border-moss hover:text-moss"
+            className={`rounded-full border px-2 py-1 transition hover:border-moss hover:text-moss ${
+              timeStyle.isDark 
+                ? "border-slate-600 bg-slate-700 text-slate-300" 
+                : "border-slate-200 bg-white text-slate-600"
+            }`}
           >
             放大
           </button>
           <button
             type="button"
             onClick={() => zoomMap(1.15)}
-            className="rounded-full border border-slate-200 bg-white px-2 py-1 text-slate-600 transition hover:border-moss hover:text-moss"
+            className={`rounded-full border px-2 py-1 transition hover:border-moss hover:text-moss ${
+              timeStyle.isDark 
+                ? "border-slate-600 bg-slate-700 text-slate-300" 
+                : "border-slate-200 bg-white text-slate-600"
+            }`}
           >
             缩小
           </button>
           <button
             type="button"
             onClick={resetView}
-            className="rounded-full border border-slate-200 bg-white px-2 py-1 text-slate-600 transition hover:border-moss hover:text-moss"
+            className={`rounded-full border px-2 py-1 transition hover:border-moss hover:text-moss ${
+              timeStyle.isDark 
+                ? "border-slate-600 bg-slate-700 text-slate-300" 
+                : "border-slate-200 bg-white text-slate-600"
+            }`}
           >
             重置
           </button>
         </div>
       </div>
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[24px] border border-white/70 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.9),_rgba(226,232,240,0.9)_55%,_rgba(220,252,231,0.5))]">
+      <div 
+        className={`relative min-h-0 flex-1 overflow-hidden rounded-[24px] border border-white/70 bg-gradient-to-br ${timeStyle.bgGradient} transition-all duration-1000`}
+      >
+        {/* 夜晚遮罩层 */}
+        {timeStyle.isDark && (
+          <div 
+            className="pointer-events-none absolute inset-0 z-10 transition-opacity duration-1000"
+            style={{ backgroundColor: timeStyle.overlayColor }}
+          />
+        )}
         <svg
           viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
           className="h-full min-h-[420px] w-full touch-none"
@@ -355,20 +433,47 @@ export function TownMap({
             <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
               <feDropShadow dx="0" dy="10" stdDeviation="8" floodColor="rgba(15,23,42,0.12)" />
             </filter>
+            {/* 热力发光滤镜 */}
+            <filter id="heatGlow" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur stdDeviation="12" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            {/* 强热力发光滤镜 */}
+            <filter id="heatGlowStrong" x="-150%" y="-150%" width="400%" height="400%">
+              <feGaussianBlur stdDeviation="20" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
 
+          {/* 网格背景 - 根据昼夜调整颜色 */}
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path 
+              d="M 40 0 L 0 0 0 40" 
+              fill="none" 
+              stroke={timeStyle.isDark ? "rgba(148,163,184,0.06)" : "rgba(148,163,184,0.12)"} 
+              strokeWidth="1" 
+            />
+          </pattern>
           <rect width={SVG_W} height={SVG_H} fill="url(#grid)" />
+          {/* 装饰性路径 */}
           <path
             d="M 40 315 C 180 245, 270 255, 385 210 S 590 150, 670 190"
             fill="none"
-            stroke="rgba(148,163,184,0.3)"
+            stroke={timeStyle.isDark ? "rgba(148,163,184,0.15)" : "rgba(148,163,184,0.3)"}
             strokeWidth="24"
             strokeLinecap="round"
           />
           <path
             d="M 120 90 C 245 110, 320 155, 485 110 S 620 90, 660 125"
             fill="none"
-            stroke="rgba(255,255,255,0.7)"
+            stroke={timeStyle.isDark ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.7)"}
             strokeWidth="12"
             strokeLinecap="round"
           />
@@ -410,6 +515,8 @@ export function TownMap({
             const style = LOCATION_STYLES[node.type] ?? LOCATION_STYLES.default;
             const isHighlighted = node.id === highlightedLocationId;
             const outerRadius = 32 + node.capacity * 2.5;
+            const heatLevel = getHeatLevel(node.heat);
+            const hasHeat = node.heat > 0.15;
 
             return (
               <motion.g
@@ -420,25 +527,47 @@ export function TownMap({
                 data-map-interactive="true"
                 role="button"
                 tabIndex={0}
-                aria-label={`${node.name}，当前 ${node.occupantCount} / ${node.capacity} 人`}
-                onMouseEnter={() => setMapSummary(`${node.name} · ${node.occupantCount}/${node.capacity}`)}
+                aria-label={`${node.name}，当前 ${node.occupantCount} / ${node.capacity} 人，${heatLevel.label}`}
+                onMouseEnter={() => setMapSummary(`${node.name} · ${node.occupantCount}/${node.capacity} · ${heatLevel.label}`)}
                 onMouseLeave={() => setMapSummary(null)}
-                onFocus={() => setMapSummary(`${node.name} · ${node.occupantCount}/${node.capacity}`)}
+                onFocus={() => setMapSummary(`${node.name} · ${node.occupantCount}/${node.capacity} · ${heatLevel.label}`)}
                 onBlur={() => setMapSummary(null)}
                 onClick={() => {
-                  setMapSummary(`${node.name} · ${node.occupantCount}/${node.capacity}`);
+                  setMapSummary(`${node.name} · ${node.occupantCount}/${node.capacity} · ${heatLevel.label}`);
                   onLocationClick?.(node.id);
                 }}
                 onKeyDown={(event: KeyboardEvent<SVGGElement>) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    setMapSummary(`${node.name} · ${node.occupantCount}/${node.capacity}`);
+                    setMapSummary(`${node.name} · ${node.occupantCount}/${node.capacity} · ${heatLevel.label}`);
                     onLocationClick?.(node.id);
                   }
                 }}
                 className="cursor-pointer"
               >
-                <title>{`${node.name} · ${node.occupantCount}/${node.capacity}`}</title>
+                <title>{`${node.name} · ${node.occupantCount}/${node.capacity} · ${heatLevel.label}`}</title>
+                {/* 热力发光层 - 底层发光效果 */}
+                {hasHeat && (
+                  <motion.circle
+                    cx={node.svgX}
+                    cy={node.svgY}
+                    r={outerRadius + 15 + node.heat * 20}
+                    fill={heatLevel.glowColor}
+                    filter={node.heat > 0.6 ? "url(#heatGlowStrong)" : "url(#heatGlow)"}
+                    initial={{ opacity: 0 }}
+                    animate={{ 
+                      opacity: [0.4 + node.heat * 0.3, 0.6 + node.heat * 0.3, 0.4 + node.heat * 0.3],
+                      scale: [1, 1.05, 1]
+                    }}
+                    transition={{ 
+                      duration: 3 - node.heat, 
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                    style={{ transformOrigin: `${node.svgX}px ${node.svgY}px` }}
+                  />
+                )}
+                {/* 原有的外圈背景 */}
                 <motion.circle
                   cx={node.svgX}
                   cy={node.svgY}
@@ -451,15 +580,71 @@ export function TownMap({
                   style={{ transformOrigin: `${node.svgX}px ${node.svgY}px` }}
                   transition={isHighlighted ? { duration: 1.8, repeat: Infinity } : { duration: 0.2 }}
                 />
+                {/* 热力指示环 - 围绕主节点 */}
+                {hasHeat && (
+                  <motion.circle
+                    cx={node.svgX}
+                    cy={node.svgY}
+                    r={outerRadius + 8}
+                    fill="none"
+                    stroke={heatLevel.color}
+                    strokeWidth={2 + node.heat * 2}
+                    strokeDasharray={`${node.heat * 20} ${(1 - node.heat) * 20}`}
+                    initial={{ opacity: 0, rotate: 0 }}
+                    animate={{ 
+                      opacity: 0.6 + node.heat * 0.4,
+                      rotate: 360
+                    }}
+                    transition={{ 
+                      rotate: { duration: 20, repeat: Infinity, ease: "linear" },
+                      opacity: { duration: 0.5 }
+                    }}
+                    style={{ transformOrigin: `${node.svgX}px ${node.svgY}px` }}
+                  />
+                )}
+                {/* 夜晚灯光效果 - 有人时发光 */}
+                {timeStyle.isDark && node.occupantCount > 0 && (
+                  <motion.circle
+                    cx={node.svgX}
+                    cy={node.svgY}
+                    r={24}
+                    fill="rgba(251, 191, 36, 0.3)"
+                    filter="url(#heatGlow)"
+                    initial={{ opacity: 0.3 }}
+                    animate={{ opacity: [0.3, 0.6, 0.3] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                )}
                 <circle
                   cx={node.svgX}
                   cy={node.svgY}
                   r={28}
-                  fill="rgba(255,255,255,0.96)"
+                  fill={timeStyle.isDark ? "rgba(30, 41, 59, 0.95)" : "rgba(255,255,255,0.96)"}
                   stroke={style.color}
                   strokeWidth={isHighlighted ? 5 : 3}
                   filter="url(#softShadow)"
                 />
+                {/* 夜晚窗户灯光 */}
+                {timeStyle.isDark && node.occupantCount > 0 && (
+                  <>
+                    <rect
+                      x={node.svgX - 8}
+                      y={node.svgY - 6}
+                      width={6}
+                      height={6}
+                      fill="rgba(251, 191, 36, 0.8)"
+                      rx={1}
+                    />
+                    <rect
+                      x={node.svgX + 2}
+                      y={node.svgY - 6}
+                      width={6}
+                      height={6}
+                      fill="rgba(251, 191, 36, 0.6)"
+                      rx={1}
+                    />
+                  </>
+                )}
                 <text x={node.svgX} y={node.svgY + 8} textAnchor="middle" fontSize="24">
                   {style.icon}
                 </text>
@@ -505,6 +690,8 @@ export function TownMap({
                   const agentY = node.svgY + Math.sin(angle) * ringRadius;
                   const fill = agentColor(agent.id);
                   const label = agentNameMap[agent.id] ?? agent.name;
+                  // 如果有自定义 logo，使用 logo；否则显示首字母
+                  const hasLogo = agent.config_id && ["truman", "spouse", "friend", "neighbor", "alice"].includes(agent.config_id);
 
                   return (
                     <motion.g
@@ -545,17 +732,43 @@ export function TownMap({
                         strokeWidth={4}
                         filter="url(#softShadow)"
                       />
-                      <circle cx={agentX} cy={agentY} r={11} fill={fill} opacity={0.9} />
-                      <text
-                        x={agentX}
-                        y={agentY + 4}
-                        textAnchor="middle"
-                        fontSize="10"
-                        fontWeight="700"
-                        fill="white"
-                      >
-                        {label.charAt(0).toUpperCase()}
-                      </text>
+                      {hasLogo ? (
+                        // 使用自定义 logo
+                        <>
+                          <image
+                            href={`/agents/${agent.config_id}.svg`}
+                            x={agentX - 12}
+                            y={agentY - 12}
+                            width={24}
+                            height={24}
+                            clipPath={`circle(12px at ${agentX}px ${agentY}px)`}
+                          />
+                          <circle
+                            cx={agentX}
+                            cy={agentY}
+                            r={12}
+                            fill="none"
+                            stroke={fill}
+                            strokeWidth={2}
+                            opacity={0.5}
+                          />
+                        </>
+                      ) : (
+                        // 默认显示首字母
+                        <>
+                          <circle cx={agentX} cy={agentY} r={11} fill={fill} opacity={0.9} />
+                          <text
+                            x={agentX}
+                            y={agentY + 4}
+                            textAnchor="middle"
+                            fontSize="10"
+                            fontWeight="700"
+                            fill="white"
+                          >
+                            {label.charAt(0).toUpperCase()}
+                          </text>
+                        </>
+                      )}
                     </motion.g>
                   );
                 })}
@@ -563,9 +776,15 @@ export function TownMap({
             );
           })}
         </svg>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 rounded-b-[24px] bg-gradient-to-t from-white/80 to-transparent px-4 py-2 text-xs text-slate-400">
-          <p>点击地点查看详情，点击居民进入个人页。拖拽平移，滚轮或按钮缩放，绿色弧线表示最近移动。</p>
-          <p className="flex-shrink-0 text-right text-slate-500">{hoveredLabel ?? "悬停、聚焦或点击后查看地点与居民摘要"}</p>
+        <div className={`pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 rounded-b-[24px] px-4 py-2 text-xs text-slate-400 ${
+          timeStyle.isDark 
+            ? "bg-gradient-to-t from-slate-900/80 to-transparent" 
+            : "bg-gradient-to-t from-white/80 to-transparent"
+        }`}>
+          <p>点击地点查看详情。光晕强度表示活动热度。{timeStyle.isDark && "黄色窗户表示有人。"}</p>
+          <p className={`flex-shrink-0 text-right ${timeStyle.isDark ? "text-slate-400" : "text-slate-500"}`}>
+            {hoveredLabel ?? "悬停、聚焦或点击后查看地点与居民摘要"}
+          </p>
         </div>
       </div>
     </motion.div>
