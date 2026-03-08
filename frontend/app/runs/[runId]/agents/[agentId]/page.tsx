@@ -6,6 +6,9 @@ import { MetricChip } from "@/components/metric-chip";
 import { getAgent } from "@/lib/api";
 import { describeAgentEvent } from "@/lib/event-utils";
 
+// 强制动态渲染，避免构建时获取数据
+export const dynamic = "force-dynamic";
+
 type AgentPageProps = {
   params: Promise<{ runId: string; agentId: string }>;
 };
@@ -52,6 +55,7 @@ export default async function AgentPage({ params }: AgentPageProps) {
               occupation={agent.occupation}
               status={status}
               size="lg"
+              configId={agent.config_id}
             />
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Resident Profile</p>

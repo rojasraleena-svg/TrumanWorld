@@ -19,6 +19,7 @@ import {
   filterWorldEvents,
   formatGoal,
   formatSimTime,
+  getLocationTypeLabel,
   locationBeat,
   locationTone,
   type EventFilter,
@@ -159,7 +160,7 @@ export function WorldCanvas({ runId }: Props) {
                 <p className="text-xs uppercase tracking-[0.22em] text-slate-400">聚焦地点</p>
                 <h2 className="mt-1 text-xl font-semibold text-ink">{selectedLocation?.name ?? "暂无地点"}</h2>
                 <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-                  {selectedLocation?.location_type ?? "-"}
+                  {getLocationTypeLabel(selectedLocation?.location_type ?? "")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -211,6 +212,7 @@ export function WorldCanvas({ runId }: Props) {
                           occupation={agent.occupation}
                           status={inferAgentStatus(agent.id, world.recent_events)}
                           size="sm"
+                          configId={agent.config_id}
                         />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-ink group-hover:text-moss">{agent.name}</p>

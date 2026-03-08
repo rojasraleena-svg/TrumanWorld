@@ -51,6 +51,20 @@ class AgentConfig(BaseModel):
             raise ValueError(msg)
         return self.root_dir / "prompt.md"
 
+    @property
+    def logo_path(self) -> Path | None:
+        """Return the path to the agent's logo SVG file, if it exists."""
+        if self.root_dir is None:
+            return None
+        logo = self.root_dir / "logo.svg"
+        return logo if logo.exists() else None
+
+    @property
+    def logo_url(self) -> str | None:
+        """Return the URL path to the agent's logo for frontend use."""
+        # Logo files are served from /agents/{agent_id}.svg
+        return f"/agents/{self.id}.svg"
+
 
 class AgentConfigLoader:
     """Parses agent.yml files into runtime configuration."""

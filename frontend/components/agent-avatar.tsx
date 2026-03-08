@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import Image from "next/image";
 import { createAvatar } from "@dicebear/core";
 import { notionists } from "@dicebear/collection";
 import { motion } from "framer-motion";
@@ -10,6 +11,9 @@ import type { AgentStatus } from "@/lib/agent-utils";
 // Re-export for convenience
 export type { AgentStatus } from "@/lib/agent-utils";
 
+// 支持自定义 logo 的 agent 配置 ID 列表
+const CUSTOM_LOGO_AGENTS = new Set(["truman", "spouse", "friend", "neighbor", "alice"]);
+
 interface AgentAvatarProps {
   agentId: string;
   name: string;
@@ -17,6 +21,7 @@ interface AgentAvatarProps {
   status?: AgentStatus;
   size?: "sm" | "md" | "lg";
   showStatusRing?: boolean;
+  configId?: string; // agent 配置 ID，用于加载自定义 logo
 }
 
 const sizeMap = {
@@ -40,10 +45,14 @@ export function AgentAvatar({
   status = "idle",
   size = "md",
   showStatusRing = true,
+  configId,
 }: AgentAvatarProps) {
   const dimensions = sizeMap[size];
+  const [useCustomLogo, setUseCustomLogo] = useState(
+    configId ? CUSTOM_LOGO_AGENTS.has(configId) : false
+  );
   
-  // 使用 agentId 作为种子生成确定性头像
+  // 使用 agentId 作为种子生成确定性头像（作为后备）
   const avatarSvg = useMemo(() => {
     const avatar = createAvatar(notionists, {
       seed: agentId,
@@ -55,6 +64,9 @@ export function AgentAvatar({
   }, [agentId, dimensions.svg]);
 
   const statusStyle = statusConfig[status];
+
+  // 自定义 logo URL - 直接使用 public 目录下的静态文件
+  const customLogoUrl = configId ? `/agents/${configId}.svg` : null;
 
   return (
     <motion.div
@@ -95,8 +107,24 @@ export function AgentAvatar({
           width: dimensions.container - 4,
           height: dimensions.container - 4,
         }}
-        dangerouslySetInnerHTML={{ __html: avatarSvg }}
-      />
+      >
+        {useCustomLogo && customLogoUrl ? (
+          <Image
+            src={customLogoUrl}
+            alt={name}
+            width={dimensions.container - 4}
+            height={dimensions.container - 4}
+            className="object-cover"
+            onError={() => setUseCustomLogo(false)}
+            priority
+          />
+        ) : (
+          <div
+            dangerouslySetInnerHTML={{ __html: avatarSvg }}
+            className="w-full h-full"
+          />
+        )}
+      </div>
       
       {/* 职业小图标 */}
       {occupation && (
@@ -114,6 +142,10 @@ export function AgentAvatar({
 function getOccupationEmoji(occupation: string): string {
   const map: Record<string, string> = {
     barista: "☕",
+    "hospital staff": "🏥",
+    "insurance clerk": "📋",
+    "office coworker": "💼",
+    "shop regular": "📖",
     shopkeeper: "🏪",
     resident: "🏠",
     teacher: "📚",

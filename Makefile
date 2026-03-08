@@ -2,9 +2,22 @@ PYTHON ?= python3
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
 
-.PHONY: install backend-install frontend-install backend-dev frontend-dev lint format test migrate pre-commit dev db-start db-stop db-status db-wait db-migrate db-clean check-ports kill-ports
+.PHONY: install backend-install frontend-install backend-dev frontend-dev lint format test migrate pre-commit dev db-start db-stop db-status db-wait db-migrate db-clean check-ports kill-ports sync-agent-logos
 
-install: backend-install frontend-install
+# 同步 agent logo 到前端 public 目录
+sync-agent-logos:
+	@echo "🔄 同步 agent logos..."
+	@mkdir -p $(FRONTEND_DIR)/public/agents
+	@for dir in agents/*/; do \
+		agent_id=$$(basename "$$dir"); \
+		if [ -f "$$dir/logo.svg" ]; then \
+			cp "$$dir/logo.svg" "$(FRONTEND_DIR)/public/agents/$$agent_id.svg"; \
+			echo "  ✓ $$agent_id"; \
+		fi; \
+	done
+	@echo "✅ Agent logos 同步完成"
+
+install: backend-install frontend-install sync-agent-logos
 
 backend-install:
 	cd $(BACKEND_DIR) && uv sync --extra dev
@@ -15,7 +28,7 @@ frontend-install:
 backend-dev:
 	cd $(BACKEND_DIR) && uv run uvicorn app.main:app --reload --host 127.0.0.1 --port $(BACKEND_PORT)
 
-frontend-dev:
+frontend-dev: sync-agent-logos
 	cd $(FRONTEND_DIR) && npm run dev -- --port $(FRONTEND_PORT)
 
 lint:
@@ -148,7 +161,7 @@ db-migrate: db-wait
 
 # 一行命令同时启动前后端（测试环境，非 Docker）
 # 使用非常用端口避免冲突：后端 18080，前端 13000
-dev: check-ports db-start db-migrate
+dev: check-ports db-start db-migrate sync-agent-logos
 	@echo ""
 	@echo "🚀 启动 Truman World 开发环境..."
 	@echo "================================"

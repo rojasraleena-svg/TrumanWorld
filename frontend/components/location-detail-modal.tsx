@@ -7,7 +7,7 @@ import type { WorldSnapshot } from "@/lib/types";
 import { AgentAvatar } from "@/components/agent-avatar";
 import { inferAgentStatus } from "@/lib/agent-utils";
 import { EventCard } from "@/components/event-card";
-import { beatBadge, buildWorldNameMaps, locationBeat, locationTone } from "@/lib/world-utils";
+import { beatBadge, buildWorldNameMaps, getLocationTypeLabel, locationBeat, locationTone } from "@/lib/world-utils";
 
 type LocationDetailModalProps = {
   isOpen: boolean;
@@ -55,7 +55,7 @@ export function LocationDetailModal({
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-slate-400">聚焦地点</p>
             <h2 className="text-xl font-semibold text-ink">{location.name}</h2>
-            <p className="text-sm text-slate-500">{location.location_type}</p>
+            <p className="text-sm text-slate-500">{getLocationTypeLabel(location.location_type)}</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
@@ -147,6 +147,7 @@ export function LocationDetailModal({
                       occupation={agent.occupation}
                       status={inferAgentStatus(agent.id, world.recent_events)}
                       size="md"
+                      configId={agent.config_id}
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-ink group-hover:text-moss">

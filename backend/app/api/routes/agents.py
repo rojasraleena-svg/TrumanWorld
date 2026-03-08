@@ -41,6 +41,7 @@ async def list_agents(
                 "occupation": agent.occupation,
                 "current_goal": agent.current_goal,
                 "current_location_id": agent.current_location_id,
+                "config_id": (agent.profile or {}).get("agent_config_id"),
             }
             for agent in agents
         ],
@@ -94,6 +95,7 @@ async def get_agent(
         "occupation": agent.occupation,
         "status": agent.status,
         "current_goal": agent.current_goal,
+        "config_id": (agent.profile or {}).get("agent_config_id"),
         "recent_events": [
             {
                 "id": event.id,

@@ -51,6 +51,7 @@ export type AgentSummary = {
   occupation?: string;
   current_goal?: string;
   current_location_id?: string;
+  config_id?: string; // agent 配置 ID，用于加载自定义 logo
 };
 
 export type WorldEvent = {
@@ -122,6 +123,7 @@ export type AgentDetails = {
   occupation?: string;
   current_goal?: string;
   status?: Record<string, unknown>;
+  config_id?: string; // agent 配置 ID，用于加载自定义 logo
   recent_events: AgentRecentEvent[];
   memories: AgentMemory[];
   relationships: AgentRelationship[];
