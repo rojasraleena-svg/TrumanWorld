@@ -85,6 +85,7 @@ class RunResponse(BaseModel):
     location_count: int = Field(0, description="本次运行的地点数量")
     event_count: int = Field(0, description="本次运行产生的事件总数")
     started_at: datetime | None = Field(None, description="最近一次启动时间（UTC ISO8601）")
+    elapsed_seconds: int = Field(0, description="每次暂停前累计运行秒数")
 
 
 class DirectorEventRequest(BaseModel):
@@ -133,6 +134,7 @@ def build_run_response(run: SimulationRun) -> RunResponse:
         tick_minutes=run.tick_minutes,
         was_running_before_restart=run.was_running_before_restart,
         started_at=run.started_at,
+        elapsed_seconds=run.elapsed_seconds or 0,
     )
 
 
@@ -642,6 +644,7 @@ async def get_world_snapshot(
             current_tick=run.current_tick,
             tick_minutes=run.tick_minutes,
             started_at=run.started_at,
+            elapsed_seconds=run.elapsed_seconds or 0,
         ),
         world_clock=world_clock,
         locations=[

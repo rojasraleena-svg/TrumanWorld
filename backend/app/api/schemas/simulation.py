@@ -160,6 +160,7 @@ class WorldSnapshotRunResponse(BaseModel):
     current_tick: int
     tick_minutes: int
     started_at: datetime | None = None
+    elapsed_seconds: int = 0
 
 
 class WorldSnapshotResponse(BaseModel):

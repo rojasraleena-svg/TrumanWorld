@@ -46,9 +46,16 @@ class RunRepository:
 
     async def update_status(self, run: SimulationRun, status: str) -> SimulationRun:
         from datetime import UTC, datetime
-        run.status = status
+        now = datetime.now(UTC)
         if status == "running":
-            run.started_at = datetime.now(UTC)
+            # 开始运行：记录本次启动时间
+            run.started_at = now
+        elif run.started_at is not None:
+            # 暂停/停止：把本次运行时长累加到 elapsed_seconds
+            delta = int((now - run.started_at).total_seconds())
+            run.elapsed_seconds = (run.elapsed_seconds or 0) + max(0, delta)
+            run.started_at = None
+        run.status = status
         await self.session.commit()
         await self.session.refresh(run)
         return run

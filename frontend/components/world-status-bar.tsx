@@ -21,42 +21,45 @@ export function WorldStatusBar() {
   const [isToggling, setIsToggling] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // 根据后端返回的 started_at 计算已累计运行时长，每秒刷新一次
-  // 若 started_at 为 null（旧数据），退化为本地从 0 开始计时
+  // 总时长 = elapsed_seconds(历史累计) + (now - started_at)(本次运行)
+  // 暂停时仅展示 elapsed_seconds，不再递增
   const [elapsed, setElapsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const localStartRef = useRef<number | null>(null);
 
   const isRunning = world?.run.status === "running";
   const startedAt = world?.run.started_at;
+  const elapsedBase = world?.run.elapsed_seconds ?? 0;
 
   useEffect(() => {
     if (isRunning) {
       if (startedAt) {
-        // 有服务端时间戳：直接计算与 started_at 的差值
+        // 有服务端时间戳：累计历史 + 本次运行时长
         localStartRef.current = null;
         const calcElapsed = () => {
-          const diff = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
-          setElapsed(Math.max(0, diff));
+          const sessionSecs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+          setElapsed(elapsedBase + Math.max(0, sessionSecs));
         };
         calcElapsed();
         if (!intervalRef.current) {
           intervalRef.current = setInterval(calcElapsed, 1000);
         }
       } else {
-        // 无服务端时间戳（旧数据）：本地从 0 开始累计
+        // 无服务端时间戳（旧数据）：本地从 elapsedBase 开始累加
         if (localStartRef.current === null) {
           localStartRef.current = Date.now();
-          setElapsed(0);
         }
         if (!intervalRef.current) {
           intervalRef.current = setInterval(() => {
-            setElapsed(Math.floor((Date.now() - localStartRef.current!) / 1000));
+            const localSecs = Math.floor((Date.now() - localStartRef.current!) / 1000);
+            setElapsed(elapsedBase + localSecs);
           }, 1000);
         }
       }
     } else {
+      // 暂停：展示历史累计秒数，停止计时
       localStartRef.current = null;
+      setElapsed(elapsedBase);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -68,7 +71,7 @@ export function WorldStatusBar() {
         intervalRef.current = null;
       }
     };
-  }, [isRunning, startedAt]);
+  }, [isRunning, startedAt, elapsedBase]);
 
   if (!world) {
     return (

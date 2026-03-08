@@ -12,6 +12,7 @@ export type RunSummary = {
   location_count?: number;
   event_count?: number;
   started_at?: string | null; // ISO8601 UTC, 最近一次启动时间
+  elapsed_seconds?: number;   // 已累计运行秒数（暂停期间停止累加）
 };
 
 export type CreateRunResponse = {
