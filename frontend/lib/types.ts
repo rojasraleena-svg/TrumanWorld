@@ -86,6 +86,7 @@ export type AgentSummary = {
   occupation?: string;
   current_goal?: string;
   current_location_id?: string;
+  status?: Record<string, unknown>;
   config_id?: string; // agent 配置 ID，用于加载自定义 logo
 };
 

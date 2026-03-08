@@ -570,7 +570,7 @@ export function TownMap({
                     onLocationClick?.(node.id);
                   }
                 }}
-                className="cursor-pointer"
+                className="cursor-pointer outline-none focus:outline-none"
               >
                 <title>{`${node.name} · ${node.occupantCount}/${node.capacity} · ${heatLevel.label}`}</title>
                 {/* 热力发光层 - 底层发光效果 */}
@@ -724,8 +724,8 @@ export function TownMap({
                   const agentY = node.svgY + Math.sin(angle) * ringRadius;
                   const fill = agentColor(agent.id);
                   const label = agentNameMap[agent.id] ?? agent.name;
-                  // 如果有自定义 logo，使用 logo；否则显示首字母
-                  const hasLogo = agent.config_id && ["truman", "spouse", "friend", "neighbor", "alice"].includes(agent.config_id);
+                  // 只要有 config_id 就尝试加载 /agents/{config_id}.svg
+                  const hasLogo = !!agent.config_id;
 
                   return (
                     <motion.g

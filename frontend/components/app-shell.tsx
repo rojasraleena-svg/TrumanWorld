@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useState, useEffect } from "react";
 import useSWR from "swr";
 import { buildApiUrl, fetchApiResult, type ApiResult } from "@/lib/api";
 import type { RunSummary } from "@/lib/types";
@@ -26,7 +26,18 @@ const NAV_ITEMS = [
 ];
 
 export function AppShell({ children }: AppShellProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const pathname = usePathname();
+  // 在世界页面默认折叠左侧栏
+  const isWorldPage = pathname.includes("/world");
+  const [isCollapsed, setIsCollapsed] = useState(isWorldPage);
+  
+  // 当路径变化时，如果在世界页面则折叠
+  useEffect(() => {
+    if (pathname.includes("/world")) {
+      setIsCollapsed(true);
+    }
+  }, [pathname]);
+  
   const { data: runsResult } = useSWR<ApiResult<RunSummary[]>>(
     buildApiUrl("/runs"),
     fetchApiResult,

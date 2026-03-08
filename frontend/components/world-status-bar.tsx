@@ -35,10 +35,17 @@ export function WorldStatusBar() {
     if (isRunning) {
       if (startedAt) {
         // 有服务端时间戳：累计历史 + 本次运行时长
+        // 如果 started_at 距现超过 1 小时，说明是崩溃脂数据，跳过本次计算
         localStartRef.current = null;
         const calcElapsed = () => {
-          const sessionSecs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
-          setElapsed(elapsedBase + Math.max(0, sessionSecs));
+          const startMs = new Date(startedAt).getTime();
+          const sessionSecs = Math.floor((Date.now() - startMs) / 1000);
+          // 如果 sessionSecs 异常大（超过 2 小时），认为是崩溃脂数据，不叠加
+          if (sessionSecs > 7200) {
+            setElapsed(elapsedBase);
+          } else {
+            setElapsed(elapsedBase + Math.max(0, sessionSecs));
+          }
         };
         calcElapsed();
         if (!intervalRef.current) {

@@ -12,7 +12,7 @@ import type { AgentStatus } from "@/lib/agent-utils";
 export type { AgentStatus } from "@/lib/agent-utils";
 
 // 支持自定义 logo 的 agent 配置 ID 列表
-const CUSTOM_LOGO_AGENTS = new Set(["truman", "spouse", "friend", "neighbor", "alice"]);
+// 已废弃：现在所有有 configId 的 agent 都默认尝试加载 /agents/{configId}.svg，加载失败自动降级
 
 interface AgentAvatarProps {
   agentId: string;
@@ -49,7 +49,7 @@ export function AgentAvatar({
 }: AgentAvatarProps) {
   const dimensions = sizeMap[size];
   const [useCustomLogo, setUseCustomLogo] = useState(
-    configId ? CUSTOM_LOGO_AGENTS.has(configId) : false
+    !!configId  // 只要有 configId 就先尝试加载，失败后 onError 降级
   );
 
   // 使用 agentId 作为种子生成确定性头像（作为后备）

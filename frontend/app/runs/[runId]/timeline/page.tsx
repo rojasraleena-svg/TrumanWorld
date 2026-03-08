@@ -160,8 +160,8 @@ export default function TimelinePage() {
     <div className="flex h-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top,_#f7f3e8,_#eef5f1_48%,_#f8fafc)]">
       {/* 顶部标题栏 */}
       <div className="border-b border-white/60 bg-white/65 px-8 py-5 backdrop-blur">
-        <Link href={`/runs/${runId}`} className="text-xs uppercase tracking-[0.25em] text-moss hover:text-ink">
-          ← 返回 run 总览
+        <Link href={`/runs/${runId}/world`} className="text-xs uppercase tracking-[0.25em] text-moss hover:text-ink">
+          ← 返回 World Viewer
         </Link>
         <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
           <div>
