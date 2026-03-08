@@ -1,0 +1,34 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="logoTitle logoDesc">
+  <title id="logoTitle">Truman World Logo</title>
+  <desc id="logoDesc">An observer eye encircling a small world with an open door, symbolizing observation and free will.</desc>
+  <defs>
+    <linearGradient id="bgGradient" x1="76" y1="76" x2="436" y2="436" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#172033"/>
+      <stop offset="1" stop-color="#34425F"/>
+    </linearGradient>
+    <linearGradient id="worldGradient" x1="156" y1="214" x2="356" y2="346" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6F8B6B"/>
+      <stop offset="1" stop-color="#D86F45"/>
+    </linearGradient>
+    <clipPath id="worldClip">
+      <circle cx="256" cy="278" r="106"/>
+    </clipPath>
+  </defs>
+
+  <rect x="28" y="28" width="456" height="456" rx="128" fill="url(#bgGradient)"/>
+
+  <path d="M96 256C133 173 194 128 256 128C318 128 379 173 416 256C379 339 318 384 256 384C194 384 133 339 96 256Z" stroke="#EEF3EA" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <circle cx="256" cy="278" r="106" fill="#EEF3EA"/>
+  <g clip-path="url(#worldClip)">
+    <path d="M132 326C168 280 219 252 276 252C319 252 359 269 389 298V388H132V326Z" fill="url(#worldGradient)"/>
+    <path d="M132 344C171 305 214 290 252 290C300 290 340 307 389 344" stroke="#EEF3EA" stroke-opacity="0.6" stroke-width="8" stroke-linecap="round"/>
+    <path d="M132 306C165 268 201 250 245 246" stroke="#EEF3EA" stroke-opacity="0.4" stroke-width="6" stroke-linecap="round"/>
+    <path d="M236 236C252 222 270 216 291 216" stroke="#172033" stroke-opacity="0.25" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <rect x="236" y="242" width="40" height="88" rx="12" fill="#172033"/>
+  <path d="M248 286L266 278L266 294L248 300V286Z" fill="#EEF3EA"/>
+
+  <circle cx="334" cy="212" r="16" fill="#EEF3EA" fill-opacity="0.95"/>
+</svg>

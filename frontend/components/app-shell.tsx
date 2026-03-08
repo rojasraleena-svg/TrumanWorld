@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode, useState } from "react";
@@ -50,8 +51,8 @@ export function AppShell({ children }: AppShellProps) {
         {/* Logo 区域 */}
         <div className="flex items-center justify-between border-b border-white/60 px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#172033,#34425f)] text-white shadow-md shadow-slate-900/10">
-              <span className="text-xs font-bold tracking-[0.08em]">TW</span>
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-md shadow-slate-900/10">
+              <Image src="/logo.svg" alt="Truman World Logo" width={36} height={36} priority />
             </div>
             {!isCollapsed && (
               <div className="overflow-hidden">
