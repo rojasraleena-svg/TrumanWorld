@@ -406,8 +406,14 @@ class DirectorMemoryRepository:
         trigger_suspicion_score: float = 0.0,
         trigger_continuity_risk: str = "stable",
         cooldown_ticks: int = 3,
+        location_hint: str | None = None,
     ) -> DirectorMemory:
         """创建导演干预记忆"""
+        # Build metadata dict for extra fields not in the model
+        metadata_json: dict = {}
+        if location_hint:
+            metadata_json["location_hint"] = location_hint
+
         memory = DirectorMemory(
             id=str(uuid4()),
             run_id=run_id,
@@ -423,6 +429,7 @@ class DirectorMemoryRepository:
             trigger_continuity_risk=trigger_continuity_risk,
             cooldown_ticks=cooldown_ticks,
             cooldown_until_tick=tick_no + cooldown_ticks,
+            metadata_json=metadata_json,
         )
         self.session.add(memory)
         await self.session.commit()
@@ -499,3 +506,64 @@ class DirectorMemoryRepository:
         result = await self.session.execute(stmt)
         memory = result.scalar_one_or_none()
         return memory.trigger_suspicion_score if memory else 0.0
+
+    async def get_pending_manual_interventions(
+        self,
+        run_id: str,
+        current_tick: int,
+        max_age_ticks: int = 5,
+    ) -> Sequence[DirectorMemory]:
+        """获取未执行的手动注入干预计划。
+
+        手动注入的计划（gather, activity, shutdown, weather_change）
+        优先级高于自动生成的计划。
+
+        Args:
+            run_id: Run ID
+            current_tick: 当前 tick
+            max_age_ticks: 最大有效 tick 数（超过此值视为过期）
+
+        Returns:
+            未执行的手动干预计划列表，按 tick_no 降序排列
+        """
+        manual_goals = ("gather", "activity", "shutdown", "weather_change")
+        stmt: Select[tuple[DirectorMemory]] = (
+            select(DirectorMemory)
+            .where(
+                DirectorMemory.run_id == run_id,
+                DirectorMemory.was_executed == False,  # noqa: E712
+                DirectorMemory.scene_goal.in_(manual_goals),
+                DirectorMemory.tick_no >= current_tick - max_age_ticks,
+            )
+            .order_by(DirectorMemory.tick_no.desc())
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_pending_interventions(
+        self,
+        run_id: str,
+        current_tick: int,
+        max_age_ticks: int = 10,
+    ) -> Sequence[DirectorMemory]:
+        """获取所有未执行的干预计划。
+
+        Args:
+            run_id: Run ID
+            current_tick: 当前 tick
+            max_age_ticks: 最大有效 tick 数
+
+        Returns:
+            未执行的干预计划列表
+        """
+        stmt: Select[tuple[DirectorMemory]] = (
+            select(DirectorMemory)
+            .where(
+                DirectorMemory.run_id == run_id,
+                DirectorMemory.was_executed == False,  # noqa: E712
+                DirectorMemory.tick_no >= current_tick - max_age_ticks,
+            )
+            .order_by(DirectorMemory.tick_no.desc())
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()

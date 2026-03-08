@@ -402,7 +402,7 @@ function DirectorInterventionModal({ isOpen, onClose, stats, runId }: DirectorIn
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.93, opacity: 0, y: 16 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
-            className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
+            className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* 头部 */}
@@ -425,7 +425,7 @@ function DirectorInterventionModal({ isOpen, onClose, stats, runId }: DirectorIn
             {/* 主体：左右两列 */}
             <div className="flex min-h-0 flex-1 overflow-hidden">
               {/* 左侧：统计 + 执行率 */}
-              <div className="flex w-56 shrink-0 flex-col gap-4 border-r border-slate-100 bg-slate-50/60 px-6 py-5">
+              <div className="flex w-64 shrink-0 flex-col gap-5 border-r border-slate-100 bg-slate-50/60 px-6 py-6">
                 {/* 统计三格 */}
                 <div className="space-y-3">
                   <StatCard label="计划干预" value={stats.total} icon="📋" color="slate" />
@@ -434,14 +434,14 @@ function DirectorInterventionModal({ isOpen, onClose, stats, runId }: DirectorIn
                 </div>
 
                 {/* 执行率 */}
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
+                <div className="rounded-2xl bg-white p-5 shadow-sm">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">执行率</span>
                     <span className={`font-bold ${hasIssue ? "text-amber-600" : "text-emerald-600"}`}>
                       {stats.executionRate}%
                     </span>
                   </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${stats.executionRate}%` }}
@@ -450,14 +450,13 @@ function DirectorInterventionModal({ isOpen, onClose, stats, runId }: DirectorIn
                     />
                   </div>
                   {hasIssue && (
-                    <p className="mt-2 text-xs text-amber-600">⚠️ 执行率较低</p>
+                    <p className="mt-3 text-xs text-amber-600">⚠️ 执行率较低</p>
                   )}
                 </div>
               </div>
 
               {/* 右侧：导演干预表单 */}
-              <div className="flex-1 overflow-auto px-7 py-5">
-                <h3 className="mb-4 text-sm font-medium text-slate-500">注入新事件</h3>
+              <div className="flex-1 overflow-auto px-8 py-6">
                 <DirectorEventForm runId={runId} />
               </div>
             </div>

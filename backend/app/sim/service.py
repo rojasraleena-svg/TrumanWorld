@@ -18,6 +18,7 @@ from app.agent.providers import (
 from app.protocol.simulation import build_director_event_type
 from app.agent.registry import AgentRegistry
 from app.agent.runtime import AgentRuntime
+from app.director.manual_planner import ManualDirectorPlanner
 from app.director.observer import DirectorAssessment
 from app.infra.settings import get_settings
 from app.scenario.base import Scenario
@@ -45,6 +46,7 @@ from app.sim.world_loader import load_tick_data
 from app.sim.world_queries import find_nearby_agent, get_agent
 from app.store.repositories import (
     AgentRepository,
+    DirectorMemoryRepository,
     EventRepository,
     LocationRepository,
     RunRepository,
@@ -70,6 +72,7 @@ class SimulationService:
         self.agent_repo = AgentRepository(session)
         self.location_repo = LocationRepository(session)
         self.event_repo = EventRepository(session)
+        self.director_memory_repo = DirectorMemoryRepository(session)
         self._context_builder = ContextBuilder(session)
         self._persistence = PersistenceManager(session)
         # Track whether a scenario was explicitly injected (e.g. in tests).
@@ -399,6 +402,7 @@ class SimulationService:
                 truman_suspicion_score=truman_suspicion_score,
                 director_guidance=director_guidance,
                 workplace_location_id=workplace_location_id,
+                world=world,
             )
 
     def _resolve_runtime_agent_id(self, agent: Agent) -> str:
@@ -412,11 +416,56 @@ class SimulationService:
         location_id: str | None = None,
         importance: float = 0.5,
     ) -> None:
+        """Inject a director event - unified flow via DirectorPlan.
+
+        This method unifies manual injection with automatic intervention
+        by converting the event into a DirectorPlan and saving it to
+        DirectorMemory, ensuring consistent handling and execution tracking.
+        """
         run = await self.run_repo.get(run_id)
         if run is None:
             msg = f"Run not found: {run_id}"
             raise ValueError(msg)
 
+        # 1. Get all agents and find Truman
+        agents = await self.agent_repo.list_for_run(run_id)
+        truman = next(
+            (a for a in agents if get_world_role(a.profile) == "truman"),
+            None,
+        )
+
+        # 2. Build DirectorPlan from manual event (unified flow)
+        manual_planner = ManualDirectorPlanner()
+        plan = manual_planner.build_plan_from_manual_event(
+            event_type=event_type,
+            payload=payload,
+            location_id=location_id,
+            agents=agents,
+            truman_agent_id=truman.id if truman else None,
+        )
+
+        if plan is None:
+            msg = f"Unsupported director event type: {event_type}"
+            raise ValueError(msg)
+
+        # 3. Save to DirectorMemory (unified storage with automatic interventions)
+        await self.director_memory_repo.create(
+            run_id=run_id,
+            tick_no=run.current_tick,
+            scene_goal=plan.scene_goal,
+            target_cast_ids=plan.target_cast_ids,
+            priority=plan.priority,
+            urgency=plan.urgency,
+            message_hint=plan.message_hint,
+            target_agent_id=plan.target_agent_id,
+            reason=plan.reason,
+            trigger_suspicion_score=0.0,  # Manual injection doesn't depend on suspicion
+            trigger_continuity_risk="stable",
+            cooldown_ticks=plan.cooldown_ticks,
+            location_hint=plan.location_hint,
+        )
+
+        # 4. Also create Event for timeline display (optional but useful)
         event = build_event(
             run_id=run_id,
             tick_no=run.current_tick,
@@ -469,6 +518,7 @@ class SimulationService:
         truman_suspicion_score: float = 0.0,
         director_guidance: DirectorGuidance | None = None,
         workplace_location_id: str | None = None,
+        world: WorldState | None = None,
     ) -> ActionIntent:
         scenario_intent = self._scenario.fallback_intent(
             agent_id=agent_id,
@@ -485,7 +535,8 @@ class SimulationService:
 
         if isinstance(current_goal, str) and current_goal.startswith("move:"):
             target_location_id = current_goal.split(":", 1)[1].strip()
-            if world.get_location(target_location_id) is None:
+            # 检查目标地点是否存在
+            if world is not None and world.get_location(target_location_id) is None:
                 return ActionIntent(agent_id=agent_id, action_type="rest")
             return ActionIntent(
                 agent_id=agent_id,
@@ -520,9 +571,13 @@ class SimulationService:
                     action_type="move",
                     target_location_id=workplace_location_id,
                 )
-            current_location = world.get_location(current_location_id) if current_location_id else None
-            current_location_type = current_location.location_type if current_location else None
-            if workplace_location_id or current_location_type in {"office", "hospital", "cafe", "shop"}:
+            # 检查当前地点类型
+            if world is not None:
+                current_location = world.get_location(current_location_id) if current_location_id else None
+                current_location_type = current_location.location_type if current_location else None
+                if workplace_location_id or current_location_type in {"office", "hospital", "cafe", "shop"}:
+                    return ActionIntent(agent_id=agent_id, action_type="work")
+            elif workplace_location_id:
                 return ActionIntent(agent_id=agent_id, action_type="work")
             return ActionIntent(agent_id=agent_id, action_type="rest")
 

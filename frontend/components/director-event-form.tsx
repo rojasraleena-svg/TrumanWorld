@@ -22,7 +22,7 @@ export function DirectorEventForm({ runId }: DirectorEventFormProps) {
 
   return (
     <form
-      className="space-y-3"
+      className="space-y-5"
       onSubmit={(event) => {
         event.preventDefault();
         startTransition(async () => {
@@ -43,18 +43,18 @@ export function DirectorEventForm({ runId }: DirectorEventFormProps) {
       }}
     >
       {/* 标题 + 预设 */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-ink">导演干预</span>
-          <span className="rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-600">广播全体</span>
+          <span className="text-base font-medium text-ink">导演干预</span>
+          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-600">广播全体</span>
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {presets.map((preset) => (
             <button
               key={preset}
               type="button"
               onClick={() => setMessage(preset)}
-              className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-500 transition hover:border-moss hover:text-moss"
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 transition hover:border-moss hover:bg-moss/5 hover:text-moss"
             >
               {preset}
             </button>
@@ -63,14 +63,14 @@ export function DirectorEventForm({ runId }: DirectorEventFormProps) {
       </div>
 
       {/* 表单字段 */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <label className="block">
-          <span className="text-sm text-slate-500">事件内容</span>
+          <span className="text-sm font-medium text-slate-600">事件内容</span>
           <textarea
             value={message}
             onChange={(event) => setMessage(event.target.value)}
-            rows={2}
-            className="mt-1.5 w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-base outline-none transition focus:border-moss"
+            rows={4}
+            className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-base leading-relaxed outline-none transition placeholder:text-slate-400 hover:border-slate-300 hover:bg-white focus:border-moss focus:bg-white focus:ring-2 focus:ring-moss/10"
             placeholder="输入要广播给居民的消息..."
           />
         </label>
@@ -78,17 +78,17 @@ export function DirectorEventForm({ runId }: DirectorEventFormProps) {
       </div>
 
       {/* 提交 + 状态 */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4 pt-2">
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-full bg-ember px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          className="rounded-full bg-ember px-6 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-ember/90 hover:shadow disabled:opacity-60"
         >
           {isPending ? "注入中..." : "注入事件"}
         </button>
         {statusMessage && (
-          <span className={`text-sm ${statusMessage === "已注入" ? "text-emerald-600" : "text-red-500"}`}>
-            {statusMessage}
+          <span className={`text-sm font-medium ${statusMessage === "已注入" ? "text-emerald-600" : "text-red-500"}`}>
+            {statusMessage === "已注入" ? "✓ " : "✗ "}{statusMessage}
           </span>
         )}
       </div>

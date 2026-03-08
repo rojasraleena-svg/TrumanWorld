@@ -36,7 +36,7 @@ export function StoryTimeline({ chapters, onExpand }: StoryTimelineProps) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur">
       <div className="flex shrink-0 items-center justify-between">
         <h2 className="text-lg font-semibold text-ink">📖 今日故事线</h2>
         <div className="flex items-center gap-2">
@@ -56,7 +56,7 @@ export function StoryTimeline({ chapters, onExpand }: StoryTimelineProps) {
         </div>
       </div>
 
-      <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto pr-0.5">
+      <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {chapters.map((chapter, index) => (
           <ChapterCard
             key={chapter.id}
@@ -96,34 +96,32 @@ function ChapterCard({
           : "border-slate-100 bg-slate-50/50"
       }`}
     >
-      {/* 章节头部 */}
+      {/* 章节头部 - 压缩为单行 */}
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between p-3 text-left"
+        className="flex w-full items-center justify-between p-2.5 text-left"
       >
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-xl">
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-lg">
             {chapter.periodIcon}
           </span>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-ink">{chapter.periodName}</span>
-              {isLatest && (
-                <span className="rounded-full bg-moss/10 px-1.5 py-0.5 text-[10px] font-medium text-moss">
-                  最新
-                </span>
-              )}
-            </div>
-            <span className="text-xs text-slate-500">{chapter.timeLabel}</span>
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-ink">{chapter.periodName}</span>
+            {isLatest && (
+              <span className="rounded-full bg-moss/10 px-1.5 py-0.5 text-[10px] font-medium text-moss">
+                最新
+              </span>
+            )}
+            <span className="text-xs text-slate-400">{chapter.timeLabel}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* 亮点标签 */}
+          {/* 亮点标签 - 更紧凑 */}
           <div className="hidden items-center gap-1 sm:flex">
             {chapter.highlights.slice(0, 2).map((highlight, idx) => (
-              <HighlightBadge key={idx} highlight={highlight} />
+              <CompactHighlightBadge key={idx} highlight={highlight} />
             ))}
           </div>
 
@@ -152,20 +150,18 @@ function ChapterCard({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="border-t border-slate-100 px-3 pb-3">
-              {/* 事件列表 */}
-              <div className="mt-3 space-y-2">
+            <div className="border-t border-slate-100 px-2.5 pb-2.5">
+              {/* 事件列表 - 更紧凑 */}
+              <div className="mt-2 space-y-1">
                 {chapter.events.map((event, idx) => (
-                  <EventItem key={event.id} event={event} index={idx} />
+                  <CompactEventItem key={event.id} event={event} index={idx} />
                 ))}
               </div>
 
-              {/* 更多事件提示 */}
+              {/* 更多事件提示 - 简化 */}
               {chapter.events.length >= 5 && (
-                <div className="mt-3 flex items-center gap-2">
-                  <div className="h-px flex-1 bg-slate-100" />
-                  <span className="text-[11px] text-slate-400">·· 还有更多故事 ··</span>
-                  <div className="h-px flex-1 bg-slate-100" />
+                <div className="mt-2 text-center">
+                  <span className="text-[10px] text-slate-400">···</span>
                 </div>
               )}
             </div>
@@ -177,78 +173,100 @@ function ChapterCard({
 }
 
 // ============================================================================
-// 亮点标签组件
+// 亮点标签组件（紧凑版）
 // ============================================================================
 
-interface HighlightBadgeProps {
+interface CompactHighlightBadgeProps {
   highlight: {
     type: "normal" | "warning" | "social" | "work";
     description: string;
   };
 }
 
-function HighlightBadge({ highlight }: HighlightBadgeProps) {
+function CompactHighlightBadge({ highlight }: CompactHighlightBadgeProps) {
   const typeClasses = {
-    normal: "bg-slate-100 text-slate-600",
-    warning: "bg-amber-100 text-amber-700",
-    social: "bg-rose-100 text-rose-700",
-    work: "bg-blue-100 text-blue-700",
+    normal: "bg-slate-100 text-slate-500",
+    warning: "bg-amber-100 text-amber-600",
+    social: "bg-rose-100 text-rose-600",
+    work: "bg-blue-100 text-blue-600",
   };
 
   const typeIcons = {
     normal: "•",
-    warning: "⚠️",
+    warning: "⚠",
     social: "💬",
-    work: "⚒️",
+    work: "⚒",
   };
+
+  // 提取数字
+  const count = highlight.description.match(/\d+/)?.[0] || "";
 
   return (
     <span
-      className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] ${typeClasses[highlight.type]}`}
+      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] ${typeClasses[highlight.type]}`}
     >
       <span>{typeIcons[highlight.type]}</span>
-      <span className="truncate max-w-[80px]">{highlight.description}</span>
+      <span>{count}</span>
     </span>
   );
 }
 
 // ============================================================================
-// 事件项组件
+// 事件项组件（紧凑版）
 // ============================================================================
 
-interface EventItemProps {
+interface CompactEventItemProps {
   event: StoryEvent;
   index: number;
 }
 
-function EventItem({ event, index }: EventItemProps) {
+function CompactEventItem({ event, index }: CompactEventItemProps) {
+  // 根据类型决定展示样式
+  const isLowImportance = event.type === "work" || event.type === "rest";
+
   const typeClasses = {
     talk: "border-l-rose-300 bg-rose-50/30",
     move: "border-l-emerald-300 bg-emerald-50/30",
-    work: "border-l-amber-300 bg-amber-50/30",
-    rest: "border-l-slate-300 bg-slate-50/30",
+    work: "border-l-slate-200 bg-slate-50/30",
+    rest: "border-l-slate-200 bg-slate-50/30",
     rejection: "border-l-red-300 bg-red-50/30",
-    other: "border-l-slate-300 bg-slate-50/30",
+    other: "border-l-slate-200 bg-slate-50/30",
   };
 
+  // 低重要性事件：单行展示
+  if (isLowImportance) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: index * 0.03 }}
+        className="flex items-center gap-2 rounded-r border-l-2 border-slate-200 py-1 pl-2 pr-2 text-xs text-slate-500"
+      >
+        <span className="text-xs opacity-70">{event.icon}</span>
+        <span className="truncate">{event.description}</span>
+      </motion.div>
+    );
+  }
+
+  // 高重要性事件：保留一定视觉层次
   return (
     <motion.div
-      initial={{ opacity: 0, x: -10 }}
+      initial={{ opacity: 0, x: -5 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.05 }}
-      className={`flex items-start gap-2 rounded-r-lg border-l-2 py-2 pl-3 pr-2 ${typeClasses[event.type]}`}
+      transition={{ delay: index * 0.03 }}
+      className={`flex items-start gap-2 rounded-r-lg border-l-2 py-1.5 pl-2.5 pr-2 ${typeClasses[event.type]}`}
     >
-      <span className="text-base">{event.icon}</span>
+      <span className="text-sm">{event.icon}</span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-slate-700">{event.description}</p>
+        <p className="text-xs text-slate-700 leading-tight">{event.description}</p>
         {event.locationName && (
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-300" />
+          <p className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-400">
+            <span className="inline-block h-1 w-1 rounded-full bg-slate-300" />
             {event.locationName}
           </p>
         )}
       </div>
-      <span className="text-xs text-slate-400">{event.time}</span>
+      <span className="text-[10px] text-slate-400 flex-shrink-0">{event.time}</span>
     </motion.div>
   );
 }

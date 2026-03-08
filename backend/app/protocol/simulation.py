@@ -22,12 +22,18 @@ DIRECTOR_EVENT_SHUTDOWN = f"{DIRECTOR_EVENT_PREFIX}shutdown"
 DIRECTOR_EVENT_WEATHER_CHANGE = f"{DIRECTOR_EVENT_PREFIX}weather_change"
 DIRECTOR_EVENT_KINDS = ("activity", "shutdown", "broadcast", "weather_change")
 
-# 导演场景目标常量
+# 导演场景目标常量 - 自动干预
 DIRECTOR_SCENE_SOFT_CHECK_IN = "soft_check_in"
 DIRECTOR_SCENE_KEEP_NATURAL = "keep_scene_natural"
 DIRECTOR_SCENE_PREEMPTIVE_COMFORT = "preemptive_comfort"  # 预防性安抚
 DIRECTOR_SCENE_BREAK_ISOLATION = "break_isolation"  # 打破隔离
 DIRECTOR_SCENE_REJECTION_RECOVERY = "rejection_recovery"  # 拒绝恢复
+
+# 导演场景目标常量 - 手动注入
+DIRECTOR_SCENE_GATHER = "gather"  # 集合场景
+DIRECTOR_SCENE_ACTIVITY = "activity"  # 活动场景
+DIRECTOR_SCENE_SHUTDOWN = "shutdown"  # 关闭场景
+DIRECTOR_SCENE_WEATHER_CHANGE = "weather_change"  # 天气变化场景
 
 ActionType: TypeAlias = Literal[
     "move",
@@ -57,11 +63,17 @@ RejectedActionEventType: TypeAlias = Literal[
 ]
 EventType: TypeAlias = ActionType | RejectedActionEventType
 DirectorSceneGoal: TypeAlias = Literal[
+    # 自动干预
     "soft_check_in",
     "keep_scene_natural",
     "preemptive_comfort",
     "break_isolation",
     "rejection_recovery",
+    # 手动注入
+    "gather",
+    "activity",
+    "shutdown",
+    "weather_change",
 ]
 
 

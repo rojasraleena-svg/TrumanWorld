@@ -156,7 +156,12 @@ async def test_get_timeline_for_empty_run(client):
     timeline_response = await client.get(f"/api/runs/{run_id}/timeline")
 
     assert timeline_response.status_code == 200
-    assert timeline_response.json() == {"run_id": run_id, "events": []}
+    data = timeline_response.json()
+    assert data["run_id"] == run_id
+    assert data["events"] == []
+    assert "total" in data
+    assert "filtered" in data
+    assert "run_info" in data
 
 
 @pytest.mark.asyncio

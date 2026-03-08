@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import type { WorldEvent } from "@/lib/types";
+
 import { AgentAvatar } from "@/components/agent-avatar";
-import { inferAgentStatus } from "@/lib/agent-utils";
 import { EventCard } from "@/components/event-card";
 import { TownMap } from "@/components/town-map";
+import { inferAgentStatus } from "@/lib/agent-utils";
 import { IntelligenceStreamModal } from "@/components/intelligence-stream-modal";
 import { LocationDetailModal } from "@/components/location-detail-modal";
 import { WorldHealthPanel } from "@/components/world-health-panel";
@@ -25,7 +26,6 @@ import {
   formatGoal,
   locationBeat,
   locationTone,
-  tickToSimTime,
   type EventFilter,
 } from "@/lib/world-utils";
 
@@ -123,10 +123,12 @@ export function WorldCanvas({ runId }: Props) {
           />
         </div>
 
+        {/* 中间列：世界健康度 + 地点详情 */}
         <div className="flex min-h-0 flex-col gap-4 overflow-auto">
           {/* 世界健康度面板 */}
           {healthMetrics && <WorldHealthPanel metrics={healthMetrics} runId={runId} />}
 
+          {/* 地点详情卡片 */}
           <div className="rounded-[28px] border border-slate-200 bg-white/80 p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">

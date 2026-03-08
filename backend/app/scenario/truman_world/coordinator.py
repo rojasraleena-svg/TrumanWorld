@@ -69,11 +69,32 @@ class TrumanWorldCoordinator:
         )
 
     async def build_director_plan(self, run_id: str, agents: list[Agent]) -> DirectorPlan | None:
-        """构建导演干预计划，并保存到记忆系统"""
+        """构建导演干预计划 - 优先使用手动注入，其次自动触发"""
         if self.run_repo is None:
             msg = "TrumanWorldCoordinator.build_director_plan requires a database session"
             raise RuntimeError(msg)
 
+        run = await self.run_repo.get(run_id)
+        if run is None:
+            return None
+
+        # 1. 优先检查是否有未执行的手动注入计划
+        if self.director_memory_repo is not None:
+            pending_manual = await self.director_memory_repo.get_pending_manual_interventions(
+                run_id=run_id,
+                current_tick=run.current_tick,
+                max_age_ticks=5,
+            )
+            if pending_manual:
+                # 将最新的手动计划转换为 DirectorPlan
+                memory = pending_manual[0]
+                return self._convert_memory_to_plan(memory)
+
+        # 2. 没有手动计划时，走自动逻辑
+        return await self._build_auto_plan(run_id, agents)
+
+    async def _build_auto_plan(self, run_id: str, agents: list[Agent]) -> DirectorPlan | None:
+        """构建自动导演干预计划"""
         run = await self.run_repo.get(run_id)
         if run is None:
             return None
@@ -89,14 +110,14 @@ class TrumanWorldCoordinator:
                 lookback_ticks=10,
             )
 
-        # 构建计划
+        # 构建自动计划
         plan = self.planner.build_plan(
             assessment=assessment,
             agents=list(agents),
             recent_intervention_goals=recent_goals,
         )
 
-        # 保存新的干预计划到记忆
+        # 保存新的自动干预计划到记忆
         if plan is not None and self.director_memory_repo is not None:
             await self.director_memory_repo.create(
                 run_id=run_id,
@@ -114,6 +135,31 @@ class TrumanWorldCoordinator:
             )
 
         return plan
+
+    def _convert_memory_to_plan(self, memory) -> DirectorPlan:
+        """将 DirectorMemory 转换为 DirectorPlan"""
+        import json
+
+        target_cast_ids = json.loads(memory.target_cast_ids) if memory.target_cast_ids else []
+
+        # location_hint 可能存储在 metadata_json 中（手动注入时）
+        location_hint = None
+        if hasattr(memory, "location_hint") and memory.location_hint:
+            location_hint = memory.location_hint
+        elif memory.metadata_json and "location_hint" in memory.metadata_json:
+            location_hint = memory.metadata_json["location_hint"]
+
+        return DirectorPlan(
+            scene_goal=memory.scene_goal,
+            target_cast_ids=target_cast_ids,
+            priority=memory.priority,
+            urgency=memory.urgency,
+            message_hint=memory.message_hint,
+            location_hint=location_hint,
+            target_agent_id=memory.target_agent_id,
+            reason=memory.reason,
+            cooldown_ticks=memory.cooldown_ticks,
+        )
 
     def assess(
         self,

@@ -111,7 +111,11 @@ def build_role_context(world_role: str, world: dict[str, Any]) -> dict[str, Any]
 
 
 def build_scene_guidance(world_role: str, world: dict[str, Any]) -> dict[str, Any]:
-    """Build scene guidance for cast agents."""
+    """Build scene guidance for cast agents.
+
+    Supports both automatic intervention goals (soft_check_in, keep_scene_natural, etc.)
+    and manual injection goals (gather, activity, shutdown, weather_change).
+    """
     if world_role != "cast":
         return {}
 
@@ -120,15 +124,79 @@ def build_scene_guidance(world_role: str, world: dict[str, Any]) -> dict[str, An
     if not scene_goal:
         return {}
 
-    return {
+    # Base guidance structure
+    base_guidance = {
         "scene_goal": scene_goal,
         "priority": guidance.get("director_priority", "advisory"),
         "message_hint": guidance.get("director_message_hint"),
         "target_agent_id": guidance.get("director_target_agent_id"),
         "location_hint": guidance.get("director_location_hint"),
         "reason": guidance.get("director_reason"),
-        "is_advisory": True,
     }
+
+    # Manual injection goals are typically more directive
+    manual_goals = {"gather", "activity", "shutdown", "weather_change"}
+    if scene_goal in manual_goals:
+        base_guidance["is_advisory"] = False
+        base_guidance["action_hint"] = _build_action_hint_for_manual_goal(
+            scene_goal, guidance
+        )
+    else:
+        base_guidance["is_advisory"] = True
+
+    return base_guidance
+
+
+def _build_action_hint_for_manual_goal(scene_goal: str, guidance: dict[str, Any]) -> str:
+    """Build action hint for manual injection goals.
+
+    This helps Cast Agents understand what actions to take for manual events.
+    """
+    message_hint = guidance.get("director_message_hint", "")
+    location_hint = guidance.get("director_location_hint")
+
+    if scene_goal == "gather":
+        if location_hint:
+            return (
+                f"收到广播消息: '{message_hint}'。"
+                f"如果方便，考虑前往指定地点参与。"
+                f"到达后可以与周围的人自然互动。"
+            )
+        return (
+            f"收到广播消息: '{message_hint}'。"
+            f"留意周围情况，保持自然日常状态。"
+        )
+
+    if scene_goal == "activity":
+        if location_hint:
+            return (
+                f"有活动举办: '{message_hint}'。"
+                f"如果在附近或感兴趣，可以前往参与。"
+                f"保持轻松自然的参与态度。"
+            )
+        return (
+            f"有活动举办: '{message_hint}'。"
+            f"可以根据自己的情况决定是否参与。"
+        )
+
+    if scene_goal == "shutdown":
+        if location_hint:
+            return (
+                f"地点关闭通知: '{message_hint}'。"
+                f"请避开该地点，选择其他合适的去处。"
+            )
+        return (
+            f"地点关闭通知: '{message_hint}'。"
+            f"请注意调整行程安排。"
+        )
+
+    if scene_goal == "weather_change":
+        return (
+            f"天气变化: '{message_hint}'。"
+            f"请注意天气影响，调整户外活动计划。"
+        )
+
+    return "请根据情况做出合适的反应。"
 
 
 def build_perception_context_for_agent(

@@ -96,6 +96,9 @@ kill-ports:
 	fi; \
 	sleep 2; \
 	echo "✅ 端口已释放"
+	@echo "🧹 清理前端锁文件..."
+	@rm -f $(FRONTEND_DIR)/.next/dev/lock
+	@echo "✅ 锁文件已清理"
 
 # 启动测试数据库（如果不存在则创建）
 db-start:
