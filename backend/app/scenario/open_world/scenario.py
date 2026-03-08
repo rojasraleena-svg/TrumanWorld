@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from app.agent.context_builder import ScenarioContextHooks
 from app.director.observer import DirectorAssessment
 from app.scenario.base import Scenario
+from app.scenario.truman_world.types import (
+    DirectorGuidance,
+    ScenarioAgentProfile,
+    build_scenario_agent_profile,
+    merge_scenario_agent_profile,
+)
 from app.sim.action_resolver import ActionIntent
 from app.store.models import Agent, Location
 
@@ -26,7 +33,7 @@ class OpenWorldScenario(Scenario):
         return None
 
     def configure_agent_context(self, context_builder) -> None:
-        context_builder.configure_hooks()
+        context_builder.configure_policy(ScenarioContextHooks())
 
     async def observe_run(self, run_id: str, event_limit: int = 20) -> DirectorAssessment:
         return DirectorAssessment(
@@ -62,8 +69,8 @@ class OpenWorldScenario(Scenario):
     async def build_director_plan(self, run_id: str, agents: list[Agent]):
         return None
 
-    def merge_agent_profile(self, agent: Agent, plan) -> dict:
-        return dict(agent.profile or {})
+    def merge_agent_profile(self, agent: Agent, plan) -> ScenarioAgentProfile:
+        return merge_scenario_agent_profile(agent.profile or {})
 
     def fallback_intent(
         self,
@@ -75,8 +82,7 @@ class OpenWorldScenario(Scenario):
         world_role: str | None = None,
         current_status: dict | None = None,
         truman_suspicion_score: float = 0.0,
-        director_scene_goal: str | None = None,
-        director_priority: str | None = None,
+        director_guidance: DirectorGuidance | None = None,
     ) -> ActionIntent | None:
         return None
 
@@ -104,7 +110,10 @@ class OpenWorldScenario(Scenario):
             current_location_id=meadow.id,
             current_goal="rest",
             personality={"openness": 0.8},
-            profile={"agent_config_id": "neighbor", "world_role": "npc"},
+            profile=build_scenario_agent_profile(
+                agent_config_id="neighbor",
+                world_role="npc",
+            ),
             status={"energy": 0.9},
             current_plan={"daytime": "wander"},
         )

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from app.scenario.truman_world.types import get_director_guidance
 from app.sim.world_queries import (
     build_familiarity_map,
     get_agent,
@@ -307,17 +308,18 @@ def build_scene_guidance(world_role: str, world: dict[str, Any]) -> dict[str, An
     if world_role != "cast":
         return {}
 
-    scene_goal = world.get("director_scene_goal")
+    guidance = get_director_guidance(world)
+    scene_goal = guidance.get("director_scene_goal")
     if not scene_goal:
         return {}
 
     return {
         "scene_goal": scene_goal,
-        "priority": world.get("director_priority", "advisory"),
-        "message_hint": world.get("director_message_hint"),
-        "target_agent_id": world.get("director_target_agent_id"),
-        "location_hint": world.get("director_location_hint"),
-        "reason": world.get("director_reason"),
+        "priority": guidance.get("director_priority", "advisory"),
+        "message_hint": guidance.get("director_message_hint"),
+        "target_agent_id": guidance.get("director_target_agent_id"),
+        "location_hint": guidance.get("director_location_hint"),
+        "reason": guidance.get("director_reason"),
         "is_advisory": True,
     }
 

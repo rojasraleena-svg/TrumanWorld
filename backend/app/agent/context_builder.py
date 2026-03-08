@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from app.agent.config_loader import AgentConfig
@@ -9,6 +10,13 @@ from app.agent.config_loader import AgentConfig
 WorldFilterHook = Callable[[str, dict[str, Any]], dict[str, Any]]
 RoleContextHook = Callable[[str, dict[str, Any]], dict[str, Any]]
 SceneGuidanceHook = Callable[[str, dict[str, Any]], dict[str, Any]]
+
+
+@dataclass(slots=True)
+class ScenarioContextHooks:
+    world_filter_hook: WorldFilterHook | None = None
+    role_context_hook: RoleContextHook | None = None
+    scene_guidance_hook: SceneGuidanceHook | None = None
 
 
 class ContextBuilder:
@@ -20,9 +28,14 @@ class ContextBuilder:
         role_context_hook: RoleContextHook | None = None,
         scene_guidance_hook: SceneGuidanceHook | None = None,
     ) -> None:
-        self._world_filter_hook = world_filter_hook
-        self._role_context_hook = role_context_hook
-        self._scene_guidance_hook = scene_guidance_hook
+        self._hooks = ScenarioContextHooks(
+            world_filter_hook=world_filter_hook,
+            role_context_hook=role_context_hook,
+            scene_guidance_hook=scene_guidance_hook,
+        )
+
+    def configure_policy(self, hooks: ScenarioContextHooks | None = None) -> None:
+        self._hooks = hooks or ScenarioContextHooks()
 
     def configure_hooks(
         self,
@@ -31,9 +44,13 @@ class ContextBuilder:
         role_context_hook: RoleContextHook | None = None,
         scene_guidance_hook: SceneGuidanceHook | None = None,
     ) -> None:
-        self._world_filter_hook = world_filter_hook
-        self._role_context_hook = role_context_hook
-        self._scene_guidance_hook = scene_guidance_hook
+        self.configure_policy(
+            ScenarioContextHooks(
+                world_filter_hook=world_filter_hook,
+                role_context_hook=role_context_hook,
+                scene_guidance_hook=scene_guidance_hook,
+            )
+        )
 
     def build_base_context(
         self,
@@ -96,13 +113,13 @@ class ContextBuilder:
         world_role: str,
         world: dict[str, Any],
     ) -> dict[str, Any]:
-        if self._world_filter_hook is not None:
-            return self._world_filter_hook(world_role, world)
+        if self._hooks.world_filter_hook is not None:
+            return self._hooks.world_filter_hook(world_role, world)
         return dict(world)
 
     def _build_role_context(self, world_role: str, world: dict[str, Any]) -> dict[str, Any]:
-        if self._role_context_hook is not None:
-            return self._role_context_hook(world_role, world)
+        if self._hooks.role_context_hook is not None:
+            return self._hooks.role_context_hook(world_role, world)
         return {
             "perspective": "agent",
             "focus": "根据当前可见世界状态做连贯决策",
@@ -110,6 +127,6 @@ class ContextBuilder:
         }
 
     def _build_scene_guidance(self, world_role: str, world: dict[str, Any]) -> dict[str, Any]:
-        if self._scene_guidance_hook is not None:
-            return self._scene_guidance_hook(world_role, world)
+        if self._hooks.scene_guidance_hook is not None:
+            return self._hooks.scene_guidance_hook(world_role, world)
         return {}

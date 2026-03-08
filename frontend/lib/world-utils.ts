@@ -1,3 +1,12 @@
+import {
+  DIRECTOR_EVENT_INJECT,
+  EVENT_MOVE,
+  EVENT_PLAN,
+  EVENT_REFLECT,
+  EVENT_REST,
+  EVENT_TALK,
+  EVENT_WORK,
+} from "@/lib/simulation-protocol";
 import type { WorldEvent, WorldSnapshot } from "@/lib/types";
 export type LocationBeat = "conversation" | "arrival" | "working" | "resting" | "quiet";
 export type EventFilter = "all" | "social" | "activity" | "movement";
@@ -130,18 +139,18 @@ export function getTimeOfDayStyle(timeOfDay: TimeOfDay): {
 
 export function eventMatchesFilter(event: WorldEvent, filter: EventFilter) {
   if (filter === "all") return true;
-  if (filter === "social") return event.event_type === "talk";
-  if (filter === "movement") return event.event_type === "move";
-  return event.event_type === "work" || event.event_type === "rest";
+  if (filter === "social") return event.event_type === EVENT_TALK;
+  if (filter === "movement") return event.event_type === EVENT_MOVE;
+  return event.event_type === EVENT_WORK || event.event_type === EVENT_REST;
 }
 
 export function locationBeat(locationId: string, events: WorldSnapshot["recent_events"]): LocationBeat {
   const latest = events.find((event) => event.location_id === locationId);
   if (!latest) return "quiet";
-  if (latest.event_type === "talk") return "conversation";
-  if (latest.event_type === "move") return "arrival";
-  if (latest.event_type === "work") return "working";
-  if (latest.event_type === "rest") return "resting";
+  if (latest.event_type === EVENT_TALK) return "conversation";
+  if (latest.event_type === EVENT_MOVE) return "arrival";
+  if (latest.event_type === EVENT_WORK) return "working";
+  if (latest.event_type === EVENT_REST) return "resting";
   return "quiet";
 }
 
@@ -186,13 +195,13 @@ export function calculateLocationHeat(
 ): number {
   // 事件类型权重
   const eventWeights: Record<string, number> = {
-    talk: 1.5, // 对话最重要
-    work: 1.0,
-    move: 0.6,
-    rest: 0.4,
-    director_inject: 2.0, // 导演事件最显眼
-    plan: 0.5,
-    reflect: 0.5,
+    [EVENT_TALK]: 1.5,
+    [EVENT_WORK]: 1.0,
+    [EVENT_MOVE]: 0.6,
+    [EVENT_REST]: 0.4,
+    [DIRECTOR_EVENT_INJECT]: 2.0,
+    [EVENT_PLAN]: 0.5,
+    [EVENT_REFLECT]: 0.5,
   };
 
   const locationEvents = events.filter((event) => event.location_id === locationId);

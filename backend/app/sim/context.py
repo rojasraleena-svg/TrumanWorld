@@ -9,6 +9,12 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
+from app.scenario.truman_world.types import DirectorGuidance, get_world_role
+from app.sim.event_utils import format_event_for_context
+from app.sim.runtime_context_utils import (
+    build_agent_world_context,
+    extract_truman_suspicion_from_agent_data,
+)
 from app.sim.world_queries import find_nearby_agent, get_agent, get_location
 from app.sim.world import AgentState, LocationState, WorldState
 from app.store.repositories import AgentRepository, EventRepository, LocationRepository
@@ -101,12 +107,7 @@ class ContextBuilder:
         current_status: dict | None = None,
         truman_suspicion_score: float = 0.0,
         world_role: str | None = None,
-        director_scene_goal: str | None = None,
-        director_priority: str | None = None,
-        director_message_hint: str | None = None,
-        director_target_agent_id: str | None = None,
-        director_location_hint: str | None = None,
-        director_reason: str | None = None,
+        director_guidance: DirectorGuidance | None = None,
     ) -> dict:
         """Build context dict for agent decision making.
 
@@ -119,12 +120,12 @@ class ContextBuilder:
             current_status: Agent's current status dict
             truman_suspicion_score: Truman's suspicion score
             world_role: Agent's role (truman/cast)
-            director_*: Director guidance fields
+            director_guidance: Director guidance payload
 
         Returns:
             Context dict for agent runtime
         """
-        return self._build_agent_world_context_impl(
+        return build_agent_world_context(
             world=world,
             current_goal=current_goal,
             current_location_id=current_location_id,
@@ -133,68 +134,8 @@ class ContextBuilder:
             current_status=current_status,
             truman_suspicion_score=truman_suspicion_score,
             world_role=world_role,
-            director_scene_goal=director_scene_goal,
-            director_priority=director_priority,
-            director_message_hint=director_message_hint,
-            director_target_agent_id=director_target_agent_id,
-            director_location_hint=director_location_hint,
-            director_reason=director_reason,
+            director_guidance=director_guidance,
         )
-
-    @staticmethod
-    def _build_agent_world_context_impl(
-        *,
-        world: WorldState,
-        current_goal: str | None,
-        current_location_id: str | None,
-        home_location_id: str | None,
-        nearby_agent_id: str | None,
-        current_status: dict | None = None,
-        truman_suspicion_score: float = 0.0,
-        world_role: str | None = None,
-        director_scene_goal: str | None = None,
-        director_priority: str | None = None,
-        director_message_hint: str | None = None,
-        director_target_agent_id: str | None = None,
-        director_location_hint: str | None = None,
-        director_reason: str | None = None,
-    ) -> dict:
-        """Static implementation for building agent world context."""
-        context = {
-            "current_goal": current_goal,
-            "current_location_id": current_location_id,
-            "home_location_id": home_location_id,
-            "nearby_agent_id": nearby_agent_id,
-            "self_status": current_status or {},
-            "truman_suspicion_score": truman_suspicion_score,
-            **world.time_context(),
-        }
-
-        if current_location_id:
-            location = get_location(world, current_location_id)
-            if location:
-                context["current_location_name"] = location.name
-                context["current_location_type"] = location.location_type
-
-        if nearby_agent_id:
-            nearby_agent = get_agent(world, nearby_agent_id)
-            if nearby_agent:
-                context["nearby_agent"] = {
-                    "id": nearby_agent.id,
-                    "name": nearby_agent.name,
-                    "occupation": nearby_agent.occupation,
-                }
-
-        if world_role:
-            context["world_role"] = world_role
-        if director_scene_goal:
-            context["director_scene_goal"] = director_scene_goal
-            context["director_priority"] = director_priority or "advisory"
-            context["director_message_hint"] = director_message_hint
-            context["director_target_agent_id"] = director_target_agent_id
-            context["director_location_hint"] = director_location_hint
-            context["director_reason"] = director_reason
-        return context
 
     def find_nearby_agent(self, world: WorldState, agent_id: str, location_id: str) -> str | None:
         """Find a nearby agent at the same location.
@@ -228,23 +169,7 @@ class ContextBuilder:
         Returns:
             Truman's suspicion score, or 0.0 if not found
         """
-        return self._extract_truman_suspicion_from_agent_data_impl(agent_data, world)
-
-    @staticmethod
-    def _extract_truman_suspicion_from_agent_data_impl(
-        agent_data: list[dict],
-        world: WorldState,
-    ) -> float:
-        """Static implementation for extracting Truman suspicion from agent data."""
-        for agent_dict in agent_data:
-            profile = agent_dict.get("profile", {}) or {}
-            if profile.get("world_role") != "truman":
-                continue
-            state = get_agent(world, agent_dict["id"])
-            if state is None:
-                continue
-            return float((state.status or {}).get("suspicion_score", 0.0) or 0.0)
-        return 0.0
+        return extract_truman_suspicion_from_agent_data(agent_data, world)
 
     def extract_truman_suspicion_from_agents(
         self,
@@ -261,7 +186,7 @@ class ContextBuilder:
             Truman's suspicion score, or 0.0 if not found
         """
         for agent in agents:
-            if (agent.profile or {}).get("world_role") != "truman":
+            if get_world_role(agent.profile) != "truman":
                 continue
             state = get_agent(world, agent.id)
             if state is None:
@@ -275,37 +200,7 @@ class ContextBuilder:
         agent_states: dict[str, AgentState],
         location_states: dict[str, LocationState],
     ) -> dict:
-        """Format an Event object for context injection.
-
-        Args:
-            evt: The event to format
-            agent_states: Map of agent IDs to states
-            location_states: Map of location IDs to states
-
-        Returns:
-            Dict with event info suitable for agent context
-        """
-        result = {
-            "event_type": evt.event_type,
-            "tick_no": evt.tick_no,
-        }
-
-        if evt.actor_agent_id and evt.actor_agent_id in agent_states:
-            result["actor_name"] = agent_states[evt.actor_agent_id].name
-        else:
-            result["actor_name"] = "某人"
-
-        if evt.target_agent_id and evt.target_agent_id in agent_states:
-            result["target_name"] = agent_states[evt.target_agent_id].name
-
-        if evt.location_id and evt.location_id in location_states:
-            result["location_name"] = location_states[evt.location_id].name
-
-        payload = evt.payload or {}
-        if "message" in payload:
-            result["message"] = payload["message"]
-
-        return result
+        return format_event_for_context(evt, agent_states, location_states)
 
 
 def get_run_world_time(run: SimulationRun) -> datetime:

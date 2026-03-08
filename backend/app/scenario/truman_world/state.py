@@ -2,6 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from app.protocol.simulation import (
+    DIRECTOR_EVENT_PREFIX,
+    EVENT_MOVE,
+    EVENT_REST,
+    EVENT_TALK,
+    EVENT_WORK,
+)
+from app.scenario.truman_world.types import get_world_role
 from app.store.repositories import AgentRepository
 
 if TYPE_CHECKING:
@@ -21,7 +29,7 @@ class TrumanWorldStateUpdater:
         agents = await self.agent_repo.list_for_run(run_id)
         changed = False
         for agent in agents:
-            if (agent.profile or {}).get("world_role") != "truman":
+            if get_world_role(agent.profile) != "truman":
                 continue
             delta = self.calculate_suspicion_delta(agent.id, events)
             if delta == 0.0:
@@ -45,12 +53,12 @@ class TrumanWorldStateUpdater:
 
             if event.event_type.endswith("_rejected"):
                 delta += 0.12
-            elif event.event_type.startswith("director_"):
+            elif event.event_type.startswith(DIRECTOR_EVENT_PREFIX):
                 delta += 0.2
-            elif event.event_type == "talk":
+            elif event.event_type == EVENT_TALK:
                 delta -= 0.02
-            elif event.event_type in {"rest", "work"}:
+            elif event.event_type in {EVENT_REST, EVENT_WORK}:
                 delta -= 0.01
-            elif event.event_type == "move":
+            elif event.event_type == EVENT_MOVE:
                 delta -= 0.005
         return delta

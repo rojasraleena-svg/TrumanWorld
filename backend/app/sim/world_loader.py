@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from app.sim.context import ContextBuilder, get_run_world_time
+from app.sim.agent_snapshot_builder import build_agent_snapshots
+from app.sim.context import get_run_world_time
+from app.sim.location_utils import resolve_agent_location_id
+from app.sim.types import AgentDecisionSnapshot
 from app.sim.world import AgentState, LocationState, WorldState
 from app.store.repositories import AgentRepository, LocationRepository, RunRepository
 
@@ -18,20 +21,8 @@ if TYPE_CHECKING:
 class LoadedTickData:
     run: "SimulationRun"
     world: WorldState
-    agent_data: list[dict[str, Any]]
+    agent_data: list[AgentDecisionSnapshot]
     agents: list["Agent"]
-
-
-def resolve_agent_location_id(
-    *,
-    current_location_id: str | None,
-    home_location_id: str | None,
-    location_states: dict[str, LocationState],
-) -> str:
-    location_id = current_location_id or home_location_id
-    if location_id is not None:
-        return location_id
-    return next(iter(location_states.keys()), "unknown")
 
 
 async def load_tick_data(
@@ -78,42 +69,15 @@ async def load_tick_data(
         if location_id in location_states:
             location_states[location_id].occupants.add(agent.id)
 
-    context_builder = ContextBuilder(session)
-    agent_recent_events: dict[str, list[dict[str, Any]]] = {}
-    for agent in agents:
-        recent_events = await agent_repo.list_recent_events(run_id, agent.id, limit=5)
-        agent_recent_events[agent.id] = [
-            context_builder.format_event_for_context(evt, agent_states, location_states)
-            for evt in recent_events
-        ]
-
-    scenario_with_session = scenario.with_session(session)
-    scenario_with_session.assess(
+    agent_data = await build_agent_snapshots(
+        session=session,
         run_id=run_id,
-        current_tick=run.current_tick,
+        run=run,
         agents=agents,
-        events=[],
+        scenario=scenario,
+        location_states=location_states,
+        agent_states=agent_states,
     )
-    plan = await scenario_with_session.build_director_plan(run_id, agents)
-
-    agent_data = []
-    for agent in agents:
-        location_id = resolve_agent_location_id(
-            current_location_id=agent.current_location_id,
-            home_location_id=agent.home_location_id,
-            location_states=location_states,
-        )
-        profile = scenario_with_session.merge_agent_profile(agent, plan)
-        agent_data.append(
-            {
-                "id": agent.id,
-                "current_goal": agent.current_goal,
-                "current_location_id": location_id,
-                "home_location_id": agent.home_location_id,
-                "profile": profile,
-                "recent_events": agent_recent_events.get(agent.id, []),
-            }
-        )
 
     world = WorldState(
         current_time=get_run_world_time(run),

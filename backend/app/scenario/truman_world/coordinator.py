@@ -6,7 +6,14 @@ from app.agent.providers import HeuristicDecisionProvider
 from app.director.observer import DirectorAssessment, DirectorObserver
 from app.director.planner import DirectorPlanner
 from app.scenario.truman_world.heuristics import build_truman_world_decision
+from app.scenario.truman_world.types import (
+    DirectorGuidance,
+    ScenarioAgentProfile,
+    build_director_guidance,
+    merge_scenario_agent_profile,
+)
 from app.sim.action_resolver import ActionIntent
+from app.sim.types import RuntimeWorldContext
 from app.store.repositories import AgentRepository, EventRepository, RunRepository
 
 if TYPE_CHECKING:
@@ -60,20 +67,18 @@ class TrumanWorldCoordinator:
             events=list(events),
         )
 
-    def merge_agent_profile(self, agent: Agent, plan) -> dict:
-        profile = dict(agent.profile or {})
+    def merge_agent_profile(self, agent: Agent, plan) -> ScenarioAgentProfile:
+        guidance = {}
         if plan and agent.id in plan.target_cast_ids:
-            profile.update(
-                {
-                    "director_scene_goal": plan.scene_goal,
-                    "director_priority": plan.priority,
-                    "director_message_hint": plan.message_hint,
-                    "director_target_agent_id": plan.target_agent_id,
-                    "director_location_hint": plan.location_hint,
-                    "director_reason": plan.reason,
-                }
+            guidance = build_director_guidance(
+                scene_goal=plan.scene_goal,
+                priority=plan.priority,
+                message_hint=plan.message_hint,
+                target_agent_id=plan.target_agent_id,
+                location_hint=plan.location_hint,
+                reason=plan.reason,
             )
-        return profile
+        return merge_scenario_agent_profile(agent.profile or {}, guidance)
 
     def configure_runtime(self, agent_runtime) -> None:
         provider = getattr(agent_runtime, "decision_provider", None)
@@ -82,7 +87,7 @@ class TrumanWorldCoordinator:
 
     def build_runtime_decision(
         self,
-        world: dict,
+        world: RuntimeWorldContext,
         nearby_agent_id: str | None,
         current_location_id: str | None,
         home_location_id: str | None,
@@ -104,17 +109,17 @@ class TrumanWorldCoordinator:
         world_role: str | None = None,
         current_status: dict | None = None,
         truman_suspicion_score: float = 0.0,
-        director_scene_goal: str | None = None,
-        director_priority: str | None = None,
+        director_guidance: DirectorGuidance | None = None,
     ) -> ActionIntent | None:
+        guidance = director_guidance or {}
+        runtime_world: RuntimeWorldContext = {
+            "world_role": world_role,
+            "self_status": current_status or {},
+            "truman_suspicion_score": truman_suspicion_score,
+            **guidance,
+        }
         decision = build_truman_world_decision(
-            world={
-                "world_role": world_role,
-                "self_status": current_status or {},
-                "truman_suspicion_score": truman_suspicion_score,
-                "director_scene_goal": director_scene_goal,
-                "director_priority": director_priority,
-            },
+            world=runtime_world,
             nearby_agent_id=nearby_agent_id,
             current_location_id=current_location_id,
             home_location_id=home_location_id,

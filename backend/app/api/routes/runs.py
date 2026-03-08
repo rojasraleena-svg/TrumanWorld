@@ -2,14 +2,29 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.schemas.simulation import (
+    DirectorObservationResponse,
+    RunDetailResponse,
+    StatusResponse,
+    TimelineEventResponse,
+    TimelineResponse,
+    WorldClockResponse,
+    WorldEventResponse,
+    WorldLocationResponse,
+    WorldSnapshotResponse,
+    WorldSnapshotRunResponse,
+    AgentSummaryResponse,
+)
 from app.infra.db import get_db_session
 from app.infra.logging import get_logger
+from app.scenario.truman_world.types import get_agent_config_id
 from app.sim.context import get_run_world_time
 from app.sim.scheduler import get_scheduler
 from app.sim.service import SimulationService
-from app.store.models import SimulationRun
+from app.store.models import Agent, Event, Location, SimulationRun
 from app.store.repositories import (
     AgentRepository,
     EventRepository,
@@ -49,6 +64,9 @@ class RunResponse(BaseModel):
     was_running_before_restart: bool = Field(
         False, description="服务重启前是否在运行中（用于一键恢复）"
     )
+    agent_count: int = Field(0, description="本次运行的 agent 数量")
+    location_count: int = Field(0, description="本次运行的地点数量")
+    event_count: int = Field(0, description="本次运行产生的事件总数")
 
 
 class DirectorEventRequest(BaseModel):
@@ -135,7 +153,7 @@ async def create_run(
         # Build pool keys with run_id prefix for multi-run isolation
         pool_keys = set()
         for a in agents:
-            config_id = (a.profile or {}).get("agent_config_id")
+            config_id = get_agent_config_id(a.profile)
             agent_key = config_id if config_id else a.id
             pool_keys.add(f"{created.id}:{agent_key}")
         if pool_keys:
@@ -174,6 +192,34 @@ async def list_runs(
     repo = RunRepository(session)
     runs = await repo.list()
     logger.debug(f"Found {len(runs)} runs")
+
+    if not runs:
+        return []
+
+    run_ids = [run.id for run in runs]
+
+    # 批量聚合计数，避免 N+1 查询
+    agent_counts_result = await session.execute(
+        select(Agent.run_id, func.count(Agent.id).label("cnt"))
+        .where(Agent.run_id.in_(run_ids))
+        .group_by(Agent.run_id)
+    )
+    agent_counts: dict[str, int] = {row.run_id: row.cnt for row in agent_counts_result}
+
+    location_counts_result = await session.execute(
+        select(Location.run_id, func.count(Location.id).label("cnt"))
+        .where(Location.run_id.in_(run_ids))
+        .group_by(Location.run_id)
+    )
+    location_counts: dict[str, int] = {row.run_id: row.cnt for row in location_counts_result}
+
+    event_counts_result = await session.execute(
+        select(Event.run_id, func.count(Event.id).label("cnt"))
+        .where(Event.run_id.in_(run_ids))
+        .group_by(Event.run_id)
+    )
+    event_counts: dict[str, int] = {row.run_id: row.cnt for row in event_counts_result}
+
     return [
         RunResponse(
             id=UUID(run.id),
@@ -182,6 +228,9 @@ async def list_runs(
             current_tick=run.current_tick,
             tick_minutes=run.tick_minutes,
             was_running_before_restart=run.was_running_before_restart,
+            agent_count=agent_counts.get(run.id, 0),
+            location_count=location_counts.get(run.id, 0),
+            event_count=event_counts.get(run.id, 0),
         )
         for run in runs
     ]
@@ -231,7 +280,7 @@ async def restore_all_runs(
                 # Build pool keys with run_id prefix for multi-run isolation
                 pool_keys = set()
                 for a in agents:
-                    config_id = (a.profile or {}).get("agent_config_id")
+                    config_id = get_agent_config_id(a.profile)
                     agent_key = config_id if config_id else a.id
                     pool_keys.add(f"{run.id}:{agent_key}")
 
@@ -307,7 +356,7 @@ async def start_run(
         # Build pool keys with run_id prefix for multi-run isolation
         pool_keys = set()
         for a in agents:
-            config_id = (a.profile or {}).get("agent_config_id")
+            config_id = get_agent_config_id(a.profile)
             agent_key = config_id if config_id else a.id
             pool_keys.add(f"{run_id}:{agent_key}")
 
@@ -425,35 +474,37 @@ async def advance_run_tick(
 
 @router.get(
     "/{run_id}",
+    response_model=RunDetailResponse,
     summary="获取运行详情",
     description="获取指定模拟运行的详细状态信息",
 )
 async def get_run(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),
-) -> dict[str, object]:
+) -> RunDetailResponse:
     repo = RunRepository(session)
     run = await repo.get(str(run_id))
     if run is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
-    return {
-        "id": run.id,
-        "name": run.name,
-        "status": run.status,
-        "current_tick": run.current_tick,
-        "tick_minutes": run.tick_minutes,
-    }
+    return RunDetailResponse(
+        id=run.id,
+        name=run.name,
+        status=run.status,
+        current_tick=run.current_tick,
+        tick_minutes=run.tick_minutes,
+    )
 
 
 @router.get(
     "/{run_id}/timeline",
+    response_model=TimelineResponse,
     summary="获取时间线",
     description="获取模拟运行的完整事件时间线",
 )
 async def get_timeline(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),
-) -> dict[str, object]:
+) -> TimelineResponse:
     run_repo = RunRepository(session)
     run = await run_repo.get(str(run_id))
     if run is None:
@@ -461,30 +512,31 @@ async def get_timeline(
 
     event_repo = EventRepository(session)
     events = await event_repo.list_for_run(str(run_id))
-    return {
-        "run_id": str(run_id),
-        "events": [
-            {
-                "id": event.id,
-                "tick_no": event.tick_no,
-                "event_type": event.event_type,
-                "importance": event.importance,
-                "payload": event.payload,
-            }
+    return TimelineResponse(
+        run_id=str(run_id),
+        events=[
+            TimelineEventResponse(
+                id=event.id,
+                tick_no=event.tick_no,
+                event_type=event.event_type,
+                importance=event.importance,
+                payload=event.payload or {},
+            )
             for event in events
         ],
-    }
+    )
 
 
 @router.get(
     "/{run_id}/director/observation",
+    response_model=DirectorObservationResponse,
     summary="获取导演观察",
     description="获取只读导演观察结果，包括 Truman 怀疑度和世界连续性风险",
 )
 async def get_director_observation(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),
-) -> dict[str, object]:
+) -> DirectorObservationResponse:
     repo = RunRepository(session)
     run = await repo.get(str(run_id))
     if run is None:
@@ -493,27 +545,28 @@ async def get_director_observation(
     service = SimulationService(session)
     assessment = await service.observe_run(str(run_id))
 
-    return {
-        "run_id": str(run_id),
-        "current_tick": assessment.current_tick,
-        "truman_agent_id": assessment.truman_agent_id,
-        "truman_suspicion_score": assessment.truman_suspicion_score,
-        "suspicion_level": assessment.suspicion_level,
-        "continuity_risk": assessment.continuity_risk,
-        "focus_agent_ids": assessment.focus_agent_ids,
-        "notes": assessment.notes,
-    }
+    return DirectorObservationResponse(
+        run_id=str(run_id),
+        current_tick=assessment.current_tick,
+        truman_agent_id=assessment.truman_agent_id,
+        truman_suspicion_score=assessment.truman_suspicion_score,
+        suspicion_level=assessment.suspicion_level,
+        continuity_risk=assessment.continuity_risk,
+        focus_agent_ids=assessment.focus_agent_ids,
+        notes=assessment.notes,
+    )
 
 
 @router.get(
     "/{run_id}/world",
+    response_model=WorldSnapshotResponse,
     summary="获取世界快照",
     description="获取模拟世界的实时快照，包括地点、agent 分布和最近事件",
 )
 async def get_world_snapshot(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),
-) -> dict[str, object]:
+) -> WorldSnapshotResponse:
     run_repo = RunRepository(session)
     run = await run_repo.get(str(run_id))
     if run is None:
@@ -528,14 +581,14 @@ async def get_world_snapshot(
     events = await event_repo.list_for_run(str(run_id), limit=12)
 
     agent_summaries = {
-        agent.id: {
-            "id": agent.id,
-            "name": agent.name,
-            "occupation": agent.occupation,
-            "current_goal": agent.current_goal,
-            "current_location_id": agent.current_location_id,
-            "config_id": (agent.profile or {}).get("agent_config_id"),
-        }
+        agent.id: AgentSummaryResponse(
+            id=agent.id,
+            name=agent.name,
+            occupation=agent.occupation,
+            current_goal=agent.current_goal,
+            current_location_id=agent.current_location_id,
+            config_id=get_agent_config_id(agent.profile),
+        )
         for agent in agents
     }
 
@@ -563,7 +616,7 @@ async def get_world_snapshot(
     weekday = world_time.weekday()
     weekday_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     weekday_names_cn = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
-    
+
     hour = world_time.hour
     if hour < 6:
         time_period = "night"
@@ -587,58 +640,59 @@ async def get_world_snapshot(
         time_period = "night"
         time_period_cn = "夜晚"
 
-    world_clock = {
-        "iso": world_time.isoformat(),
-        "date": world_time.strftime("%Y-%m-%d"),
-        "time": world_time.strftime("%H:%M"),
-        "year": world_time.year,
-        "month": world_time.month,
-        "day": world_time.day,
-        "hour": hour,
-        "minute": world_time.minute,
-        "weekday": weekday,
-        "weekday_name": weekday_names[weekday],
-        "weekday_name_cn": weekday_names_cn[weekday],
-        "is_weekend": weekday >= 5,
-        "time_period": time_period,
-        "time_period_cn": time_period_cn,
-    }
+    world_clock = WorldClockResponse(
+        iso=world_time.isoformat(),
+        date=world_time.strftime("%Y-%m-%d"),
+        time=world_time.strftime("%H:%M"),
+        year=world_time.year,
+        month=world_time.month,
+        day=world_time.day,
+        hour=hour,
+        minute=world_time.minute,
+        weekday=weekday,
+        weekday_name=weekday_names[weekday],
+        weekday_name_cn=weekday_names_cn[weekday],
+        is_weekend=weekday >= 5,
+        time_period=time_period,
+        time_period_cn=time_period_cn,
+    )
 
     # Build agent and location name maps for event enrichment
     agent_name_map = {agent.id: agent.name for agent in agents}
     location_name_map = {location.id: location.name for location in locations}
 
-    return {
-        "run": {
-            "id": run.id,
-            "name": run.name,
-            "status": run.status,
-            "current_tick": run.current_tick,
-            "tick_minutes": run.tick_minutes,
-        },
-        "world_clock": world_clock,
-        "locations": locations_payload,
-        "recent_events": [
-            {
-                "id": event.id,
-                "tick_no": event.tick_no,
-                "event_type": event.event_type,
-                "location_id": event.location_id,
-                "actor_agent_id": event.actor_agent_id,
-                "target_agent_id": event.target_agent_id,
-                "actor_name": agent_name_map.get(event.actor_agent_id) if event.actor_agent_id else None,
-                "target_name": agent_name_map.get(event.target_agent_id) if event.target_agent_id else None,
-                "location_name": location_name_map.get(event.location_id) if event.location_id else None,
-                "payload": event.payload,
-            }
+    return WorldSnapshotResponse(
+        run=WorldSnapshotRunResponse(
+            id=run.id,
+            name=run.name,
+            status=run.status,
+            current_tick=run.current_tick,
+            tick_minutes=run.tick_minutes,
+        ),
+        world_clock=world_clock,
+        locations=[WorldLocationResponse(**location_payload) for location_payload in locations_payload],
+        recent_events=[
+            WorldEventResponse(
+                id=event.id,
+                tick_no=event.tick_no,
+                event_type=event.event_type,
+                location_id=event.location_id,
+                actor_agent_id=event.actor_agent_id,
+                target_agent_id=event.target_agent_id,
+                actor_name=agent_name_map.get(event.actor_agent_id) if event.actor_agent_id else None,
+                target_name=agent_name_map.get(event.target_agent_id) if event.target_agent_id else None,
+                location_name=location_name_map.get(event.location_id) if event.location_id else None,
+                payload=event.payload or {},
+            )
             for event in events
             if event.visibility == "public"
         ],
-    }
+    )
 
 
 @router.post(
     "/{run_id}/director/events",
+    response_model=StatusResponse,
     summary="导演事件注入",
     description="""
 **导演系统 - 注入事件**
@@ -658,7 +712,7 @@ async def inject_director_event(
     run_id: UUID,
     payload: DirectorEventRequest,
     session: AsyncSession = Depends(get_db_session),
-) -> dict[str, str]:
+) -> StatusResponse:
     repo = RunRepository(session)
     run = await repo.get(str(run_id))
     if run is None:
@@ -671,11 +725,12 @@ async def inject_director_event(
         location_id=payload.location_id,
         importance=payload.importance,
     )
-    return {"run_id": str(run_id), "status": "queued"}
+    return StatusResponse(run_id=str(run_id), status="queued")
 
 
 @router.delete(
     "/{run_id}",
+    response_model=StatusResponse,
     summary="删除运行",
     description="""
 **删除模拟运行**
@@ -688,7 +743,7 @@ async def inject_director_event(
 async def delete_run(
     run_id: UUID,
     session: AsyncSession = Depends(get_db_session),
-) -> dict[str, str]:
+) -> StatusResponse:
     """Delete a run and all its associated data."""
     logger.info(f"Deleting run: {run_id}")
 
@@ -733,4 +788,4 @@ async def delete_run(
     await repo.delete(run)
     logger.info(f"Run deleted: {run_id}")
 
-    return {"run_id": str(run_id), "status": "deleted"}
+    return StatusResponse(run_id=str(run_id), status="deleted")

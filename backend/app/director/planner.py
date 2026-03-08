@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.protocol.simulation import (
+    DIRECTOR_SCENE_KEEP_NATURAL,
+    DIRECTOR_SCENE_SOFT_CHECK_IN,
+)
 from app.director.observer import DirectorAssessment
+from app.scenario.truman_world.types import get_agent_config_id, get_world_role
 from app.store.models import Agent
 
 
@@ -26,9 +31,7 @@ class DirectorPlanner:
         assessment: DirectorAssessment,
         agents: list[Agent],
     ) -> DirectorPlan | None:
-        cast_agents = [
-            agent for agent in agents if (agent.profile or {}).get("world_role") == "cast"
-        ]
+        cast_agents = [agent for agent in agents if get_world_role(agent.profile) == "cast"]
         if not cast_agents or assessment.truman_agent_id is None:
             return None
 
@@ -38,7 +41,7 @@ class DirectorPlanner:
 
         if assessment.suspicion_level == "high":
             return DirectorPlan(
-                scene_goal="soft_check_in",
+                scene_goal=DIRECTOR_SCENE_SOFT_CHECK_IN,
                 target_cast_ids=[primary_cast.id],
                 priority="advisory",
                 message_hint=(
@@ -51,7 +54,7 @@ class DirectorPlanner:
 
         if assessment.continuity_risk in {"critical", "elevated"}:
             return DirectorPlan(
-                scene_goal="keep_scene_natural",
+                scene_goal=DIRECTOR_SCENE_KEEP_NATURAL,
                 target_cast_ids=[primary_cast.id],
                 priority="advisory",
                 message_hint=(
@@ -68,7 +71,7 @@ class DirectorPlanner:
         sorted_agents = sorted(
             cast_agents,
             key=lambda agent: (
-                (agent.profile or {}).get("agent_config_id") not in {"spouse", "friend"},
+                get_agent_config_id(agent.profile) not in {"spouse", "friend"},
                 agent.name,
             ),
         )

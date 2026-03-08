@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { EVENT_TALK } from "@/lib/simulation-protocol";
 import type { WorldEvent } from "@/lib/types";
 import { describeWorldEvent, getEventMeta } from "@/lib/event-utils";
 
@@ -24,7 +25,7 @@ export function EventCard({
   const description = describeWorldEvent(event, agentNameMap, locationNameMap);
   const messageText = event.payload.message;
   const hasMessage = typeof messageText === "string" && messageText.length > 0;
-  const showTalkHint = event.event_type === "talk" && !hasMessage;
+  const showTalkHint = event.event_type === EVENT_TALK && !hasMessage;
 
   return (
     <motion.div

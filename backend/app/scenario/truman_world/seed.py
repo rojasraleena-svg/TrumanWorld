@@ -5,6 +5,7 @@ from uuid import uuid4
 from typing import TYPE_CHECKING
 
 from app.sim.context import DEFAULT_WORLD_START_TIME
+from app.scenario.truman_world.types import build_scenario_agent_profile
 from app.store.models import Agent, Location, Relationship
 
 if TYPE_CHECKING:
@@ -105,14 +106,14 @@ class TrumanWorldSeedBuilder:
             current_location_id=f"{run_id}-apartment",
             current_goal="work",
             personality={"openness": 0.55, "conscientiousness": 0.62},
-            profile={
-                "bio": "过着平凡的生活，相信小镇完全正常。",
-                "agent_config_id": "truman",
-                "world_role": "truman",
-                "workplace": "港务办公室",
-                "workplace_location_id": f"{run_id}-office",
-                "work_description": "审核保险理赔、整理客户档案、处理保单变更",
-            },
+            profile=build_scenario_agent_profile(
+                bio="过着平凡的生活，相信小镇完全正常。",
+                agent_config_id="truman",
+                world_role="truman",
+                workplace="港务办公室",
+                workplace_location_id=f"{run_id}-office",
+                work_description="审核保险理赔、整理客户档案、处理保单变更",
+            ),
             status={"energy": 0.85, "suspicion_score": 0.0},
             current_plan={"morning": "commute", "daytime": "work", "evening": "socialize"},
         )
@@ -125,13 +126,13 @@ class TrumanWorldSeedBuilder:
             current_location_id=f"{run_id}-apartment",
             current_goal="work",
             personality={"agreeableness": 0.72, "conscientiousness": 0.7},
-            profile={
-                "bio": "维持 Truman 的家庭生活稳定且可预测。",
-                "agent_config_id": "spouse",
-                "world_role": "cast",
-                "workplace": "医院",
-                "work_description": "医院工作人员，协助病房巡查和病历整理",
-            },
+            profile=build_scenario_agent_profile(
+                bio="维持 Truman 的家庭生活稳定且可预测。",
+                agent_config_id="spouse",
+                world_role="cast",
+                workplace="医院",
+                work_description="医院工作人员，协助病房巡查和病历整理",
+            ),
             status={"energy": 0.78},
             current_plan={"morning": "prepare_day", "daytime": "work", "evening": "home"},
         )
@@ -144,14 +145,14 @@ class TrumanWorldSeedBuilder:
             current_location_id=f"{run_id}-office",
             current_goal="work",
             personality={"agreeableness": 0.68, "openness": 0.48},
-            profile={
-                "bio": "一个熟悉的朋友，经常和 Truman 分享日常生活。",
-                "agent_config_id": "friend",
-                "world_role": "cast",
-                "workplace": "港务办公室",
-                "workplace_location_id": f"{run_id}-office",
-                "work_description": "与 Truman 同一办公室，负责保单录入和客户咨询",
-            },
+            profile=build_scenario_agent_profile(
+                bio="一个熟悉的朋友，经常和 Truman 分享日常生活。",
+                agent_config_id="friend",
+                world_role="cast",
+                workplace="港务办公室",
+                workplace_location_id=f"{run_id}-office",
+                work_description="与 Truman 同一办公室，负责保单录入和客户咨询",
+            ),
             status={"energy": 0.74},
             current_plan={"morning": "work", "daytime": "work", "evening": "socialize"},
         )
@@ -164,13 +165,12 @@ class TrumanWorldSeedBuilder:
             current_location_id=f"{run_id}-cafe",
             current_goal="talk",
             personality={"agreeableness": 0.58, "openness": 0.66},
-            profile={
-                "bio": "广场和咖啡馆的常客，熟悉的面孔。",
-                "agent_config_id": "neighbor",
-                "world_role": "cast",
-                "workplace": None,
-                "work_description": "自由职业者，常在咖啡馆活动",
-            },
+            profile=build_scenario_agent_profile(
+                bio="广场和咖啡馆的常客，熟悉的面孔。",
+                agent_config_id="neighbor",
+                world_role="cast",
+                work_description="自由职业者，常在咖啡馆活动",
+            ),
             status={"energy": 0.72},
             current_plan={"morning": "socialize", "daytime": "wander", "evening": "socialize"},
         )
@@ -183,14 +183,14 @@ class TrumanWorldSeedBuilder:
             current_location_id=f"{run_id}-cafe",
             current_goal="work",
             personality={"openness": 0.7, "conscientiousness": 0.8},
-            profile={
-                "bio": "在街角咖啡馆工作，熟悉常客。",
-                "agent_config_id": "alice",
-                "world_role": "cast",
-                "workplace": "街角咖啡馆",
-                "workplace_location_id": f"{run_id}-cafe",
-                "work_description": "咖啡师，制作咖啡、服务顾客",
-            },
+            profile=build_scenario_agent_profile(
+                bio="在街角咖啡馆工作，熟悉常客。",
+                agent_config_id="alice",
+                world_role="cast",
+                workplace="街角咖啡馆",
+                workplace_location_id=f"{run_id}-cafe",
+                work_description="咖啡师，制作咖啡、服务顾客",
+            ),
             status={"energy": 0.8},
             current_plan={"morning": "work", "daytime": "work", "evening": "rest"},
         )

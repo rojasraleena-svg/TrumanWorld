@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.sim.event_utils import build_event
 from app.sim.runner import TickResult
 from app.sim.world import WorldState
 from app.store.repositories import (
@@ -20,7 +21,6 @@ from app.store.repositories import (
     MemoryRepository,
     RelationshipRepository,
     RunRepository,
-    build_event,
 )
 from app.store.models import Event, Memory
 

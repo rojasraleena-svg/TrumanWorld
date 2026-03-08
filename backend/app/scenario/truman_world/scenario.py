@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from app.agent.context_builder import ScenarioContextHooks
 from app.scenario.base import Scenario
-from app.scenario.truman_world.context import (
+from app.scenario.truman_world.rules import (
     build_role_context,
     build_scene_guidance,
     filter_world_for_role,
@@ -11,6 +12,7 @@ from app.scenario.truman_world.context import (
 from app.scenario.truman_world.coordinator import TrumanWorldCoordinator
 from app.scenario.truman_world.seed import TrumanWorldSeedBuilder
 from app.scenario.truman_world.state import TrumanWorldStateUpdater
+from app.scenario.truman_world.types import DirectorGuidance, ScenarioAgentProfile
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,10 +38,12 @@ class TrumanWorldScenario(Scenario):
         self.configure_agent_context(agent_runtime.context_builder)
 
     def configure_agent_context(self, context_builder) -> None:
-        context_builder.configure_hooks(
-            world_filter_hook=filter_world_for_role,
-            role_context_hook=build_role_context,
-            scene_guidance_hook=build_scene_guidance,
+        context_builder.configure_policy(
+            ScenarioContextHooks(
+                world_filter_hook=filter_world_for_role,
+                role_context_hook=build_role_context,
+                scene_guidance_hook=build_scene_guidance,
+            )
         )
 
     async def observe_run(self, run_id: str, event_limit: int = 20):
@@ -63,7 +67,7 @@ class TrumanWorldScenario(Scenario):
     async def build_director_plan(self, run_id: str, agents: list[Agent]):
         return await self.coordinator.build_director_plan(run_id, agents)
 
-    def merge_agent_profile(self, agent: Agent, plan) -> dict:
+    def merge_agent_profile(self, agent: Agent, plan) -> ScenarioAgentProfile:
         return self.coordinator.merge_agent_profile(agent, plan)
 
     def fallback_intent(
@@ -76,8 +80,7 @@ class TrumanWorldScenario(Scenario):
         world_role: str | None = None,
         current_status: dict | None = None,
         truman_suspicion_score: float = 0.0,
-        director_scene_goal: str | None = None,
-        director_priority: str | None = None,
+        director_guidance: DirectorGuidance | None = None,
     ):
         return self.coordinator.fallback_intent(
             agent_id=agent_id,
@@ -87,8 +90,7 @@ class TrumanWorldScenario(Scenario):
             world_role=world_role,
             current_status=current_status,
             truman_suspicion_score=truman_suspicion_score,
-            director_scene_goal=director_scene_goal,
-            director_priority=director_priority,
+            director_guidance=director_guidance,
         )
 
     async def seed_demo_run(self, run: SimulationRun) -> None:

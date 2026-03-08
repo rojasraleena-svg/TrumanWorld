@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type WheelEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { EVENT_MOVE } from "@/lib/simulation-protocol";
 import type { AgentSummary, WorldSnapshot } from "@/lib/types";
 import { calculateLocationHeat, getHeatLevel, getTimeOfDay, getTimeOfDayStyle } from "@/lib/world-utils";
 
@@ -148,7 +149,7 @@ function buildMapData(world: WorldSnapshot) {
   }
 
   const movePaths: MovePath[] = world.recent_events
-    .filter((event) => event.event_type === "move" && event.location_id)
+    .filter((event) => event.event_type === EVENT_MOVE && event.location_id)
     .map((event) => {
       const toLocationId =
         typeof event.payload.to_location_id === "string" ? event.payload.to_location_id : undefined;

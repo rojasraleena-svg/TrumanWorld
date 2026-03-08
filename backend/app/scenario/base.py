@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from app.director.observer import DirectorAssessment
+from app.scenario.truman_world.types import DirectorGuidance, ScenarioAgentProfile
 from app.sim.action_resolver import ActionIntent
 
 if TYPE_CHECKING:
@@ -48,7 +49,7 @@ class Scenario(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def merge_agent_profile(self, agent: Agent, plan) -> dict:
+    def merge_agent_profile(self, agent: Agent, plan) -> ScenarioAgentProfile:
         raise NotImplementedError
 
     @abstractmethod
@@ -62,8 +63,7 @@ class Scenario(ABC):
         world_role: str | None = None,
         current_status: dict | None = None,
         truman_suspicion_score: float = 0.0,
-        director_scene_goal: str | None = None,
-        director_priority: str | None = None,
+        director_guidance: DirectorGuidance | None = None,
     ) -> ActionIntent | None:
         raise NotImplementedError
 

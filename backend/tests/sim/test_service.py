@@ -5,6 +5,7 @@ import pytest
 from app.agent.providers import AgentDecisionProvider, RuntimeDecision
 from app.agent.runtime import RuntimeInvocation
 from app.scenario.base import Scenario
+from app.scenario.truman_world.types import DirectorGuidance
 from app.sim.action_resolver import ActionIntent
 from app.sim.service import SimulationService
 from app.store.models import Agent, Location, SimulationRun
@@ -74,8 +75,7 @@ class FakeScenario(Scenario):
         world_role: str | None = None,
         current_status: dict | None = None,
         truman_suspicion_score: float = 0.0,
-        director_scene_goal: str | None = None,
-        director_priority: str | None = None,
+        director_guidance: DirectorGuidance | None = None,
     ):
         return None
 

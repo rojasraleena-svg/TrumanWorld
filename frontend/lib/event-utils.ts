@@ -1,3 +1,13 @@
+import {
+  DIRECTOR_EVENT_INJECT,
+  EVENT_MOVE,
+  EVENT_PLAN,
+  EVENT_REFLECT,
+  EVENT_REST,
+  EVENT_TALK,
+  EVENT_WORK,
+  type EventType,
+} from "@/lib/simulation-protocol";
 import type { AgentDetails, TimelineEvent, WorldEvent } from "@/lib/types";
 
 type EventMeta = {
@@ -14,44 +24,44 @@ const DEFAULT_EVENT_META: EventMeta = {
   color: "#6b7280",
 };
 
-export const EVENT_META: Record<string, EventMeta> = {
-  talk: {
+export const EVENT_META: Partial<Record<EventType, EventMeta>> = {
+  [EVENT_TALK]: {
     icon: "💬",
     label: "对话",
     chip: "bg-rose-50 text-rose-700 border border-rose-100",
     color: "#ec4899",
   },
-  move: {
+  [EVENT_MOVE]: {
     icon: "🚶",
     label: "移动",
     chip: "bg-emerald-50 text-emerald-700 border border-emerald-100",
     color: "#10b981",
   },
-  work: {
+  [EVENT_WORK]: {
     icon: "⚒️",
     label: "工作",
     chip: "bg-amber-50 text-amber-700 border border-amber-100",
     color: "#f59e0b",
   },
-  rest: {
+  [EVENT_REST]: {
     icon: "😴",
     label: "休息",
     chip: "bg-indigo-50 text-indigo-700 border border-indigo-100",
     color: "#6366f1",
   },
-  director_inject: {
+  [DIRECTOR_EVENT_INJECT]: {
     icon: "📢",
     label: "导演注入",
     chip: "bg-red-50 text-red-700 border border-red-100",
     color: "#dc2626",
   },
-  plan: {
+  [EVENT_PLAN]: {
     icon: "📋",
     label: "计划",
     chip: "bg-violet-50 text-violet-700 border border-violet-100",
     color: "#8b5cf6",
   },
-  reflect: {
+  [EVENT_REFLECT]: {
     icon: "🔍",
     label: "反思",
     chip: "bg-cyan-50 text-cyan-700 border border-cyan-100",
@@ -59,7 +69,7 @@ export const EVENT_META: Record<string, EventMeta> = {
   },
 };
 
-export function getEventMeta(eventType: string): EventMeta {
+export function getEventMeta(eventType: EventType): EventMeta {
   return EVENT_META[eventType] ?? { ...DEFAULT_EVENT_META, label: eventType };
 }
 
@@ -75,19 +85,19 @@ export function describeWorldEvent(
     locationMap[String(event.payload.to_location_id ?? "")] || String(event.payload.to_location_id || atPlace);
 
   switch (event.event_type) {
-    case "move":
+    case EVENT_MOVE:
       return `${actor} 前往了 ${toPlace}`;
-    case "talk":
+    case EVENT_TALK:
       return `${actor} 与 ${target} 展开交谈`;
-    case "work":
+    case EVENT_WORK:
       return `${actor} 在 ${atPlace} 专心工作`;
-    case "rest":
+    case EVENT_REST:
       return `${actor} 在 ${atPlace} 休息`;
-    case "director_inject":
+    case DIRECTOR_EVENT_INJECT:
       return `导演播报：${String(event.payload.message || "发生了一件大事")}`;
-    case "plan":
+    case EVENT_PLAN:
       return `${actor} 制定了新的计划`;
-    case "reflect":
+    case EVENT_REFLECT:
       return `${actor} 陷入了沉思`;
     default:
       return `${atPlace} 发生了一些事情`;
@@ -97,33 +107,33 @@ export function describeWorldEvent(
 export function describeTimelineEvent(event: Pick<TimelineEvent, "event_type" | "payload">) {
   const payload = event.payload;
 
-  if (event.event_type === "talk") {
+  if (event.event_type === EVENT_TALK) {
     const msg = payload.message ? `：「${String(payload.message)}」` : "";
     const actor = String(payload.actor_name ?? payload.actor_agent_id ?? "某人");
     const target = String(payload.target_name ?? payload.target_agent_id ?? "某人");
     return `${actor} 和 ${target} 展开了交谈${msg}`;
   }
-  if (event.event_type === "move") {
+  if (event.event_type === EVENT_MOVE) {
     const actor = String(payload.actor_name ?? payload.actor_agent_id ?? "某人");
     const to = String(payload.to_location_name ?? payload.to_location_id ?? "某地");
     return `${actor} 前往了 ${to}`;
   }
-  if (event.event_type === "work") {
+  if (event.event_type === EVENT_WORK) {
     const actor = String(payload.actor_name ?? payload.actor_agent_id ?? "某人");
     return `${actor} 专心工作中`;
   }
-  if (event.event_type === "rest") {
+  if (event.event_type === EVENT_REST) {
     const actor = String(payload.actor_name ?? payload.actor_agent_id ?? "某人");
     return `${actor} 暂时休息`;
   }
-  if (event.event_type === "director_inject") {
+  if (event.event_type === DIRECTOR_EVENT_INJECT) {
     return `导演播报：${String(payload.message ?? "发生了一件大事")}`;
   }
-  if (event.event_type === "plan") {
+  if (event.event_type === EVENT_PLAN) {
     const actor = String(payload.actor_name ?? payload.actor_agent_id ?? "某人");
     return `${actor} 制定了今日计划`;
   }
-  if (event.event_type === "reflect") {
+  if (event.event_type === EVENT_REFLECT) {
     const actor = String(payload.actor_name ?? payload.actor_agent_id ?? "某人");
     return `${actor} 进行了深度反思`;
   }
@@ -132,16 +142,16 @@ export function describeTimelineEvent(event: Pick<TimelineEvent, "event_type" | 
 }
 
 export function describeAgentEvent(event: AgentDetails["recent_events"][number]) {
-  if (event.event_type === "talk" && event.target_name) {
+  if (event.event_type === EVENT_TALK && event.target_name) {
     return `与 ${event.target_name} 对话`;
   }
-  if (event.event_type === "move" && event.location_name) {
+  if (event.event_type === EVENT_MOVE && event.location_name) {
     return `前往 ${event.location_name}`;
   }
-  if (event.event_type === "work" && event.location_name) {
+  if (event.event_type === EVENT_WORK && event.location_name) {
     return `在 ${event.location_name} 工作`;
   }
-  if (event.event_type === "rest" && event.location_name) {
+  if (event.event_type === EVENT_REST && event.location_name) {
     return `在 ${event.location_name} 休息`;
   }
 

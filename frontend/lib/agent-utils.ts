@@ -1,8 +1,10 @@
+import { EVENT_MOVE, EVENT_REST, EVENT_TALK, EVENT_WORK, type EventType } from "@/lib/simulation-protocol";
+
 export type AgentStatus = "idle" | "working" | "talking" | "moving" | "resting";
 
 export function inferAgentStatus(
   agentId: string,
-  recentEvents: Array<{ actor_agent_id?: string; target_agent_id?: string; event_type: string }>
+  recentEvents: Array<{ actor_agent_id?: string; target_agent_id?: string; event_type: EventType }>
 ): AgentStatus {
   const relevantEvents = recentEvents.filter(
     (e) => e.actor_agent_id === agentId || e.target_agent_id === agentId
@@ -12,13 +14,13 @@ export function inferAgentStatus(
 
   const latest = relevantEvents[0];
   switch (latest.event_type) {
-    case "talk":
+    case EVENT_TALK:
       return "talking";
-    case "work":
+    case EVENT_WORK:
       return "working";
-    case "move":
+    case EVENT_MOVE:
       return "moving";
-    case "rest":
+    case EVENT_REST:
       return "resting";
     default:
       return "idle";

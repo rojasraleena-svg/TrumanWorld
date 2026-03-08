@@ -254,26 +254,3 @@ class LocationRepository:
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
-
-
-def build_event(
-    run_id: str,
-    tick_no: int,
-    world_time: str,
-    action_type: str,
-    payload: dict,
-    accepted: bool,
-) -> Event:
-    visibility = "public" if accepted else "system"
-    event_type = action_type if accepted else f"{action_type}_rejected"
-    return Event(
-        id=str(uuid4()),
-        run_id=run_id,
-        tick_no=tick_no,
-        event_type=event_type,
-        actor_agent_id=payload.get("agent_id"),
-        target_agent_id=payload.get("target_agent_id"),
-        location_id=payload.get("location_id") or payload.get("to_location_id"),
-        visibility=visibility,
-        payload=payload,
-    )

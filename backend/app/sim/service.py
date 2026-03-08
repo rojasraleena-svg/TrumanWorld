@@ -15,16 +15,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent.providers import (
     build_default_talk_message,
 )
+from app.protocol.simulation import build_director_event_type
 from app.agent.registry import AgentRegistry
 from app.agent.runtime import AgentRuntime
 from app.director.observer import DirectorAssessment
 from app.infra.settings import get_settings
 from app.scenario.base import Scenario
 from app.scenario.truman_world.scenario import TrumanWorldScenario
+from app.scenario.truman_world.types import (
+    DirectorGuidance,
+    get_agent_config_id,
+    get_director_guidance,
+    get_world_role,
+)
 from app.sim.action_resolver import ActionIntent
 from app.sim.context import ContextBuilder, get_run_world_time
+from app.sim.event_utils import build_event
 from app.sim.persistence import PersistenceManager
+from app.sim.runtime_context_utils import (
+    build_agent_world_context,
+    extract_truman_suspicion_from_agent_data,
+)
 from app.sim.runner import SimulationRunner, TickResult
+from app.sim.types import AgentDecisionSnapshot
 from app.sim.world import AgentState, LocationState, WorldState
 from app.sim.world_loader import load_tick_data
 from app.sim.world_queries import find_nearby_agent, get_agent
@@ -33,7 +46,6 @@ from app.store.repositories import (
     EventRepository,
     LocationRepository,
     RunRepository,
-    build_event,
 )
 from app.store.models import Agent
 
@@ -162,7 +174,7 @@ class SimulationService:
     async def _prepare_intents_from_data(
         self,
         world: WorldState,
-        agent_data: list[dict],
+        agent_data: list[AgentDecisionSnapshot],
         engine: "async_engine | None" = None,
         run_id: str | None = None,
     ) -> list[ActionIntent]:
@@ -176,17 +188,15 @@ class SimulationService:
         """
         from app.agent.runtime import RuntimeContext
 
-        async def decide_for_agent(agent_dict: dict) -> ActionIntent | None:
-            agent_id = agent_dict["id"]
+        async def decide_for_agent(agent_snapshot: AgentDecisionSnapshot) -> ActionIntent | None:
+            agent_id = agent_snapshot.id
             state = get_agent(world, agent_id)
             if state is None:
                 return None
 
-            profile = agent_dict.get("profile", {})
-            runtime_agent_id = profile.get("agent_config_id") or agent_id
-            truman_suspicion_score = ContextBuilder._extract_truman_suspicion_from_agent_data_impl(
-                agent_data, world
-            )
+            profile = agent_snapshot.profile
+            runtime_agent_id = get_agent_config_id(profile) or agent_id
+            truman_suspicion_score = extract_truman_suspicion_from_agent_data(agent_data, world)
 
             # Build runtime context with memory tools support
             runtime_ctx = None
@@ -201,18 +211,18 @@ class SimulationService:
                 agent_id=agent_id,
                 runtime_agent_id=runtime_agent_id,
                 world=world,
-                current_goal=agent_dict.get("current_goal"),
-                current_location_id=agent_dict.get("current_location_id"),
-                home_location_id=agent_dict.get("home_location_id"),
+                current_goal=agent_snapshot.current_goal,
+                current_location_id=agent_snapshot.current_location_id,
+                home_location_id=agent_snapshot.home_location_id,
                 current_status=state.status,
                 profile=profile if isinstance(profile, dict) else {},
-                recent_events=agent_dict.get("recent_events", []),
+                recent_events=agent_snapshot.recent_events,
                 truman_suspicion_score=truman_suspicion_score,
                 runtime_ctx=runtime_ctx,
             )
 
         # Execute all agent decisions in PARALLEL
-        results = await asyncio.gather(*[decide_for_agent(a) for a in agent_data])
+        results = await asyncio.gather(*[decide_for_agent(snapshot) for snapshot in agent_data])
 
         # Filter out None results (agents without valid state)
         intents = [r for r in results if r is not None]
@@ -300,11 +310,12 @@ class SimulationService:
             if current_location_id is not None
             else None
         )
+        director_guidance = get_director_guidance(profile)
 
         try:
             intent = await self.agent_runtime.react(
                 runtime_agent_id,
-                world=ContextBuilder._build_agent_world_context_impl(
+                world=build_agent_world_context(
                     world=world,
                     current_goal=current_goal,
                     current_location_id=current_location_id,
@@ -312,13 +323,8 @@ class SimulationService:
                     nearby_agent_id=nearby_agent_id,
                     current_status=current_status,
                     truman_suspicion_score=truman_suspicion_score,
-                    world_role=profile.get("world_role"),
-                    director_scene_goal=profile.get("director_scene_goal"),
-                    director_priority=profile.get("director_priority"),
-                    director_message_hint=profile.get("director_message_hint"),
-                    director_target_agent_id=profile.get("director_target_agent_id"),
-                    director_location_hint=profile.get("director_location_hint"),
-                    director_reason=profile.get("director_reason"),
+                    world_role=get_world_role(profile),
+                    director_guidance=director_guidance,
                 ),
                 memory={"recent": []},
                 event={},
@@ -334,19 +340,14 @@ class SimulationService:
                 current_location_id=current_location_id or "",
                 home_location_id=home_location_id,
                 nearby_agent_id=nearby_agent_id,
-                world_role=profile.get("world_role"),
+                world_role=get_world_role(profile),
                 current_status=current_status,
                 truman_suspicion_score=truman_suspicion_score,
-                director_scene_goal=profile.get("director_scene_goal"),
-                director_priority=profile.get("director_priority"),
+                director_guidance=director_guidance,
             )
 
     def _resolve_runtime_agent_id(self, agent: Agent) -> str:
-        profile = agent.profile or {}
-        configured_id = profile.get("agent_config_id")
-        if isinstance(configured_id, str) and configured_id:
-            return configured_id
-        return agent.id
+        return get_agent_config_id(agent.profile) or agent.id
 
     async def inject_director_event(
         self,
@@ -365,7 +366,7 @@ class SimulationService:
             run_id=run_id,
             tick_no=run.current_tick,
             world_time=get_run_world_time(run).isoformat(),
-            action_type=f"director_{event_type}",
+            action_type=build_director_event_type(event_type),
             payload=payload,
             accepted=True,
         )
@@ -405,8 +406,7 @@ class SimulationService:
         world_role: str | None = None,
         current_status: dict | None = None,
         truman_suspicion_score: float = 0.0,
-        director_scene_goal: str | None = None,
-        director_priority: str | None = None,
+        director_guidance: DirectorGuidance | None = None,
     ) -> ActionIntent:
         scenario_intent = self._scenario.fallback_intent(
             agent_id=agent_id,
@@ -416,8 +416,7 @@ class SimulationService:
             world_role=world_role,
             current_status=current_status,
             truman_suspicion_score=truman_suspicion_score,
-            director_scene_goal=director_scene_goal,
-            director_priority=director_priority,
+            director_guidance=director_guidance,
         )
         if scenario_intent is not None:
             return scenario_intent

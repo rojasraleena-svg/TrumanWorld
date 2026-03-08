@@ -19,6 +19,7 @@ from app.infra.settings import Settings
 if TYPE_CHECKING:
     from app.agent.connection_pool import AgentConnectionPool
     from app.agent.runtime import RuntimeContext, RuntimeInvocation
+    from app.sim.types import RuntimeWorldContext
 
 logger = get_logger(__name__)
 
@@ -66,7 +67,7 @@ def build_default_talk_message() -> str:
 
 
 HeuristicDecisionHook = Callable[
-    [dict[str, Any], str | None, str | None, str | None],
+    ["RuntimeWorldContext", str | None, str | None, str | None],
     RuntimeDecision | None,
 ]
 

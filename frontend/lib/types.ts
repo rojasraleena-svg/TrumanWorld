@@ -1,3 +1,5 @@
+import type { EventType } from "@/lib/simulation-protocol";
+
 export type RunSummary = {
   id: string;
   name: string;
@@ -5,6 +7,9 @@ export type RunSummary = {
   current_tick?: number;
   tick_minutes?: number;
   was_running_before_restart?: boolean;
+  agent_count?: number;
+  location_count?: number;
+  event_count?: number;
 };
 
 export type CreateRunResponse = {
@@ -23,7 +28,7 @@ export type TickResponse = {
 export type TimelineEvent = {
   id: string;
   tick_no: number;
-  event_type: string;
+  event_type: EventType;
   importance?: number;
   payload: Record<string, unknown>;
 };
@@ -57,7 +62,7 @@ export type AgentSummary = {
 export type WorldEvent = {
   id: string;
   tick_no: number;
-  event_type: string;
+  event_type: EventType;
   location_id?: string;
   actor_agent_id?: string;
   target_agent_id?: string;
@@ -87,7 +92,7 @@ export type WorldSnapshot = {
 export type AgentRecentEvent = {
   id: string;
   tick_no: number;
-  event_type: string;
+  event_type: EventType;
   actor_agent_id?: string;
   actor_name?: string;
   target_agent_id?: string;
