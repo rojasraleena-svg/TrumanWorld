@@ -45,7 +45,10 @@ class RunRepository:
         return result.scalars().all()
 
     async def update_status(self, run: SimulationRun, status: str) -> SimulationRun:
+        from datetime import UTC, datetime
         run.status = status
+        if status == "running":
+            run.started_at = datetime.now(UTC)
         await self.session.commit()
         await self.session.refresh(run)
         return run

@@ -11,6 +11,7 @@ export type RunSummary = {
   agent_count?: number;
   location_count?: number;
   event_count?: number;
+  started_at?: string | null; // ISO8601 UTC, 最近一次启动时间
 };
 
 export type CreateRunResponse = {

@@ -21,29 +21,42 @@ export function WorldStatusBar() {
   const [isToggling, setIsToggling] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Wall-clock elapsed time while the run is in "running" state.
-  // Counts up every second; resets to 0 whenever the run transitions
-  // from non-running → running.
+  // 根据后端返回的 started_at 计算已累计运行时长，每秒刷新一次
+  // 若 started_at 为 null（旧数据），退化为本地从 0 开始计时
   const [elapsed, setElapsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const wasRunningRef = useRef(false);
+  const localStartRef = useRef<number | null>(null);
 
   const isRunning = world?.run.status === "running";
+  const startedAt = world?.run.started_at;
 
   useEffect(() => {
     if (isRunning) {
-      // If it just became running, reset the counter
-      if (!wasRunningRef.current) {
-        setElapsed(0);
-        wasRunningRef.current = true;
-      }
-      if (!intervalRef.current) {
-        intervalRef.current = setInterval(() => {
-          setElapsed((prev) => prev + 1);
-        }, 1000);
+      if (startedAt) {
+        // 有服务端时间戳：直接计算与 started_at 的差值
+        localStartRef.current = null;
+        const calcElapsed = () => {
+          const diff = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+          setElapsed(Math.max(0, diff));
+        };
+        calcElapsed();
+        if (!intervalRef.current) {
+          intervalRef.current = setInterval(calcElapsed, 1000);
+        }
+      } else {
+        // 无服务端时间戳（旧数据）：本地从 0 开始累计
+        if (localStartRef.current === null) {
+          localStartRef.current = Date.now();
+          setElapsed(0);
+        }
+        if (!intervalRef.current) {
+          intervalRef.current = setInterval(() => {
+            setElapsed(Math.floor((Date.now() - localStartRef.current!) / 1000));
+          }, 1000);
+        }
       }
     } else {
-      wasRunningRef.current = false;
+      localStartRef.current = null;
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -55,7 +68,7 @@ export function WorldStatusBar() {
         intervalRef.current = null;
       }
     };
-  }, [isRunning]);
+  }, [isRunning, startedAt]);
 
   if (!world) {
     return (
@@ -129,7 +142,7 @@ export function WorldStatusBar() {
             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
             : "border-slate-200 bg-slate-50 text-slate-400"
         }`}
-        title="本次启动后的后台运行时长（暂停时停止计时）"
+        title="本次启动后的已运行时长（暂停时停止计时）"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 shrink-0">
           <circle cx="12" cy="12" r="10" />

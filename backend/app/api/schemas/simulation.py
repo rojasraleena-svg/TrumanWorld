@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from app.protocol.simulation import EventType
@@ -157,6 +159,7 @@ class WorldSnapshotRunResponse(BaseModel):
     scenario_type: str
     current_tick: int
     tick_minutes: int
+    started_at: datetime | None = None
 
 
 class WorldSnapshotResponse(BaseModel):
