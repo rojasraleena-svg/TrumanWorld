@@ -144,6 +144,37 @@ INITIAL_RELATIONSHIPS = {
         "affinity": 0.1,
         "relation_type": "stranger",
     },
+    # Bob 的关系
+    ("bob", "truman"): {
+        "familiarity": 0.2,
+        "trust": 0.1,
+        "affinity": 0.15,
+        "relation_type": "stranger",
+    },
+    ("bob", "spouse"): {
+        "familiarity": 0.1,
+        "trust": 0.1,
+        "affinity": 0.1,
+        "relation_type": "stranger",
+    },
+    ("bob", "friend"): {
+        "familiarity": 0.3,
+        "trust": 0.25,
+        "affinity": 0.25,
+        "relation_type": "acquaintance",
+    },
+    ("bob", "alice"): {
+        "familiarity": 0.3,
+        "trust": 0.25,
+        "affinity": 0.25,
+        "relation_type": "acquaintance",
+    },
+    ("bob", "neighbor"): {
+        "familiarity": 0.4,
+        "trust": 0.35,
+        "affinity": 0.35,
+        "relation_type": "acquantee",
+    },
 }
 
 
@@ -310,7 +341,7 @@ class TrumanWorldSeedBuilder:
             run_id=run_id,
             name="Alice",
             occupation="咖啡师",
-            home_location_id=f"{run_id}-bachelor-apt",
+            home_location_id=f"{run_id}-cafe",
             current_location_id=f"{run_id}-cafe",
             current_goal="work",
             personality={"openness": 0.7, "conscientiousness": 0.8},
@@ -325,6 +356,24 @@ class TrumanWorldSeedBuilder:
             status={"energy": 0.8},
             current_plan={"morning": "work", "daytime": "work", "evening": "rest"},
         )
+        bob = Agent(
+            id=f"{run_id}-bob",
+            run_id=run_id,
+            name="Bob",
+            occupation="居民",
+            home_location_id=f"{run_id}-bachelor-apt",
+            current_location_id=f"{run_id}-plaza",
+            current_goal="wander",
+            personality={"agreeableness": 0.6, "openness": 0.5},
+            profile=build_scenario_agent_profile(
+                bio="小镇普通居民，经常在镇中心和咖啡馆附近活动。",
+                agent_config_id="bob",
+                world_role="cast",
+                work_description="无固定工作，日常活动比较自由",
+            ),
+            status={"energy": 0.75},
+            current_plan={"morning": "wander", "daytime": "wander", "evening": "socialize"},
+        )
 
         # 创建初始关系
         agent_id_map = {
@@ -333,6 +382,7 @@ class TrumanWorldSeedBuilder:
             "friend": friend.id,
             "neighbor": neighbor.id,
             "alice": alice.id,
+            "bob": bob.id,
         }
         relationships = []
         for (from_agent, to_agent), attrs in INITIAL_RELATIONSHIPS.items():
@@ -356,7 +406,7 @@ class TrumanWorldSeedBuilder:
 
         self.session.add_all([plaza, apartment, office, cafe, hospital, bachelor_apt, mall])
         await self.session.flush()
-        self.session.add_all([truman, spouse, friend, neighbor, alice])
+        self.session.add_all([truman, spouse, friend, neighbor, alice, bob])
         await self.session.flush()
         self.session.add_all(relationships)
         await self.session.commit()

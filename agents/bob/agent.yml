@@ -2,7 +2,7 @@ id: bob
 name: Bob
 world_role: cast
 occupation: resident
-home: town_plaza
+home: bachelor_apt
 personality:
   agreeableness: 0.6
   openness: 0.5

@@ -6,7 +6,7 @@ workplace: hospital
 work_schedule:
   type: shift  # 轮班制
   shifts: [morning, evening]
-home: seaside_apartment
+home: apartment
 personality:
   agreeableness: 0.72
   conscientiousness: 0.7

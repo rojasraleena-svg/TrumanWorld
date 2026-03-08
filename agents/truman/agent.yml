@@ -7,7 +7,7 @@ work_schedule:
   start_hour: 9
   end_hour: 17
   work_days: [monday, tuesday, wednesday, thursday, friday]
-home: seaside_apartment
+home: apartment
 personality:
   openness: 0.55
   conscientiousness: 0.62

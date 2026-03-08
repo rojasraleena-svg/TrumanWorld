@@ -3,7 +3,7 @@ name: Lauren
 world_role: cast
 occupation: shop regular
 workplace: null  # 自由职业，无固定工作地点
-home: town_plaza
+home: bachelor_apt
 personality:
   agreeableness: 0.58
   openness: 0.66
