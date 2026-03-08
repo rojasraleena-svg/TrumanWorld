@@ -28,6 +28,7 @@ class RuntimeWorldContext(DirectorGuidance, total=False):
     current_location_id: str
     current_location_name: str
     current_location_type: str
+    known_location_ids: list[str]
     home_location_id: str
     nearby_agent_id: str
     nearby_agent: NearbyAgentContext

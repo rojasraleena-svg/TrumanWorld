@@ -201,6 +201,7 @@ def test_runtime_derive_intent_from_goal(runtime: AgentRuntime):
             "current_goal": "move:park",
             "current_location_id": "home",
             "home_location_id": "home",
+            "known_location_ids": ["home", "park"],
         },
     )
 
@@ -208,6 +209,22 @@ def test_runtime_derive_intent_from_goal(runtime: AgentRuntime):
 
     assert intent.action_type == "move"
     assert intent.target_location_id == "park"
+
+
+def test_runtime_derive_intent_rests_when_move_goal_target_is_unknown(runtime: AgentRuntime):
+    invocation = runtime.prepare_reactor(
+        "demo_agent",
+        world={
+            "current_goal": "move:town-center",
+            "current_location_id": "home",
+            "home_location_id": "home",
+            "known_location_ids": ["home", "park"],
+        },
+    )
+
+    intent = runtime.derive_intent(invocation)
+
+    assert intent.action_type == "rest"
 
 
 def test_runtime_derive_talk_intent_includes_default_message(runtime: AgentRuntime):
@@ -314,6 +331,23 @@ async def test_truman_suspicion_changes_heuristic_decision(runtime: AgentRuntime
     # Extreme suspicion triggers go home
     assert intent.action_type == "move"
     assert intent.target_location_id == "home"
+
+
+@pytest.mark.asyncio
+async def test_runtime_rest_when_work_goal_has_no_valid_work_context(runtime: AgentRuntime):
+    invocation = runtime.prepare_reactor(
+        "demo_agent",
+        world={
+            "current_goal": "work",
+            "current_location_id": "home",
+            "current_location_type": "home",
+            "home_location_id": "home",
+        },
+    )
+
+    intent = await runtime.decide_intent(invocation)
+
+    assert intent.action_type == "rest"
 
 
 @pytest.mark.asyncio

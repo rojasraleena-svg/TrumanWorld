@@ -75,6 +75,8 @@ class ActionResolver:
             return self._resolve_move(world, intent)
         if intent.action_type == "talk":
             return self._resolve_talk(world, intent)
+        if intent.action_type == "work":
+            return self._resolve_work(world, intent)
 
         # work, rest 等其他动作需要包含 location_id
         return ActionResult(
@@ -225,6 +227,49 @@ class ActionResolver:
                 "target_agent_id": target.id,
                 "location_id": agent.location_id,
                 "message": intent.payload.get("message") or build_default_talk_message(),
+                **intent.payload,
+            },
+        )
+
+    def _resolve_work(self, world: WorldState, intent: ActionIntent) -> ActionResult:
+        agent = world.get_agent(intent.agent_id)
+        if agent is None:
+            return ActionResult(
+                False,
+                "work",
+                "agent_not_found",
+                event_payload={
+                    "agent_id": intent.agent_id,
+                    "location_id": None,
+                },
+            )
+
+        location = world.get_location(agent.location_id)
+        location_type = location.location_type if location is not None else None
+        is_at_workplace = bool(agent.workplace_id) and agent.location_id == agent.workplace_id
+        work_friendly_location = location_type in {"office", "hospital", "cafe", "shop"}
+
+        # Soft guard: if an agent is at home or otherwise lacks a credible work
+        # context, convert the action into rest instead of persisting work@home.
+        if not is_at_workplace and not work_friendly_location:
+            return ActionResult(
+                accepted=True,
+                action_type="rest",
+                reason="downgraded_invalid_work_context",
+                event_payload={
+                    "agent_id": intent.agent_id,
+                    "location_id": agent.location_id,
+                    **intent.payload,
+                },
+            )
+
+        return ActionResult(
+            accepted=True,
+            action_type="work",
+            reason="accepted",
+            event_payload={
+                "agent_id": intent.agent_id,
+                "location_id": agent.location_id,
                 **intent.payload,
             },
         )

@@ -93,14 +93,19 @@ class HeuristicDecisionProvider(AgentDecisionProvider):
         world = invocation.context.get("world", {})
         goal = world.get("current_goal")
         current_location_id = world.get("current_location_id")
+        current_location_type = world.get("current_location_type")
         home_location_id = world.get("home_location_id")
         nearby_agent_id = world.get("nearby_agent_id")
         workplace_location_id = world.get("workplace_location_id")
+        known_location_ids = world.get("known_location_ids")
 
         if isinstance(goal, str) and goal.startswith("move:"):
+            target_location_id = goal.split(":", 1)[1].strip()
+            if isinstance(known_location_ids, list) and target_location_id not in known_location_ids:
+                return RuntimeDecision(action_type="rest")
             return RuntimeDecision(
                 action_type="move",
-                target_location_id=goal.split(":", 1)[1].strip(),
+                target_location_id=target_location_id,
             )
 
         if self._decision_hook is not None:
@@ -126,7 +131,9 @@ class HeuristicDecisionProvider(AgentDecisionProvider):
                     action_type="move",
                     target_location_id=str(workplace_location_id),
                 )
-            return RuntimeDecision(action_type="work")
+            if workplace_location_id or current_location_type in {"office", "hospital", "cafe", "shop"}:
+                return RuntimeDecision(action_type="work")
+            return RuntimeDecision(action_type="rest")
 
         # Talk: just initiate, let LLM generate message content
         if goal == "talk" and nearby_agent_id:

@@ -373,6 +373,47 @@ async def test_simulation_service_uses_world_role_and_clock_in_runtime_context(
 
 
 @pytest.mark.asyncio
+async def test_simulation_service_fallback_rests_for_unknown_move_target(db_session):
+    run = SimulationRun(
+        id="run-service-invalid-move", name="service", status="running", current_tick=0, tick_minutes=5
+    )
+    home = Location(
+        id="loc-home-invalid-move",
+        run_id="run-service-invalid-move",
+        name="Home",
+        location_type="home",
+        capacity=2,
+    )
+    alice = Agent(
+        id="demo_agent",
+        run_id="run-service-invalid-move",
+        name="Demo Agent",
+        occupation="resident",
+        home_location_id="loc-home-invalid-move",
+        current_location_id="loc-home-invalid-move",
+        current_goal="move:town-center",
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+
+    db_session.add_all([run, home, alice])
+    await db_session.commit()
+
+    failing_runtime = SimulationService(db_session).agent_runtime
+    failing_runtime.decision_provider = FailingDecisionProvider()
+    service = SimulationService(db_session, agent_runtime=failing_runtime)
+
+    result = await service.run_tick("run-service-invalid-move")
+
+    assert result.tick_no == 1
+    assert len(result.accepted) == 1
+    assert result.accepted[0].action_type == "rest"
+    assert len(result.rejected) == 0
+
+
+@pytest.mark.asyncio
 async def test_simulation_service_includes_director_system_events_for_cast_recent_events(
     db_session, tmp_path
 ):
@@ -623,7 +664,7 @@ async def test_simulation_service_falls_back_when_runtime_provider_fails(db_sess
 
     assert result.tick_no == 1
     assert len(result.accepted) == 1
-    assert result.accepted[0].action_type == "work"
+    assert result.accepted[0].action_type == "rest"
 
 
 @pytest.mark.asyncio
@@ -659,7 +700,7 @@ async def test_simulation_service_falls_back_when_runtime_provider_is_cancelled(
 
     assert result.tick_no == 1
     assert len(result.accepted) == 1
-    assert result.accepted[0].action_type == "work"
+    assert result.accepted[0].action_type == "rest"
 
 
 @pytest.mark.asyncio

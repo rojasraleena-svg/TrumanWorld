@@ -28,6 +28,7 @@ def build_agent_world_context(
         "current_location_id": current_location_id,
         "home_location_id": home_location_id,
         "workplace_location_id": workplace_location_id,
+        "known_location_ids": sorted(world.locations.keys()),
         "nearby_agent_id": nearby_agent_id,
         "self_status": current_status or {},
         "truman_suspicion_score": truman_suspicion_score,

@@ -30,6 +30,20 @@ def test_prompt_loader_reads_and_renders_prompt():
     assert '"goal": "work"' in rendered
 
 
+def test_prompt_loader_decision_prompt_discourages_work_as_default():
+    loader = PromptLoader()
+
+    rendered = loader.render_decision_prompt(
+        "你是测试角色",
+        context={"current_location_name": "海滨公寓", "current_goal": "work"},
+        allowed_actions=["move", "talk", "work", "rest"],
+    )
+
+    assert "优先保持当前情境一致" in rendered
+    assert "不要把普通停留、等待、整理或在家活动表述成 `work`" in rendered
+    assert "只能使用运行上下文中真实存在的地点 ID" in rendered
+
+
 def test_agent_registry_lists_configs_and_renders_prompt(tmp_path: Path):
     agent_dir = tmp_path / "alice"
     agent_dir.mkdir(parents=True)

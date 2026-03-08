@@ -63,6 +63,37 @@ def test_action_resolver_rejects_talk_if_agents_are_apart():
     assert result.reason == "target_not_nearby"
 
 
+def test_action_resolver_downgrades_work_without_valid_work_context():
+    world = build_world()
+    resolver = ActionResolver()
+
+    result = resolver.resolve(
+        world,
+        ActionIntent(agent_id="alice", action_type="work"),
+    )
+
+    assert result.accepted is True
+    assert result.action_type == "rest"
+    assert result.reason == "downgraded_invalid_work_context"
+    assert result.event_payload["location_id"] == "home"
+
+
+def test_action_resolver_allows_work_at_known_workplace():
+    world = build_world()
+    world.agents["bob"].workplace_id = "cafe"
+    resolver = ActionResolver()
+
+    result = resolver.resolve(
+        world,
+        ActionIntent(agent_id="bob", action_type="work"),
+    )
+
+    assert result.accepted is True
+    assert result.action_type == "work"
+    assert result.reason == "accepted"
+    assert result.event_payload["location_id"] == "cafe"
+
+
 def test_simulation_runner_advances_tick_and_collects_results():
     world = build_world()
     runner = SimulationRunner(world)

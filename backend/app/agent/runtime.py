@@ -201,12 +201,16 @@ class AgentRuntime:
         world = invocation.context.get("world", {})
         goal = world.get("current_goal")
         current_location_id = world.get("current_location_id")
+        current_location_type = world.get("current_location_type")
         home_location_id = world.get("home_location_id")
         nearby_agent_id = world.get("nearby_agent_id")
         workplace_location_id = world.get("workplace_location_id")
+        known_location_ids = world.get("known_location_ids")
 
         if isinstance(goal, str) and goal.startswith("move:"):
             target_location_id = goal.split(":", 1)[1].strip()
+            if isinstance(known_location_ids, list) and target_location_id not in known_location_ids:
+                return ActionIntent(agent_id=invocation.agent_id, action_type="rest")
             return ActionIntent(
                 agent_id=invocation.agent_id,
                 action_type="move",
@@ -225,7 +229,9 @@ class AgentRuntime:
                     action_type="move",
                     target_location_id=str(workplace_location_id),
                 )
-            return ActionIntent(agent_id=invocation.agent_id, action_type="work")
+            if workplace_location_id or current_location_type in {"office", "hospital", "cafe", "shop"}:
+                return ActionIntent(agent_id=invocation.agent_id, action_type="work")
+            return ActionIntent(agent_id=invocation.agent_id, action_type="rest")
 
         if goal == "talk" and nearby_agent_id:
             return ActionIntent(

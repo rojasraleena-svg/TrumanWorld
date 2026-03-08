@@ -484,10 +484,13 @@ class SimulationService:
             return scenario_intent
 
         if isinstance(current_goal, str) and current_goal.startswith("move:"):
+            target_location_id = current_goal.split(":", 1)[1].strip()
+            if world.get_location(target_location_id) is None:
+                return ActionIntent(agent_id=agent_id, action_type="rest")
             return ActionIntent(
                 agent_id=agent_id,
                 action_type="move",
-                target_location_id=current_goal.split(":", 1)[1].strip(),
+                target_location_id=target_location_id,
             )
 
         if current_goal == "talk" and nearby_agent_id:
@@ -517,6 +520,10 @@ class SimulationService:
                     action_type="move",
                     target_location_id=workplace_location_id,
                 )
-            return ActionIntent(agent_id=agent_id, action_type="work")
+            current_location = world.get_location(current_location_id) if current_location_id else None
+            current_location_type = current_location.location_type if current_location else None
+            if workplace_location_id or current_location_type in {"office", "hospital", "cafe", "shop"}:
+                return ActionIntent(agent_id=agent_id, action_type="work")
+            return ActionIntent(agent_id=agent_id, action_type="rest")
 
         return ActionIntent(agent_id=agent_id, action_type="rest")
