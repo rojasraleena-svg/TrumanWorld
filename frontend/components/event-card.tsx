@@ -11,6 +11,7 @@ interface EventCardProps {
   isLatest: boolean;
   agentNameMap: Record<string, string>;
   locationNameMap: Record<string, string>;
+  simTime?: string; // formatted HH:MM simulation time for this event's tick
 }
 
 export function EventCard({
@@ -18,7 +19,8 @@ export function EventCard({
   index,
   isLatest,
   agentNameMap,
-  locationNameMap
+  locationNameMap,
+  simTime,
 }: EventCardProps) {
   const config = getEventMeta(event.event_type);
 
@@ -85,7 +87,7 @@ export function EventCard({
               {config.label}
             </span>
             <span className="text-[10px] text-gray-400">
-              T{event.tick_no}
+              T{event.tick_no}{simTime ? ` · ${simTime}` : ""}
             </span>
           </div>
         </div>

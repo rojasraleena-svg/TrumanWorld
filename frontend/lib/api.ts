@@ -201,6 +201,22 @@ export async function getTimeline(runId: string): Promise<{ run_id: string; even
   return safeFetch(`/runs/${runId}/timeline`, { run_id: runId, events: [] });
 }
 
+export async function getTimelineResult(runId: string): Promise<ApiResult<{ run_id: string; events: TimelineEvent[] }>> {
+  return fetchResult<{ run_id: string; events: TimelineEvent[] }>(`/runs/${runId}/timeline`);
+}
+
+export async function getRunEventsResult(
+  runId: string,
+  eventType?: string,
+  limit = 500,
+): Promise<ApiResult<{ run_id: string; events: WorldEvent[]; total: number }>> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (eventType) params.set("event_type", eventType);
+  return fetchResult<{ run_id: string; events: WorldEvent[]; total: number }>(
+    `/runs/${runId}/events?${params.toString()}`,
+  );
+}
+
 export async function getWorld(runId: string): Promise<WorldSnapshot | null> {
   return safeFetch<WorldSnapshot | null>(`/runs/${runId}/world`, null);
 }

@@ -112,10 +112,17 @@ class EventRepository:
         self.session = session
 
     async def list_for_run(self, run_id: str, limit: int = 50) -> Sequence[Event]:
+        # Priority ordering mirrors list_recent_events: talk/move surface before
+        # work/rest noise so the world snapshot always contains meaningful events.
+        event_priority = case(
+            (Event.event_type.in_(["talk", "move"]), 0),
+            (Event.event_type.in_(["work", "rest"]), 2),
+            else_=1,
+        )
         stmt: Select[tuple[Event]] = (
             select(Event)
             .where(Event.run_id == run_id)
-            .order_by(Event.tick_no.desc(), Event.created_at.desc())
+            .order_by(event_priority, Event.tick_no.desc(), Event.created_at.desc())
             .limit(limit)
         )
         result = await self.session.execute(stmt)

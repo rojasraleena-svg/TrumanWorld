@@ -27,6 +27,12 @@ class TimelineEventResponse(BaseModel):
     payload: dict = Field(default_factory=dict)
 
 
+class WorldEventsResponse(BaseModel):
+    run_id: str
+    events: list[WorldEventResponse]
+    total: int
+
+
 class TimelineResponse(BaseModel):
     run_id: str
     events: list[TimelineEventResponse]

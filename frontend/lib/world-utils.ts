@@ -188,6 +188,36 @@ export function formatSimTime(world: WorldSnapshot) {
 }
 
 /**
+ * Convert a tick number to a human-readable simulation time string.
+ *
+ * Strategy: derive the world start time from `world_clock.iso` (which is the
+ * sim-time of the *current* tick) then rewind by `(currentTick - tickNo) * tickMinutes`
+ * minutes.  Falls back to a simple offset from 00:00 when no clock is available.
+ */
+export function tickToSimTime(
+  tickNo: number,
+  tickMinutes: number,
+  currentTick: number,
+  clockIso?: string,
+): string {
+  if (clockIso) {
+    // Derive start = clockIso - currentTick * tickMinutes
+    const currentMs = new Date(clockIso).getTime();
+    const startMs = currentMs - currentTick * tickMinutes * 60 * 1000;
+    const eventMs = startMs + tickNo * tickMinutes * 60 * 1000;
+    const d = new Date(eventMs);
+    const hh = d.getHours().toString().padStart(2, "0");
+    const mm = d.getMinutes().toString().padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+  // Fallback: treat tick 0 as 00:00
+  const totalMinutes = tickNo * tickMinutes;
+  const hh = Math.floor(totalMinutes / 60).toString().padStart(2, "0");
+  const mm = (totalMinutes % 60).toString().padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+/**
  * 计算地点的活动热度 (0-1)
  * 基于近期事件数量、重要性和事件类型权重
  */

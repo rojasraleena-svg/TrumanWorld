@@ -3,8 +3,9 @@ import Link from "next/link";
 import { AgentAvatar } from "@/components/agent-avatar";
 import { inferAgentStatus, relationshipTone } from "@/lib/agent-utils";
 import { MetricChip } from "@/components/metric-chip";
-import { getAgentResult } from "@/lib/api";
+import { getAgentResult, getWorldResult } from "@/lib/api";
 import { describeAgentEvent } from "@/lib/event-utils";
+import { tickToSimTime } from "@/lib/world-utils";
 
 // 人格特质中文映射
 const PERSONALITY_LABELS: Record<string, string> = {
@@ -42,8 +43,12 @@ type AgentPageProps = {
 
 export default async function AgentPage({ params }: AgentPageProps) {
   const { runId, agentId } = await params;
-  const agentResult = await getAgentResult(runId, agentId);
+  const [agentResult, worldResult] = await Promise.all([
+    getAgentResult(runId, agentId),
+    getWorldResult(runId),
+  ]);
   const agent = agentResult.data;
+  const world = worldResult.data;
 
   if (!agent) {
     return (
@@ -129,7 +134,7 @@ export default async function AgentPage({ params }: AgentPageProps) {
             </div>
           </section>
 
-          <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
             <aside className="space-y-4">
               {/* 人设卡片 */}
               {(agent.personality && Object.keys(agent.personality).length > 0) || (agent.profile && Object.keys(agent.profile).length > 0) ? (
@@ -267,7 +272,19 @@ export default async function AgentPage({ params }: AgentPageProps) {
                                 {describeAgentEvent(event)}
                               </span>
                             </div>
-                            <span className="shrink-0 text-[11px] text-slate-400">T{event.tick_no}</span>
+                            <span className="shrink-0 text-[11px] text-slate-400">
+                                                          T{event.tick_no}
+                                                          {world && (
+                                                            <span className="ml-1 text-slate-300">
+                                                              {tickToSimTime(
+                                                                event.tick_no,
+                                                                world.run.tick_minutes ?? 5,
+                                                                world.run.current_tick ?? 0,
+                                                                world.world_clock?.iso,
+                                                              )}
+                                                            </span>
+                                                          )}
+                                                        </span>
                           </div>
             
                           {isTalk && message ? (

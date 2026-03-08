@@ -19,6 +19,7 @@ import {
   formatGoal,
   locationBeat,
   locationTone,
+  tickToSimTime,
   type EventFilter,
 } from "@/lib/world-utils";
 
@@ -261,6 +262,12 @@ export function WorldCanvas({ runId }: Props) {
                       isLatest={event.tick_no === latestTick}
                       agentNameMap={agentNameMap}
                       locationNameMap={locationNameMap}
+                      simTime={tickToSimTime(
+                        event.tick_no,
+                        world.run.tick_minutes ?? 5,
+                        world.run.current_tick ?? 0,
+                        world.world_clock?.iso,
+                      )}
                     />
                   ))}
                 </AnimatePresence>

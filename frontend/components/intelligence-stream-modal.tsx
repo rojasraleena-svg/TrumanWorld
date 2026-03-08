@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import type { WorldSnapshot } from "@/lib/types";
+import type { WorldSnapshot, WorldEvent } from "@/lib/types";
 import { EventCard } from "@/components/event-card";
 import {
   buildWorldNameMaps,
   filterWorldEvents,
+  tickToSimTime,
   type EventFilter,
 } from "@/lib/world-utils";
+import { getRunEventsResult } from "@/lib/api";
 
 type LocationFilter = string | null;
 
@@ -36,19 +38,40 @@ export function IntelligenceStreamModal({
   const [eventFilter, setEventFilter] = useState<EventFilter>("all");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>(null);
 
+  // Full event list loaded independently from world snapshot
+  const [allEvents, setAllEvents] = useState<WorldEvent[]>(world.recent_events);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const loadedForRun = useRef<string | null>(null);
+
+  const loadAllEvents = useCallback(async () => {
+    if (loadedForRun.current === runId) return;
+    setIsLoading(true);
+    setLoadError(false);
+    const result = await getRunEventsResult(runId, undefined, 500);
+    setIsLoading(false);
+    if (result.data) {
+      setAllEvents(result.data.events);
+      loadedForRun.current = runId;
+    } else {
+      setLoadError(true);
+      // Fall back to world snapshot events
+      setAllEvents(world.recent_events);
+    }
+  }, [runId, world.recent_events]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadAllEvents();
+    }
+  }, [isOpen, loadAllEvents]);
+
   const { agentNameMap, locationNameMap, visibleEvents, latestTick } = useMemo(() => {
     const { agentNameMap, locationNameMap } = buildWorldNameMaps(world);
-    const filtered = filterWorldEvents(world.recent_events, eventFilter, locationFilter);
-
-    const tick = world.recent_events[0]?.tick_no ?? world.run.current_tick ?? 0;
-
-    return {
-      agentNameMap,
-      locationNameMap,
-      visibleEvents: filtered,
-      latestTick: tick,
-    };
-  }, [eventFilter, locationFilter, world]);
+    const filtered = filterWorldEvents(allEvents, eventFilter, locationFilter);
+    const tick = allEvents[0]?.tick_no ?? world.run.current_tick ?? 0;
+    return { agentNameMap, locationNameMap, visibleEvents: filtered, latestTick: tick };
+  }, [eventFilter, locationFilter, world, allEvents]);
 
   if (!isOpen) return null;
 
@@ -60,6 +83,7 @@ export function IntelligenceStreamModal({
         exit={{ opacity: 0, scale: 0.95 }}
         className="flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-white/20 bg-white shadow-2xl"
       >
+        {/* Header */}
         <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
@@ -76,6 +100,8 @@ export function IntelligenceStreamModal({
               </svg>
             </button>
           </div>
+
+          {/* Event type filter */}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="flex gap-1">
               {EVENT_FILTERS.map((filter) => {
@@ -127,9 +153,10 @@ export function IntelligenceStreamModal({
           </div>
         </div>
 
+        {/* Stats bar */}
         <div className="grid grid-cols-4 gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-3">
           {[
-            { label: "总事件数", value: world.recent_events.length },
+            { label: "全量事件", value: allEvents.length },
             { label: "当前 Tick", value: world.run.current_tick ?? 0 },
             { label: "活跃地点", value: world.locations.filter((location) => location.occupants.length > 0).length },
             { label: "居民总数", value: world.locations.reduce((sum, location) => sum + location.occupants.length, 0) },
@@ -141,13 +168,31 @@ export function IntelligenceStreamModal({
           ))}
         </div>
 
+        {/* Event list */}
         <div className="flex-1 overflow-y-auto bg-slate-50/30 p-6">
-          {visibleEvents.length === 0 ? (
+          {isLoading ? (
+            <div className="flex h-32 items-center justify-center gap-2 text-slate-400">
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span className="text-sm">加载全量事件中...</span>
+            </div>
+          ) : visibleEvents.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-slate-400">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-12 w-12">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <p className="mt-3 text-sm">当前筛选条件下没有事件</p>
+              {loadError && (
+                <button
+                  type="button"
+                  onClick={loadAllEvents}
+                  className="mt-3 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs text-slate-600 hover:border-moss hover:text-moss"
+                >
+                  重试加载
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -160,6 +205,12 @@ export function IntelligenceStreamModal({
                     isLatest={event.tick_no === latestTick}
                     agentNameMap={agentNameMap}
                     locationNameMap={locationNameMap}
+                    simTime={tickToSimTime(
+                      event.tick_no,
+                      world.run.tick_minutes ?? 5,
+                      world.run.current_tick ?? 0,
+                      world.world_clock?.iso,
+                    )}
                   />
                 ))}
               </AnimatePresence>
@@ -167,9 +218,15 @@ export function IntelligenceStreamModal({
           )}
         </div>
 
+        {/* Footer */}
         <div className="border-t border-slate-100 bg-white px-6 py-3">
           <div className="flex items-center justify-between text-sm text-slate-500">
-            <span>显示最近 {visibleEvents.length} 条事件</span>
+            <span>
+              显示 {visibleEvents.length} 条
+              {eventFilter !== "all" || locationFilter ? (
+                <span className="ml-1 text-slate-400">（已筛选 / 共 {allEvents.length} 条）</span>
+              ) : null}
+            </span>
             <Link
               href={`/runs/${runId}/timeline`}
               onClick={onClose}

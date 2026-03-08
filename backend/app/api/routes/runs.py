@@ -14,6 +14,7 @@ from app.api.schemas.simulation import (
     TimelineResponse,
     WorldClockResponse,
     WorldEventResponse,
+    WorldEventsResponse,
     WorldLocationResponse,
     WorldSnapshotResponse,
     WorldSnapshotRunResponse,
@@ -404,6 +405,70 @@ async def get_timeline(
 
 
 @router.get(
+    "/{run_id}/events",
+    response_model=WorldEventsResponse,
+    summary="获取全量事件",
+    description="获取 run 的全量历史事件，包含富字段（actor_name, location_name 等），支持按事件类型过滤",
+)
+async def get_run_events(
+    run_id: UUID,
+    event_type: str | None = None,
+    limit: int = 500,
+    session: AsyncSession = Depends(get_db_session),
+) -> WorldEventsResponse:
+    run_repo = RunRepository(session)
+    run = await run_repo.get(str(run_id))
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+
+    agent_repo = AgentRepository(session)
+    location_repo = LocationRepository(session)
+    event_repo = EventRepository(session)
+
+    agents = await agent_repo.list_for_run(str(run_id))
+    locations = await location_repo.list_for_run(str(run_id))
+    events = await event_repo.list_for_run(str(run_id), limit=limit)
+
+    agent_name_map = {agent.id: agent.name for agent in agents}
+    location_name_map = {location.id: location.name for location in locations}
+
+    # Apply event_type filter if provided
+    if event_type:
+        filter_types: set[str] = set()
+        if event_type == "social":
+            filter_types = {"talk"}
+        elif event_type == "movement":
+            filter_types = {"move"}
+        elif event_type == "activity":
+            filter_types = {"work", "rest"}
+        else:
+            filter_types = {event_type}
+        events = [e for e in events if e.event_type in filter_types]
+
+    result_events = [
+        WorldEventResponse(
+            id=event.id,
+            tick_no=event.tick_no,
+            event_type=event.event_type,
+            location_id=event.location_id,
+            actor_agent_id=event.actor_agent_id,
+            target_agent_id=event.target_agent_id,
+            actor_name=agent_name_map.get(event.actor_agent_id) if event.actor_agent_id else None,
+            target_name=agent_name_map.get(event.target_agent_id) if event.target_agent_id else None,
+            location_name=location_name_map.get(event.location_id) if event.location_id else None,
+            payload=event.payload or {},
+        )
+        for event in events
+    ]
+
+    return WorldEventsResponse(
+        run_id=str(run_id),
+        events=result_events,
+        total=len(result_events),
+    )
+
+
+@router.get(
     "/{run_id}/director/observation",
     response_model=DirectorObservationResponse,
     summary="获取导演观察",
@@ -454,7 +519,7 @@ async def get_world_snapshot(
 
     agents = await agent_repo.list_for_run(str(run_id))
     locations = await location_repo.list_for_run(str(run_id))
-    events = await event_repo.list_for_run(str(run_id), limit=60)
+    events = await event_repo.list_for_run(str(run_id), limit=120)
 
     agent_summaries = {
         agent.id: AgentSummaryResponse(
