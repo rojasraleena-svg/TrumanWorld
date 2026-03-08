@@ -185,9 +185,7 @@ class TrumanWorldSeedBuilder:
             bio = self.registry.get_bio(config.id) or ""
 
             # 解析 home_location_id
-            home_location_id = self._resolve_location_id(
-                run_id, config.home, LOCATION_ID_MAP
-            )
+            home_location_id = self._resolve_location_id(run_id, config.home, LOCATION_ID_MAP)
 
             # 解析 workplace_location_id
             workplace_location_id = None
