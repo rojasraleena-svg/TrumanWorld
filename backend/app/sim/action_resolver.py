@@ -25,9 +25,25 @@ class ActionResult:
 
 
 class ActionResolver:
-    """Validates and applies agent action intents."""
+    """Validates and applies agent action intents.
+
+    Maintains a per-tick set of agents already involved in a talk exchange
+    to enforce turn-based conversation: within a single tick only one side
+    of a pair may initiate talk, so the other side will see the message in
+    their next-tick recent_events and can reply naturally.
+    """
 
     SUPPORTED_ACTIONS = {"move", "rest", "work", "talk"}
+
+    def __init__(self) -> None:
+        # Tracks all agent IDs that have already participated in an accepted
+        # talk event this tick (as actor OR target).  Reset each tick via
+        # SimulationRunner.
+        self._talked_agents: set[str] = set()
+
+    def reset_tick(self) -> None:
+        """Clear the talked-agents set at the start of each tick."""
+        self._talked_agents.clear()
 
     def resolve(self, world: WorldState, intent: ActionIntent) -> ActionResult:
         agent = world.get_agent(intent.agent_id)
@@ -181,6 +197,24 @@ class ActionResolver:
                     "target_agent_id": intent.target_agent_id,
                 },
             )
+
+        # Enforce turn-based conversation: if either participant has already
+        # spoken this tick, reject this intent so the other side receives the
+        # message in next-tick recent_events and can reply coherently.
+        if intent.agent_id in self._talked_agents or target.id in self._talked_agents:
+            return ActionResult(
+                False,
+                "talk",
+                "conversation_turn_taken",
+                event_payload={
+                    "agent_id": intent.agent_id,
+                    "location_id": agent.location_id,
+                    "target_agent_id": target.id,
+                },
+            )
+
+        self._talked_agents.add(intent.agent_id)
+        self._talked_agents.add(target.id)
 
         return ActionResult(
             accepted=True,

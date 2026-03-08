@@ -72,6 +72,9 @@ class SimulationService:
         self.event_repo = EventRepository(session)
         self._context_builder = ContextBuilder(session)
         self._persistence = PersistenceManager(session)
+        # Track whether a scenario was explicitly injected (e.g. in tests).
+        # When True, run_tick will NOT override _scenario based on run.scenario_type.
+        self._injected_scenario: bool = scenario is not None
         self._scenario = (
             scenario.with_session(session)
             if scenario is not None
@@ -98,6 +101,10 @@ class SimulationService:
         return self._scenario
 
     def _configure_scenario_for_run(self, run: SimulationRun) -> Scenario:
+        # If a scenario was explicitly injected (e.g. in tests), honour it and
+        # do not replace it with a freshly-built one based on run.scenario_type.
+        if self._injected_scenario:
+            return self._scenario
         return self._configure_scenario(run.scenario_type)
 
     @classmethod
@@ -120,6 +127,7 @@ class SimulationService:
         instance._scenario = (
             scenario.with_session(None) if scenario is not None else cls.build_scenario("truman_world")
         )
+        instance._injected_scenario = scenario is not None
         instance._scenario.configure_runtime(agent_runtime)
         return instance
 

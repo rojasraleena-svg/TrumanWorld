@@ -27,6 +27,7 @@ class SimulationRunner:
         accepted: list[ActionResult] = []
         rejected: list[ActionResult] = []
 
+        self.resolver.reset_tick()
         for intent in intents:
             result = self.resolver.resolve(self.world, intent)
             if result.accepted:
