@@ -175,8 +175,45 @@ class WorldSnapshotRunResponse(BaseModel):
     elapsed_seconds: int = 0
 
 
+class WorldDirectorStatsResponse(BaseModel):
+    total: int = 0
+    executed: int = 0
+    execution_rate: int = 0
+
+
+class DirectorMemoryResponse(BaseModel):
+    id: str
+    tick_no: int
+    scene_goal: str
+    priority: str
+    urgency: str
+    message_hint: str | None = None
+    target_agent_id: str | None = None
+    target_agent_name: str | None = None
+    target_cast_ids: list[str] = Field(default_factory=list)
+    target_cast_names: list[str] = Field(default_factory=list)
+    location_hint: str | None = None
+    location_name: str | None = None
+    reason: str | None = None
+    was_executed: bool
+    delivery_status: str
+    effectiveness_score: float | None = None
+    trigger_suspicion_score: float = 0.0
+    trigger_continuity_risk: str = "stable"
+    cooldown_ticks: int = 0
+    cooldown_until_tick: int | None = None
+    created_at: datetime
+
+
+class DirectorMemoriesResponse(BaseModel):
+    run_id: str
+    memories: list[DirectorMemoryResponse]
+    total: int = 0
+
+
 class WorldSnapshotResponse(BaseModel):
     run: WorldSnapshotRunResponse
     world_clock: WorldClockResponse
     locations: list[WorldLocationResponse]
     recent_events: list[WorldEventResponse]
+    director_stats: WorldDirectorStatsResponse = Field(default_factory=WorldDirectorStatsResponse)

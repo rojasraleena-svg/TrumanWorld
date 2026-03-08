@@ -5,11 +5,12 @@ import pytest
 from app.agent.providers import AgentDecisionProvider, RuntimeDecision
 from app.agent.runtime import RuntimeInvocation
 from app.scenario.base import Scenario
+from app.scenario.truman_world.coordinator import TrumanWorldCoordinator
 from app.scenario.truman_world.types import DirectorGuidance
 from app.sim.action_resolver import ActionIntent
 from app.sim.service import SimulationService
 from app.store.models import Agent, Location, SimulationRun
-from app.store.repositories import AgentRepository, EventRepository, RunRepository
+from app.store.repositories import AgentRepository, DirectorMemoryRepository, EventRepository, RunRepository
 
 
 class FailingDecisionProvider(AgentDecisionProvider):
@@ -511,6 +512,79 @@ async def test_simulation_service_includes_director_system_events_for_cast_recen
 
     assert any(event["event_type"] == "director_broadcast" for event in spouse_recent_events)
     assert all(event["event_type"] != "director_broadcast" for event in truman_recent_events)
+
+
+@pytest.mark.asyncio
+async def test_manual_director_intervention_is_consumed_once(db_session):
+    run = SimulationRun(
+        id="run-service-manual-once",
+        name="service",
+        status="running",
+        current_tick=0,
+        tick_minutes=5,
+    )
+    square = Location(
+        id="loc-square-manual-once",
+        run_id=run.id,
+        name="Square",
+        location_type="plaza",
+        capacity=4,
+    )
+    cast = Agent(
+        id="run-service-manual-once-cast",
+        run_id=run.id,
+        name="Meryl",
+        occupation="resident",
+        home_location_id=square.id,
+        current_location_id=square.id,
+        current_goal="rest",
+        personality={},
+        profile={"agent_config_id": "spouse", "world_role": "cast"},
+        status={},
+        current_plan={},
+    )
+    truman = Agent(
+        id="run-service-manual-once-truman",
+        run_id=run.id,
+        name="Truman",
+        occupation="resident",
+        home_location_id=square.id,
+        current_location_id=square.id,
+        current_goal="rest",
+        personality={},
+        profile={"agent_config_id": "truman", "world_role": "truman"},
+        status={},
+        current_plan={},
+    )
+
+    db_session.add_all([run, square, cast, truman])
+    await db_session.commit()
+
+    service = SimulationService(db_session)
+    await service.inject_director_event(
+        run_id=run.id,
+        event_type="broadcast",
+        payload={"message": "Town hall at plaza"},
+        location_id=square.id,
+        importance=0.8,
+    )
+
+    agents = list(await AgentRepository(db_session).list_for_run(run.id))
+    coordinator = TrumanWorldCoordinator(db_session)
+
+    first_plan = await coordinator.build_director_plan(run.id, agents)
+    second_plan = await coordinator.build_director_plan(run.id, agents)
+    pending = await DirectorMemoryRepository(db_session).get_pending_manual_interventions(
+        run_id=run.id,
+        current_tick=run.current_tick,
+        max_age_ticks=5,
+    )
+
+    assert first_plan is not None
+    assert first_plan.scene_goal == "gather"
+    assert first_plan.location_hint == square.id
+    assert second_plan is None
+    assert pending == []
 
 
 @pytest.mark.asyncio

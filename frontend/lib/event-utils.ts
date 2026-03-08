@@ -1,11 +1,16 @@
 import {
+  DIRECTOR_EVENT_ACTIVITY,
+  DIRECTOR_EVENT_BROADCAST,
   DIRECTOR_EVENT_INJECT,
+  DIRECTOR_EVENT_SHUTDOWN,
+  DIRECTOR_EVENT_WEATHER_CHANGE,
   EVENT_MOVE,
   EVENT_PLAN,
   EVENT_REFLECT,
   EVENT_REST,
   EVENT_TALK,
   EVENT_WORK,
+  isDirectorEventType,
   type EventType,
 } from "@/lib/simulation-protocol";
 import type { AgentDetails, TimelineEvent, WorldEvent } from "@/lib/types";
@@ -55,6 +60,30 @@ export const EVENT_META: Partial<Record<EventType, EventMeta>> = {
     chip: "bg-red-50 text-red-700 border border-red-100",
     color: "#dc2626",
   },
+  [DIRECTOR_EVENT_BROADCAST]: {
+    icon: "📢",
+    label: "导演广播",
+    chip: "bg-red-50 text-red-700 border border-red-100",
+    color: "#dc2626",
+  },
+  [DIRECTOR_EVENT_ACTIVITY]: {
+    icon: "🎭",
+    label: "导演活动",
+    chip: "bg-red-50 text-red-700 border border-red-100",
+    color: "#dc2626",
+  },
+  [DIRECTOR_EVENT_SHUTDOWN]: {
+    icon: "⛔",
+    label: "导演关闭",
+    chip: "bg-red-50 text-red-700 border border-red-100",
+    color: "#dc2626",
+  },
+  [DIRECTOR_EVENT_WEATHER_CHANGE]: {
+    icon: "🌦️",
+    label: "导演天气",
+    chip: "bg-red-50 text-red-700 border border-red-100",
+    color: "#dc2626",
+  },
   [EVENT_PLAN]: {
     icon: "📋",
     label: "计划",
@@ -94,6 +123,10 @@ export function describeWorldEvent(
     case EVENT_REST:
       return `${actor} 在 ${atPlace} 休息`;
     case DIRECTOR_EVENT_INJECT:
+    case DIRECTOR_EVENT_BROADCAST:
+    case DIRECTOR_EVENT_ACTIVITY:
+    case DIRECTOR_EVENT_SHUTDOWN:
+    case DIRECTOR_EVENT_WEATHER_CHANGE:
       return `导演播报：${String(event.payload.message || "发生了一件大事")}`;
     case EVENT_PLAN:
       return `${actor} 制定了新的计划`;
@@ -126,7 +159,7 @@ export function describeTimelineEvent(event: Pick<TimelineEvent, "event_type" | 
     const actor = String(payload.actor_name ?? payload.actor_agent_id ?? "某人");
     return `${actor} 暂时休息`;
   }
-  if (event.event_type === DIRECTOR_EVENT_INJECT) {
+  if (isDirectorEventType(event.event_type)) {
     return `导演播报：${String(payload.message ?? "发生了一件大事")}`;
   }
   if (event.event_type === EVENT_PLAN) {
@@ -153,6 +186,9 @@ export function describeAgentEvent(event: AgentDetails["recent_events"][number])
   }
   if (event.event_type === EVENT_REST && event.location_name) {
     return `在 ${event.location_name} 休息`;
+  }
+  if (isDirectorEventType(event.event_type)) {
+    return `收到导演消息：${String(event.payload.message ?? event.event_type)}`;
   }
 
   return event.event_type;

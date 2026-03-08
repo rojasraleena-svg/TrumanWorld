@@ -180,6 +180,59 @@ async def test_get_world_snapshot_returns_locations_agents_and_public_events(cli
     )  # plaza, apartment, office, cafe, hospital, bachelor-apt, mall
     assert any(len(location["occupants"]) >= 1 for location in body["locations"])
     assert len(body["recent_events"]) >= 1
+    assert body["director_stats"] == {"total": 0, "executed": 0, "execution_rate": 0}
+
+
+@pytest.mark.asyncio
+async def test_get_world_snapshot_includes_director_stats(client):
+    create_response = await client.post("/api/runs", json={"name": "world-director-stats"})
+    run_id = create_response.json()["id"]
+
+    inject_response = await client.post(
+        f"/api/runs/{run_id}/director/events",
+        json={
+            "event_type": "broadcast",
+            "payload": {"message": "Town hall at plaza"},
+            "importance": 0.8,
+        },
+    )
+    world_response = await client.get(f"/api/runs/{run_id}/world")
+
+    assert inject_response.status_code == 200
+    assert world_response.status_code == 200
+    assert world_response.json()["director_stats"] == {
+        "total": 1,
+        "executed": 0,
+        "execution_rate": 0,
+    }
+
+
+@pytest.mark.asyncio
+async def test_get_director_memories_returns_memory_details(client):
+    create_response = await client.post("/api/runs", json={"name": "director-memory-list"})
+    run_id = create_response.json()["id"]
+
+    inject_response = await client.post(
+        f"/api/runs/{run_id}/director/events",
+        json={
+            "event_type": "broadcast",
+            "payload": {"message": "Town hall at plaza"},
+            "importance": 0.8,
+        },
+    )
+    memories_response = await client.get(f"/api/runs/{run_id}/director/memories")
+
+    assert inject_response.status_code == 200
+    assert memories_response.status_code == 200
+
+    body = memories_response.json()
+    assert body["run_id"] == run_id
+    assert body["total"] == 1
+    assert len(body["memories"]) == 1
+    assert body["memories"][0]["scene_goal"] == "gather"
+    assert body["memories"][0]["message_hint"] == "Town hall at plaza"
+    assert body["memories"][0]["was_executed"] is False
+    assert body["memories"][0]["delivery_status"] == "queued"
 
 
 @pytest.mark.asyncio

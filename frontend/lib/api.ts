@@ -2,6 +2,7 @@ import type {
   AgentDetails,
   AgentSummary,
   CreateRunResponse,
+  DirectorMemory,
   RunSummary,
   TickResponse,
   TimelineEvent,
@@ -15,6 +16,7 @@ export type {
   AgentDetails,
   AgentSummary,
   CreateRunResponse,
+  DirectorMemory,
   RunSummary,
   TickResponse,
   TimelineEvent,
@@ -251,6 +253,15 @@ export async function getWorld(runId: string): Promise<WorldSnapshot | null> {
 
 export async function getWorldResult(runId: string): Promise<ApiResult<WorldSnapshot>> {
   return fetchResult<WorldSnapshot>(`/runs/${runId}/world`);
+}
+
+export async function getDirectorMemoriesResult(
+  runId: string,
+  limit = 50,
+): Promise<ApiResult<{ run_id: string; memories: DirectorMemory[]; total: number }>> {
+  return fetchResult<{ run_id: string; memories: DirectorMemory[]; total: number }>(
+    `/runs/${runId}/director/memories?limit=${limit}`,
+  );
 }
 
 export async function getAgent(runId: string, agentId: string): Promise<AgentDetails | null> {

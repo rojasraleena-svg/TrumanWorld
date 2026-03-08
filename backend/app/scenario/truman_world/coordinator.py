@@ -88,6 +88,7 @@ class TrumanWorldCoordinator:
             if pending_manual:
                 # 将最新的手动计划转换为 DirectorPlan
                 memory = pending_manual[0]
+                await self.director_memory_repo.mark_executed(memory.id)
                 return self._convert_memory_to_plan(memory)
 
         # 2. 没有手动计划时，走自动逻辑

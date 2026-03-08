@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import type {
-  WorldHealthMetrics,
-  Trend,
-} from "@/lib/world-insights";
+import type { WorldHealthMetrics, Trend } from "@/lib/world-insights";
+import type { DirectorMemory } from "@/lib/types";
 import {
   getTrendIcon,
   getTrendColor,
@@ -14,6 +12,8 @@ import {
   getScoreBgColor,
 } from "@/lib/world-insights";
 import { DirectorEventForm } from "@/components/director-event-form";
+import { useWorld } from "@/components/world-context";
+import { getDirectorMemoriesResult } from "@/lib/api";
 
 interface WorldHealthPanelProps {
   metrics: WorldHealthMetrics;
@@ -22,6 +22,7 @@ interface WorldHealthPanelProps {
 
 export function WorldHealthPanel({ metrics, runId }: WorldHealthPanelProps) {
   const [isDirectorExpanded, setIsDirectorExpanded] = useState(false);
+  const { refresh } = useWorld();
   return (
     <div className="rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur">
       <div className="flex items-center justify-between">
@@ -75,6 +76,7 @@ export function WorldHealthPanel({ metrics, runId }: WorldHealthPanelProps) {
           onClose={() => setIsDirectorExpanded(false)}
           stats={metrics.directorStats}
           runId={runId}
+          onInjected={refresh}
         />
       </div>
 
@@ -176,6 +178,7 @@ interface DirectorStatsProps {
 
 function DirectorStats({ stats, onClick }: DirectorStatsProps) {
   const hasIssue = stats.executionRate < 50 && stats.total > 0;
+  const queuedCount = stats.total - stats.executed;
 
   return (
     <button
@@ -193,7 +196,7 @@ function DirectorStats({ stats, onClick }: DirectorStatsProps) {
               hasIssue ? "text-amber-600" : "text-slate-500"
             }`}
           >
-            {stats.executionRate}% 执行率
+            {stats.executionRate}% 消费率
           </span>
           <svg
             viewBox="0 0 24 24"
@@ -219,7 +222,7 @@ function DirectorStats({ stats, onClick }: DirectorStatsProps) {
           <span className="text-lg font-semibold text-emerald-600">
             {stats.executed}
           </span>
-          <span className="text-xs text-slate-500">已执行</span>
+          <span className="text-xs text-slate-500">已消费</span>
         </div>
         <div className="h-4 w-px bg-slate-200" />
         <div className="flex items-center gap-1.5">
@@ -228,16 +231,16 @@ function DirectorStats({ stats, onClick }: DirectorStatsProps) {
               hasIssue ? "text-amber-600" : "text-slate-600"
             }`}
           >
-            {stats.total - stats.executed}
+            {queuedCount}
           </span>
-          <span className="text-xs text-slate-500">待执行</span>
+          <span className="text-xs text-slate-500">排队中</span>
         </div>
       </div>
 
       {hasIssue && (
         <div className="mt-2 flex items-start gap-1.5 text-xs text-amber-600">
           <span>⚠️</span>
-          <span>干预执行率较低，建议检查干预传递流程</span>
+          <span>干预消费率较低，建议检查 tick 推进和干预传递流程</span>
         </div>
       )}
     </button>
@@ -381,11 +384,75 @@ interface DirectorInterventionModalProps {
     executionRate: number;
   };
   runId: string;
+  onInjected: () => void;
 }
 
-function DirectorInterventionModal({ isOpen, onClose, stats, runId }: DirectorInterventionModalProps) {
-  const pendingCount = stats.total - stats.executed;
+type DirectorFilter = "all" | "queued" | "consumed" | "expired";
+
+function DirectorInterventionModal({
+  isOpen,
+  onClose,
+  stats,
+  runId,
+  onInjected,
+}: DirectorInterventionModalProps) {
+  const [selectedFilter, setSelectedFilter] = useState<DirectorFilter>("all");
+  const [memories, setMemories] = useState<DirectorMemory[]>([]);
+  const [isLoadingMemories, setIsLoadingMemories] = useState(false);
+  const [memoryError, setMemoryError] = useState<string | null>(null);
+  const queuedCount = memories.filter((memory) => memory.delivery_status === "queued").length;
+  const consumedCount = memories.filter((memory) => memory.delivery_status === "consumed").length;
+  const expiredCount = memories.filter((memory) => memory.delivery_status === "expired").length;
   const hasIssue = stats.executionRate < 50 && stats.total > 0;
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+
+    async function loadMemories() {
+      setIsLoadingMemories(true);
+      setMemoryError(null);
+      const result = await getDirectorMemoriesResult(runId, 100);
+      if (cancelled) return;
+      if (result.data) {
+        setMemories(result.data.memories);
+      } else {
+        setMemories([]);
+        setMemoryError(result.error === "network_error" ? "后端不可达" : "明细加载失败");
+      }
+      setIsLoadingMemories(false);
+    }
+
+    void loadMemories();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, runId]);
+
+  const filteredMemories = useMemo(() => {
+    if (selectedFilter === "queued") {
+      return memories.filter((memory) => memory.delivery_status === "queued");
+    }
+    if (selectedFilter === "consumed") {
+      return memories.filter((memory) => memory.delivery_status === "consumed");
+    }
+    if (selectedFilter === "expired") {
+      return memories.filter((memory) => memory.delivery_status === "expired");
+    }
+    return memories;
+  }, [memories, selectedFilter]);
+
+  const handleInjected = () => {
+    onInjected();
+    void (async () => {
+      const result = await getDirectorMemoriesResult(runId, 100);
+      if (result.data) {
+        setMemories(result.data.memories);
+      }
+    })();
+  };
 
   const modal = (
     <AnimatePresence>
@@ -424,40 +491,111 @@ function DirectorInterventionModal({ isOpen, onClose, stats, runId }: DirectorIn
 
             {/* 主体：左右两列 */}
             <div className="flex min-h-0 flex-1 overflow-hidden">
-              {/* 左侧：统计 + 执行率 */}
-              <div className="flex w-64 shrink-0 flex-col gap-5 border-r border-slate-100 bg-slate-50/60 px-6 py-6">
-                {/* 统计三格 */}
-                <div className="space-y-3">
-                  <StatCard label="计划干预" value={stats.total} icon="📋" color="slate" />
-                  <StatCard label="已执行" value={stats.executed} icon="✅" color="emerald" />
-                  <StatCard label="待执行" value={pendingCount} icon="⏳" color={hasIssue ? "amber" : "slate"} />
+              {/* 左侧：导演干预 + 导航 + 执行率 */}
+              <div className="flex w-72 shrink-0 flex-col border-r border-slate-100 bg-slate-50/50">
+                {/* 导演干预表单 */}
+                <div className="border-b border-slate-100 p-4">
+                  <h3 className="mb-3 text-sm font-semibold text-slate-700">🎬 导演干预</h3>
+                  <DirectorEventForm runId={runId} onInjected={handleInjected} compact />
+                </div>
+
+                {/* 导航菜单 */}
+                <div className="flex-1 overflow-auto p-4">
+                  <div className="mb-2 text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    干预明细
+                  </div>
+                  <div className="space-y-1">
+                    <NavItem
+                      icon="📋"
+                      label="全部"
+                      count={memories.length}
+                      active={selectedFilter === "all"}
+                      onClick={() => setSelectedFilter("all")}
+                    />
+                    <NavItem
+                      icon="✅"
+                      label="已消费"
+                      count={consumedCount}
+                      active={selectedFilter === "consumed"}
+                      onClick={() => setSelectedFilter("consumed")}
+                      tone="emerald"
+                    />
+                    <NavItem
+                      icon="⏳"
+                      label="排队中"
+                      count={queuedCount}
+                      active={selectedFilter === "queued"}
+                      onClick={() => setSelectedFilter("queued")}
+                      tone={hasIssue ? "amber" : "slate"}
+                    />
+                    <NavItem
+                      icon="⌛"
+                      label="已过期"
+                      count={expiredCount}
+                      active={selectedFilter === "expired"}
+                      onClick={() => setSelectedFilter("expired")}
+                      tone="slate"
+                    />
+                  </div>
                 </div>
 
                 {/* 执行率 */}
-                <div className="rounded-2xl bg-white p-5 shadow-sm">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">执行率</span>
-                    <span className={`font-bold ${hasIssue ? "text-amber-600" : "text-emerald-600"}`}>
-                      {stats.executionRate}%
-                    </span>
+                <div className="border-t border-slate-100 p-4">
+                  <div className="rounded-2xl bg-white p-4 shadow-sm">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-500">执行率</span>
+                      <span className={`font-bold ${hasIssue ? "text-amber-600" : "text-emerald-600"}`}>
+                        {stats.executionRate}%
+                      </span>
+                    </div>
+                    <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-slate-100">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${stats.executionRate}%` }}
+                        transition={{ duration: 0.5 }}
+                        className={`h-full rounded-full ${hasIssue ? "bg-amber-500" : "bg-emerald-500"}`}
+                      />
+                    </div>
+                    {hasIssue && (
+                      <p className="mt-2.5 text-xs text-amber-600">⚠️ 执行率较低</p>
+                    )}
                   </div>
-                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${stats.executionRate}%` }}
-                      transition={{ duration: 0.5 }}
-                      className={`h-full rounded-full ${hasIssue ? "bg-amber-500" : "bg-emerald-500"}`}
-                    />
-                  </div>
-                  {hasIssue && (
-                    <p className="mt-3 text-xs text-amber-600">⚠️ 执行率较低</p>
-                  )}
                 </div>
               </div>
 
-              {/* 右侧：导演干预表单 */}
-              <div className="flex-1 overflow-auto px-8 py-6">
-                <DirectorEventForm runId={runId} />
+              {/* 右侧：明细列表 */}
+              <div className="flex-1 overflow-auto px-6 py-5">
+                <div className="mb-4 flex items-center gap-2">
+                  <span className="text-lg font-semibold text-ink">
+                    {selectedFilter === "all" && "全部干预"}
+                    {selectedFilter === "consumed" && "已消费"}
+                    {selectedFilter === "queued" && "排队中"}
+                    {selectedFilter === "expired" && "已过期"}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-medium text-slate-600">
+                    {filteredMemories.length}
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {isLoadingMemories ? (
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                      正在加载导演明细...
+                    </div>
+                  ) : memoryError ? (
+                    <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-8 text-center text-sm text-rose-600">
+                      {memoryError}
+                    </div>
+                  ) : filteredMemories.length === 0 ? (
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                      暂无{selectedFilter === "all" ? "" : "此类"}干预记录
+                    </div>
+                  ) : (
+                    filteredMemories.map((memory) => (
+                      <DirectorMemoryCard key={memory.id} memory={memory} />
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
@@ -470,29 +608,112 @@ function DirectorInterventionModal({ isOpen, onClose, stats, runId }: DirectorIn
   return createPortal(modal, document.body);
 }
 
-function StatCard({
-  label,
-  value,
+function NavItem({
   icon,
-  color,
+  label,
+  count,
+  active,
+  onClick,
+  tone = "slate",
 }: {
-  label: string;
-  value: number;
   icon: string;
-  color: "slate" | "emerald" | "amber";
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+  tone?: "slate" | "emerald" | "amber";
 }) {
-  const colorClasses = {
-    slate: "bg-slate-100 text-slate-700",
-    emerald: "bg-emerald-100 text-emerald-700",
-    amber: "bg-amber-100 text-amber-700",
+  const toneClasses = {
+    slate: {
+      active: "bg-slate-100 text-slate-900",
+      inactive: "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+    },
+    emerald: {
+      active: "bg-emerald-50 text-emerald-700",
+      inactive: "text-slate-600 hover:bg-emerald-50/50 hover:text-emerald-700",
+    },
+    amber: {
+      active: "bg-amber-50 text-amber-700",
+      inactive: "text-slate-600 hover:bg-amber-50/50 hover:text-amber-700",
+    },
   };
 
   return (
-    <div className={`flex items-center gap-3 rounded-xl p-3 ${colorClasses[color]}`}>
-      <span className="text-2xl">{icon}</span>
-      <div className="min-w-0">
-        <p className="text-2xl font-bold leading-none">{value}</p>
-        <p className="mt-0.5 text-xs opacity-70">{label}</p>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm transition ${
+        active ? toneClasses[tone].active : toneClasses[tone].inactive
+      }`}
+    >
+      <div className="flex items-center gap-2.5">
+        <span className="text-base">{icon}</span>
+        <span className="font-medium">{label}</span>
+      </div>
+      <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
+        active
+          ? tone === "emerald"
+            ? "bg-emerald-100 text-emerald-800"
+            : tone === "amber"
+              ? "bg-amber-100 text-amber-800"
+              : "bg-white text-slate-700 shadow-sm"
+          : "bg-slate-100 text-slate-600"
+      }`}>
+        {count}
+      </span>
+    </button>
+  );
+}
+
+function DirectorMemoryCard({ memory }: { memory: DirectorMemory }) {
+  const statusMeta =
+    memory.delivery_status === "consumed"
+      ? {
+          label: "已消费",
+          tone: "bg-emerald-50 text-emerald-700 border-emerald-100",
+        }
+      : memory.delivery_status === "expired"
+        ? {
+            label: "已过期",
+            tone: "bg-slate-100 text-slate-700 border-slate-200",
+          }
+        : {
+            label: "排队中",
+            tone: "bg-amber-50 text-amber-700 border-amber-100",
+          };
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusMeta.tone}`}>
+            {statusMeta.label}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+            Tick {memory.tick_no}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+            {memory.scene_goal}
+          </span>
+        </div>
+        <span className="text-xs text-slate-400">
+          {new Date(memory.created_at).toLocaleString()}
+        </span>
+      </div>
+
+      <div className="mt-3 space-y-2 text-sm text-slate-600">
+        <p><span className="font-medium text-slate-700">状态：</span>{statusMeta.label}</p>
+        {memory.message_hint ? <p><span className="font-medium text-slate-700">内容：</span>{memory.message_hint}</p> : null}
+        {memory.reason ? <p><span className="font-medium text-slate-700">原因：</span>{memory.reason}</p> : null}
+        {memory.location_name || memory.location_hint ? (
+          <p><span className="font-medium text-slate-700">地点：</span>{memory.location_name ?? memory.location_hint}</p>
+        ) : null}
+        {memory.target_agent_name || memory.target_agent_id ? (
+          <p><span className="font-medium text-slate-700">目标：</span>{memory.target_agent_name ?? memory.target_agent_id}</p>
+        ) : null}
+        {memory.target_cast_names.length > 0 ? (
+          <p><span className="font-medium text-slate-700">执行演员：</span>{memory.target_cast_names.join("、")}</p>
+        ) : null}
       </div>
     </div>
   );

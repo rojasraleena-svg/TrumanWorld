@@ -451,6 +451,23 @@ class DirectorMemoryRepository:
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+    async def count_for_run(self, run_id: str) -> int:
+        from sqlalchemy import func as sql_func
+
+        stmt = select(sql_func.count(DirectorMemory.id)).where(DirectorMemory.run_id == run_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one() or 0
+
+    async def count_executed_for_run(self, run_id: str) -> int:
+        from sqlalchemy import func as sql_func
+
+        stmt = select(sql_func.count(DirectorMemory.id)).where(
+            DirectorMemory.run_id == run_id,
+            DirectorMemory.was_executed == True,  # noqa: E712
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one() or 0
+
     async def get_recent_goals(
         self,
         run_id: str,

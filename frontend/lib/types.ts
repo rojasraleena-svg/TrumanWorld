@@ -118,6 +118,35 @@ export type WorldSnapshot = {
   world_clock?: WorldClock;
   locations: WorldLocation[];
   recent_events: WorldEvent[];
+  director_stats?: {
+    total: number;
+    executed: number;
+    execution_rate: number;
+  };
+};
+
+export type DirectorMemory = {
+  id: string;
+  tick_no: number;
+  scene_goal: string;
+  priority: string;
+  urgency: string;
+  message_hint?: string | null;
+  target_agent_id?: string | null;
+  target_agent_name?: string | null;
+  target_cast_ids: string[];
+  target_cast_names: string[];
+  location_hint?: string | null;
+  location_name?: string | null;
+  reason?: string | null;
+  was_executed: boolean;
+  delivery_status: "queued" | "consumed" | "expired";
+  effectiveness_score?: number | null;
+  trigger_suspicion_score: number;
+  trigger_continuity_risk: string;
+  cooldown_ticks: number;
+  cooldown_until_tick?: number | null;
+  created_at: string;
 };
 
 export type AgentRecentEvent = {

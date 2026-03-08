@@ -105,6 +105,9 @@ export function calculateWorldHealthMetrics(
   const totalMemories = directorMemories?.length ?? 0;
   const executedMemories =
     directorMemories?.filter((m) => m.was_executed).length ?? 0;
+  const directorStats = world.director_stats;
+  const totalDirectorInterventions = directorStats?.total ?? totalMemories;
+  const executedDirectorInterventions = directorStats?.executed ?? executedMemories;
   
   // 5. 活动摘要
   const activitySummary = calculateActivitySummary(agents, world.locations);
@@ -121,11 +124,11 @@ export function calculateWorldHealthMetrics(
     suspicionTrend,
 
     directorStats: {
-      total: totalMemories,
-      executed: executedMemories,
+      total: totalDirectorInterventions,
+      executed: executedDirectorInterventions,
       executionRate:
-        totalMemories > 0
-          ? Math.round((executedMemories / totalMemories) * 100)
+        totalDirectorInterventions > 0
+          ? Math.round((executedDirectorInterventions / totalDirectorInterventions) * 100)
           : 0,
     },
 

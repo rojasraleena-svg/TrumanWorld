@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 from uuid import UUID, uuid4
 from typing import Literal
 
@@ -9,12 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.simulation import (
     DirectorObservationResponse,
+    DirectorMemoriesResponse,
+    DirectorMemoryResponse,
     RunDetailResponse,
     StatusResponse,
     TimelineEventResponse,
     TimelineResponse,
     TimelineRunInfo,
     WorldClockResponse,
+    WorldDirectorStatsResponse,
     WorldEventResponse,
     WorldEventsResponse,
     WorldLocationResponse,
@@ -32,6 +36,7 @@ from app.sim.service import SimulationService
 from app.store.models import Agent, Event, Location, SimulationRun
 from app.store.repositories import (
     AgentRepository,
+    DirectorMemoryRepository,
     EventRepository,
     LocationRepository,
     RunRepository,
@@ -628,6 +633,81 @@ async def get_director_observation(
 
 
 @router.get(
+    "/{run_id}/director/memories",
+    response_model=DirectorMemoriesResponse,
+    summary="获取导演干预明细",
+    description="获取导演干预计划明细，支持前端查看全部、未执行和已执行记录。",
+)
+async def get_director_memories(
+    run_id: UUID,
+    limit: int = 50,
+    session: AsyncSession = Depends(get_db_session),
+) -> DirectorMemoriesResponse:
+    run_repo = RunRepository(session)
+    run = await run_repo.get(str(run_id))
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+
+    agent_repo = AgentRepository(session)
+    location_repo = LocationRepository(session)
+    director_memory_repo = DirectorMemoryRepository(session)
+
+    agents = await agent_repo.list_for_run(str(run_id))
+    locations = await location_repo.list_for_run(str(run_id))
+    memories = await director_memory_repo.list_for_run(str(run_id), limit=limit)
+
+    agent_name_map = {agent.id: agent.name for agent in agents}
+    location_name_map = {location.id: location.name for location in locations}
+    manual_goals = {"gather", "activity", "shutdown", "weather_change"}
+
+    def serialize_memory(memory) -> DirectorMemoryResponse:
+        target_cast_ids = json.loads(memory.target_cast_ids) if memory.target_cast_ids else []
+        location_hint = None
+        if memory.metadata_json:
+            location_hint = memory.metadata_json.get("location_hint")
+        if memory.was_executed:
+            delivery_status = "consumed"
+        elif memory.scene_goal in manual_goals and run.current_tick > memory.tick_no + 5:
+            delivery_status = "expired"
+        else:
+            delivery_status = "queued"
+
+        return DirectorMemoryResponse(
+            id=memory.id,
+            tick_no=memory.tick_no,
+            scene_goal=memory.scene_goal,
+            priority=memory.priority,
+            urgency=memory.urgency,
+            message_hint=memory.message_hint,
+            target_agent_id=memory.target_agent_id,
+            target_agent_name=(
+                agent_name_map.get(memory.target_agent_id) if memory.target_agent_id else None
+            ),
+            target_cast_ids=target_cast_ids,
+            target_cast_names=[
+                agent_name_map.get(agent_id, agent_id) for agent_id in target_cast_ids
+            ],
+            location_hint=location_hint,
+            location_name=location_name_map.get(location_hint) if location_hint else None,
+            reason=memory.reason,
+            was_executed=memory.was_executed,
+            delivery_status=delivery_status,
+            effectiveness_score=memory.effectiveness_score,
+            trigger_suspicion_score=memory.trigger_suspicion_score,
+            trigger_continuity_risk=memory.trigger_continuity_risk,
+            cooldown_ticks=memory.cooldown_ticks,
+            cooldown_until_tick=memory.cooldown_until_tick,
+            created_at=memory.created_at,
+        )
+
+    return DirectorMemoriesResponse(
+        run_id=str(run_id),
+        memories=[serialize_memory(memory) for memory in memories],
+        total=len(memories),
+    )
+
+
+@router.get(
     "/{run_id}/world",
     response_model=WorldSnapshotResponse,
     summary="获取世界快照",
@@ -645,10 +725,13 @@ async def get_world_snapshot(
     agent_repo = AgentRepository(session)
     location_repo = LocationRepository(session)
     event_repo = EventRepository(session)
+    director_memory_repo = DirectorMemoryRepository(session)
 
     agents = await agent_repo.list_for_run(str(run_id))
     locations = await location_repo.list_for_run(str(run_id))
     events = await event_repo.list_for_run(str(run_id), limit=120)
+    director_total = await director_memory_repo.count_for_run(str(run_id))
+    director_executed = await director_memory_repo.count_executed_for_run(str(run_id))
 
     agent_summaries = {
         agent.id: AgentSummaryResponse(
@@ -768,6 +851,13 @@ async def get_world_snapshot(
             for event in events
             if event.visibility == "public"
         ],
+        director_stats=WorldDirectorStatsResponse(
+            total=director_total,
+            executed=director_executed,
+            execution_rate=(
+                round((director_executed / director_total) * 100) if director_total > 0 else 0
+            ),
+        ),
     )
 
 
