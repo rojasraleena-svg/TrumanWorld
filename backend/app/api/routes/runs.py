@@ -670,7 +670,9 @@ async def get_world_snapshot(
             tick_minutes=run.tick_minutes,
         ),
         world_clock=world_clock,
-        locations=[WorldLocationResponse(**location_payload) for location_payload in locations_payload],
+        locations=[
+            WorldLocationResponse(**location_payload) for location_payload in locations_payload
+        ],
         recent_events=[
             WorldEventResponse(
                 id=event.id,
@@ -679,9 +681,15 @@ async def get_world_snapshot(
                 location_id=event.location_id,
                 actor_agent_id=event.actor_agent_id,
                 target_agent_id=event.target_agent_id,
-                actor_name=agent_name_map.get(event.actor_agent_id) if event.actor_agent_id else None,
-                target_name=agent_name_map.get(event.target_agent_id) if event.target_agent_id else None,
-                location_name=location_name_map.get(event.location_id) if event.location_id else None,
+                actor_name=agent_name_map.get(event.actor_agent_id)
+                if event.actor_agent_id
+                else None,
+                target_name=agent_name_map.get(event.target_agent_id)
+                if event.target_agent_id
+                else None,
+                location_name=location_name_map.get(event.location_id)
+                if event.location_id
+                else None,
                 payload=event.payload or {},
             )
             for event in events

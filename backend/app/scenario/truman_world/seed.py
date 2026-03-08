@@ -20,30 +20,130 @@ if TYPE_CHECKING:
 
 INITIAL_RELATIONSHIPS = {
     # Truman 的关系
-    ("truman", "spouse"): {"familiarity": 0.95, "trust": 0.9, "affinity": 0.85, "relation_type": "family"},
-    ("truman", "friend"): {"familiarity": 0.75, "trust": 0.7, "affinity": 0.65, "relation_type": "close_friend"},
-    ("truman", "alice"): {"familiarity": 0.5, "trust": 0.4, "affinity": 0.4, "relation_type": "acquaintance"},
-    ("truman", "neighbor"): {"familiarity": 0.2, "trust": 0.1, "affinity": 0.15, "relation_type": "stranger"},
+    ("truman", "spouse"): {
+        "familiarity": 0.95,
+        "trust": 0.9,
+        "affinity": 0.85,
+        "relation_type": "family",
+    },
+    ("truman", "friend"): {
+        "familiarity": 0.75,
+        "trust": 0.7,
+        "affinity": 0.65,
+        "relation_type": "close_friend",
+    },
+    ("truman", "alice"): {
+        "familiarity": 0.5,
+        "trust": 0.4,
+        "affinity": 0.4,
+        "relation_type": "acquaintance",
+    },
+    ("truman", "neighbor"): {
+        "familiarity": 0.2,
+        "trust": 0.1,
+        "affinity": 0.15,
+        "relation_type": "stranger",
+    },
     # Meryl 的关系
-    ("spouse", "truman"): {"familiarity": 0.95, "trust": 0.9, "affinity": 0.85, "relation_type": "family"},
-    ("spouse", "friend"): {"familiarity": 0.4, "trust": 0.35, "affinity": 0.3, "relation_type": "acquaintance"},
-    ("spouse", "alice"): {"familiarity": 0.35, "trust": 0.3, "affinity": 0.3, "relation_type": "acquaintance"},
-    ("spouse", "neighbor"): {"familiarity": 0.1, "trust": 0.1, "affinity": 0.1, "relation_type": "stranger"},
+    ("spouse", "truman"): {
+        "familiarity": 0.95,
+        "trust": 0.9,
+        "affinity": 0.85,
+        "relation_type": "family",
+    },
+    ("spouse", "friend"): {
+        "familiarity": 0.4,
+        "trust": 0.35,
+        "affinity": 0.3,
+        "relation_type": "acquaintance",
+    },
+    ("spouse", "alice"): {
+        "familiarity": 0.35,
+        "trust": 0.3,
+        "affinity": 0.3,
+        "relation_type": "acquaintance",
+    },
+    ("spouse", "neighbor"): {
+        "familiarity": 0.1,
+        "trust": 0.1,
+        "affinity": 0.1,
+        "relation_type": "stranger",
+    },
     # Marlon 的关系
-    ("friend", "truman"): {"familiarity": 0.75, "trust": 0.7, "affinity": 0.65, "relation_type": "close_friend"},
-    ("friend", "spouse"): {"familiarity": 0.4, "trust": 0.35, "affinity": 0.3, "relation_type": "acquaintance"},
-    ("friend", "alice"): {"familiarity": 0.55, "trust": 0.4, "affinity": 0.45, "relation_type": "acquaintance"},
-    ("friend", "neighbor"): {"familiarity": 0.15, "trust": 0.1, "affinity": 0.1, "relation_type": "stranger"},
+    ("friend", "truman"): {
+        "familiarity": 0.75,
+        "trust": 0.7,
+        "affinity": 0.65,
+        "relation_type": "close_friend",
+    },
+    ("friend", "spouse"): {
+        "familiarity": 0.4,
+        "trust": 0.35,
+        "affinity": 0.3,
+        "relation_type": "acquaintance",
+    },
+    ("friend", "alice"): {
+        "familiarity": 0.55,
+        "trust": 0.4,
+        "affinity": 0.45,
+        "relation_type": "acquaintance",
+    },
+    ("friend", "neighbor"): {
+        "familiarity": 0.15,
+        "trust": 0.1,
+        "affinity": 0.1,
+        "relation_type": "stranger",
+    },
     # Alice 的关系
-    ("alice", "truman"): {"familiarity": 0.5, "trust": 0.4, "affinity": 0.4, "relation_type": "acquaintance"},
-    ("alice", "friend"): {"familiarity": 0.55, "trust": 0.4, "affinity": 0.45, "relation_type": "acquaintance"},
-    ("alice", "neighbor"): {"familiarity": 0.6, "trust": 0.45, "affinity": 0.5, "relation_type": "acquaintance"},
-    ("alice", "spouse"): {"familiarity": 0.2, "trust": 0.15, "affinity": 0.2, "relation_type": "stranger"},
+    ("alice", "truman"): {
+        "familiarity": 0.5,
+        "trust": 0.4,
+        "affinity": 0.4,
+        "relation_type": "acquaintance",
+    },
+    ("alice", "friend"): {
+        "familiarity": 0.55,
+        "trust": 0.4,
+        "affinity": 0.45,
+        "relation_type": "acquaintance",
+    },
+    ("alice", "neighbor"): {
+        "familiarity": 0.6,
+        "trust": 0.45,
+        "affinity": 0.5,
+        "relation_type": "acquaintance",
+    },
+    ("alice", "spouse"): {
+        "familiarity": 0.2,
+        "trust": 0.15,
+        "affinity": 0.2,
+        "relation_type": "stranger",
+    },
     # Lauren 的关系
-    ("neighbor", "alice"): {"familiarity": 0.6, "trust": 0.45, "affinity": 0.5, "relation_type": "acquaintance"},
-    ("neighbor", "truman"): {"familiarity": 0.2, "trust": 0.1, "affinity": 0.15, "relation_type": "stranger"},
-    ("neighbor", "friend"): {"familiarity": 0.15, "trust": 0.1, "affinity": 0.1, "relation_type": "stranger"},
-    ("neighbor", "spouse"): {"familiarity": 0.1, "trust": 0.1, "affinity": 0.1, "relation_type": "stranger"},
+    ("neighbor", "alice"): {
+        "familiarity": 0.6,
+        "trust": 0.45,
+        "affinity": 0.5,
+        "relation_type": "acquaintance",
+    },
+    ("neighbor", "truman"): {
+        "familiarity": 0.2,
+        "trust": 0.1,
+        "affinity": 0.15,
+        "relation_type": "stranger",
+    },
+    ("neighbor", "friend"): {
+        "familiarity": 0.15,
+        "trust": 0.1,
+        "affinity": 0.1,
+        "relation_type": "stranger",
+    },
+    ("neighbor", "spouse"): {
+        "familiarity": 0.1,
+        "trust": 0.1,
+        "affinity": 0.1,
+        "relation_type": "stranger",
+    },
 }
 
 

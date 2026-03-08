@@ -10,6 +10,7 @@ from app.store.models import Agent, Event
 @dataclass
 class SuspicionTrend:
     """怀疑度变化趋势"""
+
     current_score: float
     previous_score: float
     delta: float  # 变化量

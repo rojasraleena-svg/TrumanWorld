@@ -1,3 +1,5 @@
+default_stages: [pre-commit]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -25,3 +27,18 @@ repos:
     hooks:
       - id: actionlint
         args: [-shellcheck=]
+
+  - repo: local
+    hooks:
+      - id: backend-pytest
+        name: backend-pytest
+        entry: bash -lc 'cd backend && uv run pytest -q'
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+      - id: frontend-build
+        name: frontend-build
+        entry: bash -lc 'cd frontend && npm run build'
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
