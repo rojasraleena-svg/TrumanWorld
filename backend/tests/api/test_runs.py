@@ -37,7 +37,7 @@ async def test_create_run_returns_running_status(client):
 
     agents_response = await client.get(f"/api/runs/{body['id']}/agents")
     assert agents_response.status_code == 200
-    assert len(agents_response.json()["agents"]) == 4
+    assert len(agents_response.json()["agents"]) == 5  # truman, spouse, friend, neighbor, alice
 
 
 @pytest.mark.asyncio

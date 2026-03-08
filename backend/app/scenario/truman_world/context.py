@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from app.scenario.truman_world.rules import build_perception_context
+
+if TYPE_CHECKING:
+    from app.sim.world import WorldState
+    from app.store.models import Relationship
 
 
 def filter_world_for_role(world_role: str, world: dict[str, Any]) -> dict[str, Any]:
@@ -58,3 +64,65 @@ def build_scene_guidance(world_role: str, world: dict[str, Any]) -> dict[str, An
         "reason": world.get("director_reason"),
         "is_advisory": True,
     }
+
+
+def build_perception_context_for_agent(
+    viewer_agent_id: str,
+    world: WorldState,
+    relationships: list[Relationship],
+    current_location_id: str | None,
+) -> dict[str, Any]:
+    """为 agent 构建感知上下文，包含对其他人的观察和已知信息。
+
+    这是场景层的核心函数，将可观察线索和关系知识整合到上下文中。
+
+    Args:
+        viewer_agent_id: 观察者 agent 的 ID
+        world: 当前世界状态
+        relationships: 该 agent 的所有关系
+        current_location_id: 当前地点 ID
+
+    Returns:
+        包含 perceived_others 的感知上下文字典
+    """
+    if not current_location_id:
+        return {}
+
+    # 获取当前地点信息
+    location = world.get_location(current_location_id)
+    if location is None:
+        return {}
+
+    # 获取同地点的其他 agent
+    nearby_agent_ids = [aid for aid in location.occupants if aid != viewer_agent_id]
+    if not nearby_agent_ids:
+        return {"perceived_others": []}
+
+    # 构建关系映射
+    relationship_map = {r.other_agent_id: r.familiarity for r in relationships}
+
+    # 收集附近 agent 的信息
+    nearby_agents = []
+    for agent_id in nearby_agent_ids:
+        agent = world.get_agent(agent_id)
+        if agent is None:
+            continue
+
+        # 判断是否在工作地点
+        is_at_workplace = agent.workplace_id == current_location_id
+
+        nearby_agents.append({
+            "id": agent.id,
+            "name": agent.name,
+            "occupation": agent.occupation,
+            "workplace_id": agent.workplace_id,
+            "is_at_workplace": is_at_workplace,
+        })
+
+    # 使用规则构建感知上下文
+    return build_perception_context(
+        viewer_id=viewer_agent_id,
+        nearby_agents=nearby_agents,
+        relationships=relationship_map,
+        current_location_type=location.location_type,
+    )

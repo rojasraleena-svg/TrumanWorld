@@ -170,31 +170,21 @@ class ContextBuilder:
             **world.time_context(),
         }
 
-        # 添加当前地点的可观察信息
+        # 添加当前地点信息
         if current_location_id:
             location = world.get_location(current_location_id)
             if location:
                 context["current_location_name"] = location.name
                 context["current_location_type"] = location.location_type
 
-                # 添加同地点其他 agent 的可观察信息
-                observable_agents = world.get_observable_agents_at_location(current_location_id)
-                # 过滤掉自己
-                context["observable_others"] = [
-                    a for a in observable_agents if a["id"] != nearby_agent_id
-                ]
-
-        # 添加附近 agent 的详细信息（如果有）
+        # 添加附近 agent 的基本信息
         if nearby_agent_id:
             nearby_agent = world.get_agent(nearby_agent_id)
             if nearby_agent:
-                nearby_location = world.get_location(nearby_agent.location_id)
                 context["nearby_agent"] = {
                     "id": nearby_agent.id,
                     "name": nearby_agent.name,
-                    "observable_cues": nearby_agent.get_observable_cues(
-                        nearby_location.location_type if nearby_location else None
-                    ),
+                    "occupation": nearby_agent.occupation,
                 }
 
         if world_role:
