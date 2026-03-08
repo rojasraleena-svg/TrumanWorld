@@ -29,6 +29,44 @@ class AgentModelConfig(BaseModel):
     max_budget_usd: float = 1.0
 
 
+# =============================================================================
+# 新增配置模型：关系、初始状态、初始计划
+# =============================================================================
+
+
+class RelationConfig(BaseModel):
+    """单个关系配置 - 从当前 agent 视角看另一个 agent"""
+
+    familiarity: float = Field(default=0.5, ge=0.0, le=1.0)
+    trust: float = Field(default=0.5, ge=0.0, le=1.0)
+    affinity: float = Field(default=0.5, ge=0.0, le=1.0)
+    relation_type: str = "acquaintance"
+
+
+class InitialStatusConfig(BaseModel):
+    """初始状态配置"""
+
+    energy: float = Field(default=0.75, ge=0.0, le=1.0)
+    suspicion_score: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+class InitialPlanConfig(BaseModel):
+    """初始日计划配置"""
+
+    morning: str = "work"
+    daytime: str = "work"
+    evening: str = "rest"
+
+
+class AgentInitialConfig(BaseModel):
+    """initial.yml 的完整结构"""
+
+    status: InitialStatusConfig = Field(default_factory=InitialStatusConfig)
+    plan: InitialPlanConfig = Field(default_factory=InitialPlanConfig)
+    initial_goal: str | None = None
+    initial_location: str | None = None  # "home" 或 "workplace" 或具体 location_id
+
+
 class AgentConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -76,3 +114,40 @@ class AgentConfigLoader:
         config = AgentConfig.model_validate(raw)
         config.root_dir = path.parent
         return config
+
+
+class RelationsLoader:
+    """Parses relations.yml files into relation configuration."""
+
+    def load(self, path: Path) -> dict[str, RelationConfig]:
+        """Load relations from relations.yml file.
+
+        Returns a dict mapping other_agent_id -> RelationConfig
+        """
+        if not path.exists():
+            return {}
+
+        with path.open("r", encoding="utf-8") as file:
+            raw = yaml.safe_load(file) or {}
+
+        relations: dict[str, RelationConfig] = {}
+        for other_id, attrs in raw.items():
+            if isinstance(attrs, dict):
+                relations[other_id] = RelationConfig.model_validate(attrs)
+            else:
+                relations[other_id] = RelationConfig()
+        return relations
+
+
+class InitialConfigLoader:
+    """Parses initial.yml files into initial state configuration."""
+
+    def load(self, path: Path) -> AgentInitialConfig:
+        """Load initial config from initial.yml file."""
+        if not path.exists():
+            return AgentInitialConfig()
+
+        with path.open("r", encoding="utf-8") as file:
+            raw = yaml.safe_load(file) or {}
+
+        return AgentInitialConfig.model_validate(raw)

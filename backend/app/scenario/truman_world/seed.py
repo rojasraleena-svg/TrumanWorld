@@ -4,6 +4,8 @@ from uuid import uuid4
 
 from typing import TYPE_CHECKING
 
+from app.agent.registry import AgentRegistry
+from app.infra.settings import get_settings
 from app.sim.context import DEFAULT_WORLD_START_TIME
 from app.scenario.truman_world.types import build_scenario_agent_profile
 from app.store.models import Agent, Location, Relationship
@@ -15,398 +17,274 @@ if TYPE_CHECKING:
 
 
 # =============================================================================
-# 初始关系定义：定义角色之间的初始关系
+# 地点定义：场景静态配置
 # =============================================================================
 
-INITIAL_RELATIONSHIPS = {
-    # Truman 的关系
-    ("truman", "spouse"): {
-        "familiarity": 0.95,
-        "trust": 0.9,
-        "affinity": 0.85,
-        "relation_type": "family",
+LOCATION_CONFIGS = [
+    {
+        "id_suffix": "plaza",
+        "name": "小镇广场",
+        "location_type": "plaza",
+        "capacity": 10,
+        "x": 1,
+        "y": 2,
+        "attributes": {"kind": "social"},
     },
-    ("truman", "friend"): {
-        "familiarity": 0.75,
-        "trust": 0.7,
-        "affinity": 0.65,
-        "relation_type": "close_friend",
+    {
+        "id_suffix": "apartment",
+        "name": "海滨公寓",
+        "location_type": "home",
+        "capacity": 3,
+        "x": 0,
+        "y": 0,
+        "attributes": {"kind": "private"},
     },
-    ("truman", "alice"): {
-        "familiarity": 0.5,
-        "trust": 0.4,
-        "affinity": 0.4,
-        "relation_type": "acquaintance",
+    {
+        "id_suffix": "office",
+        "name": "港务办公室",
+        "location_type": "office",
+        "capacity": 6,
+        "x": 3,
+        "y": 0,
+        "attributes": {"kind": "work"},
     },
-    ("truman", "neighbor"): {
-        "familiarity": 0.2,
-        "trust": 0.1,
-        "affinity": 0.15,
-        "relation_type": "stranger",
+    {
+        "id_suffix": "cafe",
+        "name": "街角咖啡馆",
+        "location_type": "cafe",
+        "capacity": 6,
+        "x": 2,
+        "y": 1,
+        "attributes": {"kind": "work"},
     },
-    # Meryl 的关系
-    ("spouse", "truman"): {
-        "familiarity": 0.95,
-        "trust": 0.9,
-        "affinity": 0.85,
-        "relation_type": "family",
+    {
+        "id_suffix": "hospital",
+        "name": "海湾医院",
+        "location_type": "hospital",
+        "capacity": 8,
+        "x": 4,
+        "y": 2,
+        "attributes": {"kind": "work"},
     },
-    ("spouse", "friend"): {
-        "familiarity": 0.4,
-        "trust": 0.35,
-        "affinity": 0.3,
-        "relation_type": "acquaintance",
+    {
+        "id_suffix": "bachelor-apt",
+        "name": "镇中公寓",
+        "location_type": "home",
+        "capacity": 6,
+        "x": 0,
+        "y": 2,
+        "attributes": {"kind": "private"},
     },
-    ("spouse", "alice"): {
-        "familiarity": 0.35,
-        "trust": 0.3,
-        "affinity": 0.3,
-        "relation_type": "acquaintance",
+    {
+        "id_suffix": "mall",
+        "name": "港湾商场",
+        "location_type": "shop",
+        "capacity": 12,
+        "x": 3,
+        "y": 2,
+        "attributes": {"kind": "commercial"},
     },
-    ("spouse", "neighbor"): {
-        "familiarity": 0.1,
-        "trust": 0.1,
-        "affinity": 0.1,
-        "relation_type": "stranger",
-    },
-    # Marlon 的关系
-    ("friend", "truman"): {
-        "familiarity": 0.75,
-        "trust": 0.7,
-        "affinity": 0.65,
-        "relation_type": "close_friend",
-    },
-    ("friend", "spouse"): {
-        "familiarity": 0.4,
-        "trust": 0.35,
-        "affinity": 0.3,
-        "relation_type": "acquaintance",
-    },
-    ("friend", "alice"): {
-        "familiarity": 0.65,
-        "trust": 0.55,
-        "affinity": 0.6,
-        "relation_type": "housemate",
-    },
-    ("friend", "neighbor"): {
-        "familiarity": 0.6,
-        "trust": 0.5,
-        "affinity": 0.55,
-        "relation_type": "housemate",
-    },
-    # Alice 的关系
-    ("alice", "truman"): {
-        "familiarity": 0.5,
-        "trust": 0.4,
-        "affinity": 0.4,
-        "relation_type": "acquaintance",
-    },
-    ("alice", "friend"): {
-        "familiarity": 0.65,
-        "trust": 0.55,
-        "affinity": 0.6,
-        "relation_type": "housemate",
-    },
-    ("alice", "neighbor"): {
-        "familiarity": 0.7,
-        "trust": 0.6,
-        "affinity": 0.65,
-        "relation_type": "housemate",
-    },
-    ("alice", "spouse"): {
-        "familiarity": 0.2,
-        "trust": 0.15,
-        "affinity": 0.2,
-        "relation_type": "stranger",
-    },
-    # Lauren 的关系
-    ("neighbor", "alice"): {
-        "familiarity": 0.7,
-        "trust": 0.6,
-        "affinity": 0.65,
-        "relation_type": "housemate",
-    },
-    ("neighbor", "truman"): {
-        "familiarity": 0.2,
-        "trust": 0.1,
-        "affinity": 0.15,
-        "relation_type": "stranger",
-    },
-    ("neighbor", "friend"): {
-        "familiarity": 0.6,
-        "trust": 0.5,
-        "affinity": 0.55,
-        "relation_type": "housemate",
-    },
-    ("neighbor", "spouse"): {
-        "familiarity": 0.1,
-        "trust": 0.1,
-        "affinity": 0.1,
-        "relation_type": "stranger",
-    },
-    # Bob 的关系
-    ("bob", "truman"): {
-        "familiarity": 0.2,
-        "trust": 0.1,
-        "affinity": 0.15,
-        "relation_type": "stranger",
-    },
-    ("bob", "spouse"): {
-        "familiarity": 0.1,
-        "trust": 0.1,
-        "affinity": 0.1,
-        "relation_type": "stranger",
-    },
-    ("bob", "friend"): {
-        "familiarity": 0.3,
-        "trust": 0.25,
-        "affinity": 0.25,
-        "relation_type": "acquaintance",
-    },
-    ("bob", "alice"): {
-        "familiarity": 0.3,
-        "trust": 0.25,
-        "affinity": 0.25,
-        "relation_type": "acquaintance",
-    },
-    ("bob", "neighbor"): {
-        "familiarity": 0.4,
-        "trust": 0.35,
-        "affinity": 0.35,
-        "relation_type": "acquantee",
-    },
+]
+
+# 地点 ID 映射：agent.yml 中的 home/workplace 值 -> location id suffix
+LOCATION_ID_MAP = {
+    "apartment": "apartment",
+    "bachelor_apt": "bachelor-apt",
+    "office": "office",
+    "cafe": "cafe",
+    "hospital": "hospital",
+    "plaza": "plaza",
+    "mall": "mall",
+}
+
+# 职业中文映射
+OCCUPATION_NAMES: dict[str, str] = {
+    "insurance clerk": "保险文员",
+    "hospital staff": "医院职员",
+    "office colleague": "办公室同事",
+    "barista": "咖啡师",
+    "regular": "常客",
+    "resident": "居民",
+}
+
+# 工作描述映射
+WORK_DESCRIPTIONS: dict[str, str] = {
+    "truman": "审核保险理赔、整理客户档案、处理保单变更",
+    "spouse": "医院工作人员，协助病房巡查和病历整理",
+    "friend": "与 Truman 同一办公室，负责保单录入和客户咨询",
+    "alice": "咖啡师，制作咖啡、服务顾客",
+    "neighbor": "自由职业者，常在咖啡馆活动",
+    "bob": "无固定工作，日常活动比较自由",
 }
 
 
 class TrumanWorldSeedBuilder:
-    """Builds the default Truman-world demo seed."""
+    """Builds the default Truman-world demo seed from agent configuration files."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        registry: AgentRegistry | None = None,
+    ) -> None:
         self.session = session
+        settings = get_settings()
+        self.registry = registry or AgentRegistry(settings.project_root / "agents")
+
+    def _build_location_id(self, run_id: str, suffix: str) -> str:
+        """Build full location ID from run_id and suffix."""
+        return f"{run_id}-{suffix}"
+
+    def _resolve_location_id(
+        self,
+        run_id: str,
+        location_key: str | None,
+        location_id_map: dict[str, str],
+    ) -> str | None:
+        """Resolve location key to full location ID."""
+        if location_key is None:
+            return None
+        suffix = location_id_map.get(location_key, location_key)
+        return self._build_location_id(run_id, suffix)
+
+    def _get_occupation_name(self, occupation: str) -> str:
+        """Get localized occupation name."""
+        return OCCUPATION_NAMES.get(occupation, occupation)
+
+    def _get_work_description(self, agent_id: str) -> str:
+        """Get work description for an agent."""
+        return WORK_DESCRIPTIONS.get(agent_id, "")
 
     async def seed_demo_run(self, run: SimulationRun) -> None:
+        """Seed a demo run from agent configuration files."""
         run_id = run.id
 
-        plaza = Location(
-            id=f"{run_id}-plaza",
-            run_id=run_id,
-            name="小镇广场",
-            location_type="plaza",
-            capacity=10,
-            x=1,
-            y=2,
-            attributes={"kind": "social"},
-        )
-        apartment = Location(
-            id=f"{run_id}-apartment",
-            run_id=run_id,
-            name="海滨公寓",
-            location_type="home",
-            capacity=3,
-            x=0,
-            y=0,
-            attributes={"kind": "private"},
-        )
-        office = Location(
-            id=f"{run_id}-office",
-            run_id=run_id,
-            name="港务办公室",
-            location_type="office",
-            capacity=6,
-            x=3,
-            y=0,
-            attributes={"kind": "work"},
-        )
-        cafe = Location(
-            id=f"{run_id}-cafe",
-            run_id=run_id,
-            name="街角咖啡馆",
-            location_type="cafe",
-            capacity=6,
-            x=2,
-            y=1,
-            attributes={"kind": "work"},
-        )
-        hospital = Location(
-            id=f"{run_id}-hospital",
-            run_id=run_id,
-            name="海湾医院",
-            location_type="hospital",
-            capacity=8,
-            x=4,
-            y=2,
-            attributes={"kind": "work"},
-        )
-        bachelor_apt = Location(
-            id=f"{run_id}-bachelor-apt",
-            run_id=run_id,
-            name="镇中公寓",
-            location_type="home",
-            capacity=6,
-            x=0,
-            y=2,
-            attributes={"kind": "private"},
-        )
-        mall = Location(
-            id=f"{run_id}-mall",
-            run_id=run_id,
-            name="港湾商场",
-            location_type="shop",
-            capacity=12,
-            x=3,
-            y=2,
-            attributes={"kind": "commercial"},
-        )
+        # 1. 创建地点
+        locations: dict[str, Location] = {}
+        for loc_config in LOCATION_CONFIGS:
+            loc_id = self._build_location_id(run_id, loc_config["id_suffix"])
+            locations[loc_config["id_suffix"]] = Location(
+                id=loc_id,
+                run_id=run_id,
+                name=loc_config["name"],
+                location_type=loc_config["location_type"],
+                capacity=loc_config["capacity"],
+                x=loc_config["x"],
+                y=loc_config["y"],
+                attributes=loc_config["attributes"],
+            )
 
-        truman = Agent(
-            id=f"{run_id}-truman",
-            run_id=run_id,
-            name="Truman",
-            occupation="保险文员",
-            home_location_id=f"{run_id}-apartment",
-            current_location_id=f"{run_id}-apartment",
-            current_goal="work",
-            personality={"openness": 0.55, "conscientiousness": 0.62},
-            profile=build_scenario_agent_profile(
-                bio="过着平凡的生活，相信小镇完全正常。",
-                agent_config_id="truman",
-                world_role="truman",
-                workplace="港务办公室",
-                workplace_location_id=f"{run_id}-office",
-                work_description="审核保险理赔、整理客户档案、处理保单变更",
-            ),
-            status={"energy": 0.85, "suspicion_score": 0.0},
-            current_plan={"morning": "commute", "daytime": "work", "evening": "socialize"},
-        )
-        spouse = Agent(
-            id=f"{run_id}-spouse",
-            run_id=run_id,
-            name="Meryl",
-            occupation="医院职员",
-            home_location_id=f"{run_id}-apartment",
-            current_location_id=f"{run_id}-apartment",
-            current_goal="work",
-            personality={"agreeableness": 0.72, "conscientiousness": 0.7},
-            profile=build_scenario_agent_profile(
-                bio="维持 Truman 的家庭生活稳定且可预测。",
-                agent_config_id="spouse",
-                world_role="cast",
-                workplace="医院",
-                workplace_location_id=f"{run_id}-hospital",
-                work_description="医院工作人员，协助病房巡查和病历整理",
-            ),
-            status={"energy": 0.78},
-            current_plan={"morning": "prepare_day", "daytime": "work", "evening": "home"},
-        )
-        friend = Agent(
-            id=f"{run_id}-friend",
-            run_id=run_id,
-            name="Marlon",
-            occupation="办公室同事",
-            home_location_id=f"{run_id}-bachelor-apt",
-            current_location_id=f"{run_id}-bachelor-apt",
-            current_goal="commute",
-            personality={"agreeableness": 0.68, "openness": 0.48},
-            profile=build_scenario_agent_profile(
-                bio="一个熟悉的朋友，经常和 Truman 分享日常生活。",
-                agent_config_id="friend",
-                world_role="cast",
-                workplace="港务办公室",
-                workplace_location_id=f"{run_id}-office",
-                work_description="与 Truman 同一办公室，负责保单录入和客户咨询",
-            ),
-            status={"energy": 0.74},
-            current_plan={"morning": "work", "daytime": "work", "evening": "socialize"},
-        )
-        neighbor = Agent(
-            id=f"{run_id}-neighbor",
-            run_id=run_id,
-            name="Lauren",
-            occupation="常客",
-            home_location_id=f"{run_id}-bachelor-apt",
-            current_location_id=f"{run_id}-bachelor-apt",
-            current_goal="wander",
-            personality={"agreeableness": 0.58, "openness": 0.66},
-            profile=build_scenario_agent_profile(
-                bio="广场和咖啡馆的常客，熟悉的面孔。",
-                agent_config_id="neighbor",
-                world_role="cast",
-                work_description="自由职业者，常在咖啡馆活动",
-            ),
-            status={"energy": 0.72},
-            current_plan={"morning": "socialize", "daytime": "wander", "evening": "socialize"},
-        )
-        alice = Agent(
-            id=f"{run_id}-alice",
-            run_id=run_id,
-            name="Alice",
-            occupation="咖啡师",
-            home_location_id=f"{run_id}-cafe",
-            current_location_id=f"{run_id}-cafe",
-            current_goal="work",
-            personality={"openness": 0.7, "conscientiousness": 0.8},
-            profile=build_scenario_agent_profile(
-                bio="在街角咖啡馆工作，熟悉常客。",
-                agent_config_id="alice",
-                world_role="cast",
-                workplace="街角咖啡馆",
-                workplace_location_id=f"{run_id}-cafe",
-                work_description="咖啡师，制作咖啡、服务顾客",
-            ),
-            status={"energy": 0.8},
-            current_plan={"morning": "work", "daytime": "work", "evening": "rest"},
-        )
-        bob = Agent(
-            id=f"{run_id}-bob",
-            run_id=run_id,
-            name="Bob",
-            occupation="居民",
-            home_location_id=f"{run_id}-bachelor-apt",
-            current_location_id=f"{run_id}-bachelor-apt",
-            current_goal="wander",
-            personality={"agreeableness": 0.6, "openness": 0.5},
-            profile=build_scenario_agent_profile(
-                bio="小镇普通居民，经常在镇中心和咖啡馆附近活动。",
-                agent_config_id="bob",
-                world_role="cast",
-                work_description="无固定工作，日常活动比较自由",
-            ),
-            status={"energy": 0.75},
-            current_plan={"morning": "wander", "daytime": "wander", "evening": "socialize"},
-        )
+        # 2. 从 agents/ 目录加载配置并创建 Agent
+        agent_configs = self.registry.list_configs()
+        agents: dict[str, Agent] = {}
 
-        # 创建初始关系
-        agent_id_map = {
-            "truman": truman.id,
-            "spouse": spouse.id,
-            "friend": friend.id,
-            "neighbor": neighbor.id,
-            "alice": alice.id,
-            "bob": bob.id,
-        }
+        for config in agent_configs:
+            # 加载初始状态配置
+            initial = self.registry.get_initial(config.id)
+
+            # 加载 bio
+            bio = self.registry.get_bio(config.id) or ""
+
+            # 解析 home_location_id
+            home_location_id = self._resolve_location_id(
+                run_id, config.home, LOCATION_ID_MAP
+            )
+
+            # 解析 workplace_location_id
+            workplace_location_id = None
+            if config.workplace:
+                workplace_location_id = self._resolve_location_id(
+                    run_id, config.workplace, LOCATION_ID_MAP
+                )
+
+            # 确定初始位置
+            current_location_id = home_location_id
+            if initial.initial_location == "workplace" and workplace_location_id:
+                current_location_id = workplace_location_id
+            elif initial.initial_location == "home" and home_location_id:
+                current_location_id = home_location_id
+            elif initial.initial_location:
+                # 可能是具体的 location key
+                resolved = self._resolve_location_id(
+                    run_id, initial.initial_location, LOCATION_ID_MAP
+                )
+                if resolved:
+                    current_location_id = resolved
+
+            # 构建 profile
+            workplace_name = None
+            if config.workplace and config.workplace in LOCATION_ID_MAP:
+                workplace_name = locations[LOCATION_ID_MAP[config.workplace]].name
+
+            profile = build_scenario_agent_profile(
+                bio=bio,
+                agent_config_id=config.id,
+                world_role=config.world_role,
+                workplace=workplace_name,
+                workplace_location_id=workplace_location_id,
+                work_description=self._get_work_description(config.id),
+            )
+
+            # 构建状态
+            status = {
+                "energy": initial.status.energy,
+            }
+            if initial.status.suspicion_score > 0 or config.world_role == "truman":
+                status["suspicion_score"] = initial.status.suspicion_score
+
+            # 构建计划
+            current_plan = {
+                "morning": initial.plan.morning,
+                "daytime": initial.plan.daytime,
+                "evening": initial.plan.evening,
+            }
+
+            agent = Agent(
+                id=f"{run_id}-{config.id}",
+                run_id=run_id,
+                name=config.name,
+                occupation=self._get_occupation_name(config.occupation),
+                home_location_id=home_location_id,
+                current_location_id=current_location_id,
+                current_goal=initial.initial_goal,
+                personality=config.personality,
+                profile=profile,
+                status=status,
+                current_plan=current_plan,
+            )
+            agents[config.id] = agent
+
+        # 3. 从 agents/ 目录加载关系配置并创建 Relationship
         relationships = []
-        for (from_agent, to_agent), attrs in INITIAL_RELATIONSHIPS.items():
+        all_relations = self.registry.load_all_relations()
+
+        for (from_agent_id, to_agent_id), rel_config in all_relations.items():
+            if from_agent_id not in agents or to_agent_id not in agents:
+                continue
+
             relationships.append(
                 Relationship(
                     id=str(uuid4()),
                     run_id=run_id,
-                    agent_id=agent_id_map[from_agent],
-                    other_agent_id=agent_id_map[to_agent],
-                    familiarity=attrs["familiarity"],
-                    trust=attrs["trust"],
-                    affinity=attrs["affinity"],
-                    relation_type=attrs["relation_type"],
+                    agent_id=agents[from_agent_id].id,
+                    other_agent_id=agents[to_agent_id].id,
+                    familiarity=rel_config.familiarity,
+                    trust=rel_config.trust,
+                    affinity=rel_config.affinity,
+                    relation_type=rel_config.relation_type,
                 )
             )
 
+        # 4. 设置世界开始时间
         if "world_start_time" not in (run.metadata_json or {}):
             metadata = dict(run.metadata_json or {})
             metadata["world_start_time"] = DEFAULT_WORLD_START_TIME.isoformat()
             run.metadata_json = metadata
 
-        self.session.add_all([plaza, apartment, office, cafe, hospital, bachelor_apt, mall])
+        # 5. 持久化
+        self.session.add_all(list(locations.values()))
         await self.session.flush()
-        self.session.add_all([truman, spouse, friend, neighbor, alice, bob])
+        self.session.add_all(list(agents.values()))
         await self.session.flush()
-        self.session.add_all(relationships)
+        if relationships:
+            self.session.add_all(relationships)
         await self.session.commit()
