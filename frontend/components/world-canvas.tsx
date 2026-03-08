@@ -56,31 +56,23 @@ export function WorldCanvas({ runId }: Props) {
     );
   }, [world]);
 
-  const { agentNameMap, locationNameMap, visibleEvents, activeConversations, activeLocations } =
+  const { agentNameMap, locationNameMap, visibleEvents } =
     useMemo(() => {
       if (!world) {
         return {
           agentNameMap: {} as Record<string, string>,
           locationNameMap: {} as Record<string, string>,
           visibleEvents: [] as WorldEvent[],
-          activeConversations: 0,
-          activeLocations: 0,
         };
       }
 
       const { agentNameMap, locationNameMap } = buildWorldNameMaps(world);
       const filtered = filterWorldEvents(world.recent_events, eventFilter, locationFilter);
-      const conversationCount = world.recent_events.filter((event) => event.event_type === "talk").length;
-      const activeLocationCount = world.locations.filter((location) =>
-        world.recent_events.some((event) => event.location_id === location.id),
-      ).length;
 
       return {
         agentNameMap,
         locationNameMap,
         visibleEvents: filtered,
-        activeConversations: conversationCount,
-        activeLocations: activeLocationCount,
       };
     }, [eventFilter, locationFilter, world]);
 
@@ -127,8 +119,6 @@ export function WorldCanvas({ runId }: Props) {
               {[
                 { label: "地点", value: world.locations.length },
                 { label: "居民", value: residentCount },
-                { label: "活跃", value: activeLocations },
-                { label: "对话", value: activeConversations },
                 { label: "Tick", value: latestTick },
                 { label: "状态", value: world.run.status === "running" ? "运行中" : "暂停" },
               ].map(({ label, value }) => (
@@ -214,71 +204,53 @@ export function WorldCanvas({ runId }: Props) {
           </div>
 
           <div className="flex min-h-0 flex-col rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-ink">世界情报流</h2>
-                {latestEvent ? (
-                  <p className="mt-1 text-xs text-slate-500">
-                    最近 T{latestEvent.tick_no}，可用筛选器聚焦。
-                  </p>
-                ) : null}
+                {latestEvent && (
+                  <div className="group relative">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 cursor-help text-slate-400">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="absolute left-5 top-1/2 z-10 hidden -translate-y-1/2 whitespace-nowrap rounded-lg bg-slate-800 px-2 py-1 text-xs text-white shadow-lg group-hover:block">
+                      最近 T{latestEvent.tick_no}，可用筛选器聚焦
+                    </div>
+                  </div>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={() => setIsStreamExpanded(true)}
-                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition hover:border-moss hover:text-moss"
-                title="放大查看情报流"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                </svg>
-              </button>
-            </div>
-            <div className="mb-2 flex flex-wrap gap-1">
-              {EVENT_FILTERS.map((filter) => {
-                const active = filter.id === eventFilter;
-                return (
-                  <button
-                    key={filter.id}
-                    type="button"
-                    onClick={() => setEventFilter(filter.id)}
-                    className={`rounded-full px-2.5 py-1 text-[11px] transition ${
-                      active
-                        ? "bg-ink text-white"
-                        : "border border-slate-200 bg-white text-slate-500 hover:border-moss hover:text-moss"
-                    }`}
+              <div className="flex items-center gap-2">
+                {/* 筛选下拉 */}
+                <div className="relative">
+                  <select
+                    value={eventFilter}
+                    onChange={(e) => setEventFilter(e.target.value as EventFilter)}
+                    className="appearance-none rounded-full bg-slate-100 py-1 pl-3 pr-8 text-xs font-medium text-slate-600 outline-none transition hover:bg-slate-200 focus:bg-slate-200"
                   >
-                    {filter.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="mb-3 flex flex-wrap gap-1">
-              <button
-                type="button"
-                onClick={() => setLocationFilter(null)}
-                className={`rounded-full px-2.5 py-1 text-[11px] transition ${
-                  locationFilter === null
-                    ? "bg-ink text-white"
-                    : "border border-slate-200 bg-white text-slate-500 hover:border-moss hover:text-moss"
-                }`}
-              >
-                全部地点
-              </button>
-              {world.locations.map((loc) => (
+                    {EVENT_FILTERS.map((filter) => (
+                      <option key={filter.id} value={filter.id}>
+                        {filter.label}
+                      </option>
+                    ))}
+                  </select>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                {/* 数量 */}
+                <span className="rounded-full bg-moss/10 px-2.5 py-1 text-xs font-medium text-moss">
+                  {visibleEvents.length}
+                </span>
                 <button
-                  key={loc.id}
                   type="button"
-                  onClick={() => setLocationFilter(loc.id === locationFilter ? null : loc.id)}
-                  className={`rounded-full px-2.5 py-1 text-[11px] transition ${
-                    locationFilter === loc.id
-                      ? "border border-moss/40 bg-moss/20 text-moss"
-                      : "border border-slate-200 bg-white text-slate-500 hover:border-moss hover:text-moss"
-                  }`}
+                  onClick={() => setIsStreamExpanded(true)}
+                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition hover:border-moss hover:text-moss"
+                  title="放大查看情报流"
                 >
-                  {loc.name}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  </svg>
                 </button>
-              ))}
+              </div>
             </div>
             <div className="min-h-0 space-y-2 overflow-auto pr-1">
               {visibleEvents.length === 0 ? (

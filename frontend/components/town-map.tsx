@@ -427,9 +427,6 @@ export function TownMap({
           onWheel={handleWheel}
         >
           <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(148,163,184,0.12)" strokeWidth="1" />
-            </pattern>
             <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
               <feDropShadow dx="0" dy="10" stdDeviation="8" floodColor="rgba(15,23,42,0.12)" />
             </filter>
@@ -456,16 +453,6 @@ export function TownMap({
             </clipPath>
           </defs>
 
-          {/* 网格背景 - 根据昼夜调整颜色 */}
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path 
-              d="M 40 0 L 0 0 0 40" 
-              fill="none" 
-              stroke={timeStyle.isDark ? "rgba(148,163,184,0.06)" : "rgba(148,163,184,0.12)"} 
-              strokeWidth="1" 
-            />
-          </pattern>
-          <rect width={SVG_W} height={SVG_H} fill="url(#grid)" />
           {/* 装饰性路径 */}
           <path
             d="M 40 315 C 180 245, 270 255, 385 210 S 590 150, 670 190"
