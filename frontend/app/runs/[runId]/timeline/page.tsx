@@ -3,6 +3,9 @@ import Link from "next/link";
 import { getTimeline } from "@/lib/api";
 import { describeTimelineEvent, getEventMeta } from "@/lib/event-utils";
 
+// 强制动态渲染，避免构建时获取数据
+export const dynamic = "force-dynamic";
+
 type TimelinePageProps = {
   params: Promise<{ runId: string }>;
 };

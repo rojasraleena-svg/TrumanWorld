@@ -5,6 +5,9 @@ import { WorldProvider } from "@/components/world-context";
 import { WorldStatusBar } from "@/components/world-status-bar";
 import { getWorld } from "@/lib/api";
 
+// 强制动态渲染，避免构建时获取数据
+export const dynamic = "force-dynamic";
+
 type WorldPageProps = {
   params: Promise<{ runId: string }>;
 };

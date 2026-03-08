@@ -32,7 +32,100 @@ export function locationTone(locationType: string) {
   if (locationType === "park") return "border-emerald-200 bg-emerald-50 text-emerald-900";
   if (locationType === "shop") return "border-violet-200 bg-violet-50 text-violet-900";
   if (locationType === "home") return "border-pink-200 bg-pink-50 text-pink-900";
+  if (locationType === "office") return "border-sky-200 bg-sky-50 text-sky-900";
   return "border-slate-200 bg-white text-slate-700";
+}
+
+/**
+ * 获取地点类型的中文标签
+ */
+export function getLocationTypeLabel(locationType: string): string {
+  const labels: Record<string, string> = {
+    cafe: "咖啡馆",
+    plaza: "广场",
+    park: "公园",
+    shop: "商店",
+    home: "住宅",
+    office: "办公室",
+  };
+  return labels[locationType] ?? locationType;
+}
+
+/**
+ * 昼夜时段配置
+ */
+export type TimeOfDay = "dawn" | "morning" | "noon" | "afternoon" | "evening" | "night";
+
+export function getTimeOfDay(hour: number): TimeOfDay {
+  if (hour >= 5 && hour < 7) return "dawn";
+  if (hour >= 7 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 14) return "noon";
+  if (hour >= 14 && hour < 18) return "afternoon";
+  if (hour >= 18 && hour < 21) return "evening";
+  return "night";
+}
+
+/**
+ * 获取昼夜时段的视觉配置
+ */
+export function getTimeOfDayStyle(timeOfDay: TimeOfDay): {
+  label: string;
+  bgGradient: string;
+  overlayColor: string;
+  icon: string;
+  isDark: boolean;
+} {
+  const styles: Record<TimeOfDay, {
+    label: string;
+    bgGradient: string;
+    overlayColor: string;
+    icon: string;
+    isDark: boolean;
+  }> = {
+    dawn: {
+      label: "黎明",
+      bgGradient: "from-orange-100/30 via-rose-50/20 to-sky-50/30",
+      overlayColor: "rgba(251, 191, 36, 0.08)",
+      icon: "🌅",
+      isDark: false,
+    },
+    morning: {
+      label: "早晨",
+      bgGradient: "from-amber-50/40 via-yellow-50/20 to-white",
+      overlayColor: "rgba(251, 191, 36, 0.05)",
+      icon: "🌄",
+      isDark: false,
+    },
+    noon: {
+      label: "正午",
+      bgGradient: "from-sky-50/30 via-white to-white",
+      overlayColor: "rgba(255, 255, 255, 0.1)",
+      icon: "☀️",
+      isDark: false,
+    },
+    afternoon: {
+      label: "下午",
+      bgGradient: "from-orange-50/20 via-amber-50/20 to-white",
+      overlayColor: "rgba(251, 146, 60, 0.05)",
+      icon: "🌤️",
+      isDark: false,
+    },
+    evening: {
+      label: "傍晚",
+      bgGradient: "from-orange-100/40 via-rose-100/30 to-purple-100/20",
+      overlayColor: "rgba(249, 115, 22, 0.1)",
+      icon: "🌇",
+      isDark: false,
+    },
+    night: {
+      label: "夜晚",
+      bgGradient: "from-slate-800/60 via-slate-700/40 to-slate-900/50",
+      overlayColor: "rgba(15, 23, 42, 0.35)",
+      icon: "🌙",
+      isDark: true,
+    },
+  };
+  return styles[timeOfDay];
 }
 
 export function eventMatchesFilter(event: WorldEvent, filter: EventFilter) {
@@ -81,4 +174,84 @@ export function formatSimTime(world: WorldSnapshot) {
   const minutes = (totalMinutes % 60).toString().padStart(2, "0");
 
   return `${hours}:${minutes}`;
+}
+
+/**
+ * 计算地点的活动热度 (0-1)
+ * 基于近期事件数量、重要性和事件类型权重
+ */
+export function calculateLocationHeat(
+  locationId: string,
+  events: WorldSnapshot["recent_events"],
+): number {
+  // 事件类型权重
+  const eventWeights: Record<string, number> = {
+    talk: 1.5, // 对话最重要
+    work: 1.0,
+    move: 0.6,
+    rest: 0.4,
+    director_inject: 2.0, // 导演事件最显眼
+    plan: 0.5,
+    reflect: 0.5,
+  };
+
+  const locationEvents = events.filter((event) => event.location_id === locationId);
+
+  if (locationEvents.length === 0) return 0;
+
+  // 计算加权热度
+  let heat = 0;
+  for (const event of locationEvents) {
+    const baseWeight = eventWeights[event.event_type] ?? 0.5;
+    const importance = (event.payload.importance as number | undefined) ?? 5;
+    // 重要度归一化到 0.5-2.0 倍数
+    const importanceMultiplier = 0.5 + (importance / 10) * 1.5;
+    heat += baseWeight * importanceMultiplier;
+  }
+
+  // 归一化：假设最大热度为 10（约 5-7 个加权事件）
+  const normalizedHeat = Math.min(heat / 10, 1);
+
+  return normalizedHeat;
+}
+
+/**
+ * 热度等级配置
+ */
+export function getHeatLevel(heat: number): {
+  level: string;
+  color: string;
+  glowColor: string;
+  label: string;
+} {
+  if (heat >= 0.8) {
+    return {
+      level: "hot",
+      color: "#ef4444",
+      glowColor: "rgba(239, 68, 68, 0.4)",
+      label: "非常活跃",
+    };
+  }
+  if (heat >= 0.5) {
+    return {
+      level: "warm",
+      color: "#f59e0b",
+      glowColor: "rgba(245, 158, 11, 0.35)",
+      label: "较活跃",
+    };
+  }
+  if (heat >= 0.25) {
+    return {
+      level: "mild",
+      color: "#22c55e",
+      glowColor: "rgba(34, 197, 94, 0.25)",
+      label: "一般",
+    };
+  }
+  return {
+    level: "cool",
+    color: "#94a3b8",
+    glowColor: "rgba(148, 163, 184, 0.15)",
+    label: "安静",
+  };
 }

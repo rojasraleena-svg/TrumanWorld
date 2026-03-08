@@ -45,12 +45,18 @@ export function buildApiUrl(path: string) {
 
 async function safeFetch<T>(path: string, fallback: T): Promise<T> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const response = await fetch(buildApiUrl(path), {
       cache: "no-store",
+      signal: controller.signal,
       headers: {
         Accept: "application/json",
       },
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       return fallback;
@@ -64,14 +70,20 @@ async function safeFetch<T>(path: string, fallback: T): Promise<T> {
 
 async function safePost<T>(path: string, body: unknown, fallback: T): Promise<T> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     const response = await fetch(buildApiUrl(path), {
       method: "POST",
+      signal: controller.signal,
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       return fallback;
@@ -141,12 +153,18 @@ export async function injectDirectorEvent(
 
 async function safeDelete<T>(path: string, fallback: T): Promise<T> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const response = await fetch(buildApiUrl(path), {
       method: "DELETE",
+      signal: controller.signal,
       headers: {
         Accept: "application/json",
       },
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       return fallback;

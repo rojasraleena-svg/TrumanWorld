@@ -120,10 +120,7 @@ export function WorldCanvas({ runId }: Props) {
         <div className="grid min-h-0 gap-4 xl:grid-rows-[auto_auto_minmax(0,1fr)]">
           <div className="rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur">
             <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs uppercase tracking-[0.22em] text-moss">小镇概况</div>
-                <h2 className="mt-1 text-lg font-semibold text-ink">当前运行摘要</h2>
-              </div>
+              <h2 className="text-lg font-semibold text-ink">小镇概况</h2>
               <span className="text-xs text-slate-400">实时</span>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
@@ -155,13 +152,14 @@ export function WorldCanvas({ runId }: Props) {
           </div>
 
           <div className="rounded-[28px] border border-slate-200 bg-white/80 p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-slate-400">聚焦地点</p>
-                <h2 className="mt-1 text-xl font-semibold text-ink">{selectedLocation?.name ?? "暂无地点"}</h2>
-                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-                  {getLocationTypeLabel(selectedLocation?.location_type ?? "")}
-                </p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-semibold text-ink">{selectedLocation?.name ?? "暂无地点"}</h2>
+                {selectedLocation && (
+                  <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${locationTone(selectedLocation.location_type)}`}>
+                    {selectedLocation.occupants.length} / {selectedLocation.capacity} 人
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 {selectedLocationBeat ? (
@@ -183,23 +181,10 @@ export function WorldCanvas({ runId }: Props) {
             </div>
 
             {selectedLocation ? (
-              <>
-                <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-                  <span className={`rounded-full border px-2.5 py-1 font-medium ${locationTone(selectedLocation.location_type)}`}>
-                    {selectedLocation.occupants.length} / {selectedLocation.capacity} 人
-                  </span>
-                  <span
-                    className="cursor-default rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono tracking-tight"
-                    title={selectedLocation.id}
-                  >
-                    #{selectedLocation.id.slice(0, 8)}
-                  </span>
-                </div>
-
-                <div className="mt-4 space-y-2">
-                  {selectedLocation.occupants.length === 0 ? (
-                    <p className="rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-500">这里暂时没有居民。</p>
-                  ) : (
+              <div className="mt-4 space-y-2">
+                {selectedLocation.occupants.length === 0 ? (
+                  <p className="rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-500">这里暂时没有居民。</p>
+                ) : (
                     selectedLocation.occupants.map((agent) => (
                       <Link
                         key={agent.id}
@@ -225,18 +210,16 @@ export function WorldCanvas({ runId }: Props) {
                     ))
                   )}
                 </div>
-              </>
             ) : null}
           </div>
 
           <div className="flex min-h-0 flex-col rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-slate-400">近期事件</p>
-                <h2 className="mt-1 text-lg font-semibold text-ink">世界情报流</h2>
+                <h2 className="text-lg font-semibold text-ink">世界情报流</h2>
                 {latestEvent ? (
                   <p className="mt-1 text-xs text-slate-500">
-                    最近一条来自 T{latestEvent.tick_no}，可用筛选器快速聚焦某类行为。
+                    最近 T{latestEvent.tick_no}，可用筛选器聚焦。
                   </p>
                 ) : null}
               </div>

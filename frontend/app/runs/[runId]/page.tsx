@@ -4,6 +4,9 @@ import { DirectorEventForm } from "@/components/director-event-form";
 import { RunControlPanel } from "@/components/run-control-panel";
 import { getRun, listAgents } from "@/lib/api";
 
+// 强制动态渲染，避免构建时获取数据
+export const dynamic = "force-dynamic";
+
 type RunPageProps = {
   params: Promise<{ runId: string }>;
 };
