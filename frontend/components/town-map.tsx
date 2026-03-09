@@ -358,29 +358,7 @@ export function TownMap({
           </p>
         </div>
         <div className={`flex flex-col items-end gap-1.5 text-xs ${timeStyle.isDark ? "text-slate-400" : "text-slate-500"}`}>
-          {/* 第一行：地点类型图例 */}
-          <div className="flex items-center gap-1.5">
-            {([
-              { color: "bg-amber-500", label: "咖啡馆" },
-              { color: "bg-sky-500", label: "广场" },
-              { color: "bg-emerald-500", label: "公园" },
-              { color: "bg-violet-500", label: "商场" },
-              { color: "bg-pink-500", label: "住宅" },
-              { color: "bg-blue-500", label: "办公室" },
-              { color: "bg-red-500", label: "医院" },
-            ] as { color: string; label: string }[]).map(({ color, label }) => (
-              <span
-                key={label}
-                className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${
-                  timeStyle.isDark ? "bg-slate-700" : "bg-slate-50"
-                }`}
-              >
-                <span className={`h-1.5 w-1.5 rounded-full ${color}`} />
-                {label}
-              </span>
-            ))}
-          </div>
-          {/* 第二行：热力等级 + 夜晚灯光 + 控制按钮 */}
+          {/* 热力等级 + 夜晚灯光 + 控制按钮 */}
           <div className="flex items-center gap-1.5">
             {/* 热力等级图例 */}
             <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${
