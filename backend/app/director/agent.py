@@ -18,7 +18,6 @@ from app.infra.logging import get_logger
 from app.infra.settings import get_settings
 from app.scenario.truman_world.director_config import (
     DirectorConfig,
-    DirectorContext as ConfigContext,
     load_director_config,
 )
 from app.scenario.truman_world.types import get_agent_config_id, get_world_role
