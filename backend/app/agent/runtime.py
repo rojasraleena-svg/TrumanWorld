@@ -24,6 +24,8 @@ from app.sim.action_resolver import ActionIntent
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncEngine
 
+    from app.agent.memory_cache import MemoryCache
+
 logger = get_logger(__name__)
 
 
@@ -54,6 +56,8 @@ class RuntimeContext:
     enable_memory_tools: bool = True
     # LLM 调用回调：(agent_id, task_type, usage, total_cost_usd, duration_ms) -> None
     on_llm_call: Callable[..., None] | None = field(default=None)
+    # 预加载的记忆缓存，用于 in-process MCP 工具（避免 greenlet 冲突）
+    memory_cache: "MemoryCache | None" = field(default=None)
 
 
 class AgentRuntime:

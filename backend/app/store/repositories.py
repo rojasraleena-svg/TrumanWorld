@@ -94,19 +94,30 @@ class RunRepository:
             return []
 
         # Accumulate elapsed time for each run before pausing
+        run_updates = []
         for run in running_runs:
+            new_elapsed = run.elapsed_seconds or 0
             if run.started_at is not None:
                 delta = int((now - run.started_at).total_seconds())
-                run.elapsed_seconds = (run.elapsed_seconds or 0) + max(0, delta)
-                run.started_at = None
+                new_elapsed += max(0, delta)
+            run_updates.append({
+                "id": run.id,
+                "elapsed_seconds": new_elapsed,
+            })
 
-        # Update: set was_running_before_restart=True, status='paused'
-        run_ids = [run.id for run in running_runs]
-        await self.session.execute(
-            update(SimulationRun)
-            .where(SimulationRun.id.in_(run_ids))
-            .values(was_running_before_restart=True, status="paused")
-        )
+        # Update: set was_running_before_restart=True, status='paused',
+        # elapsed_seconds=accumulated, started_at=None
+        for upd in run_updates:
+            await self.session.execute(
+                update(SimulationRun)
+                .where(SimulationRun.id == upd["id"])
+                .values(
+                    was_running_before_restart=True,
+                    status="paused",
+                    elapsed_seconds=upd["elapsed_seconds"],
+                    started_at=None,
+                )
+            )
         await self.session.commit()
 
         # Refresh and return

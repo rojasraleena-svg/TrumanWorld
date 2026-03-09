@@ -263,7 +263,7 @@ class SimulationService:
 
             # Build runtime context with memory tools support
             runtime_ctx = None
-            if engine is not None and run_id is not None:
+            if run_id is not None:
                 # 捕获真实 DB agent id（UUID），避免被回调参数遮蔽
                 db_agent_id = agent_snapshot.id
 
@@ -289,11 +289,21 @@ class SimulationService:
                     )
                     llm_records.append(record)
 
+                # 使用预加载的 memory_cache（避免在 anyio task 中创建 DB session）
+                from app.agent.memory_cache import MemoryCache
+
+                memory_cache = (
+                    MemoryCache(agent_snapshot.memory_cache)
+                    if agent_snapshot.memory_cache
+                    else None
+                )
+
                 runtime_ctx = RuntimeContext(
-                    db_engine=engine,
+                    db_engine=engine,  # 保留 engine 用于其他用途
                     run_id=run_id,
                     enable_memory_tools=True,
                     on_llm_call=on_llm_call,
+                    memory_cache=memory_cache,  # 优先使用缓存
                 )
 
             # Extract workplace_location_id from profile
@@ -316,12 +326,9 @@ class SimulationService:
                 workplace_location_id=workplace_location_id,
             )
 
-        # Execute agent decisions SEQUENTIALLY to avoid greenlet conflicts.
-        # psycopg3 + SQLAlchemy 2.x asyncio sessions are not safe to create
-        # concurrently inside asyncio.gather tasks (greenlet_spawn context mismatch).
-        results = []
-        for snapshot in agent_data:
-            results.append(await decide_for_agent(snapshot))
+        # Execute all agent decisions in PARALLEL
+        # Memory tools now use pre-loaded cache (no DB session creation in anyio tasks)
+        results = await asyncio.gather(*[decide_for_agent(snapshot) for snapshot in agent_data])
 
         # Filter out None results (agents without valid state)
         intents = [r for r in results if r is not None]
