@@ -156,8 +156,12 @@ class EventRepository:
         keyword: str | None = None,
         limit: int = 2000,
         offset: int = 0,
+        order_desc: bool = False,
     ) -> tuple[Sequence[Event], int]:
-        """专为时间线回放设计的全量查询，按 tick 正序排列，支持多维过滤。
+        """专为时间线回放设计的全量查询，支持多维过滤和排序。
+
+        Args:
+            order_desc: 是否按 tick 倒序排列（最新事件在前），默认为 False（正序）
 
         Returns:
             (events, total_count) 元组，total_count 为过滤后的总条数（用于分页提示）。
@@ -187,16 +191,70 @@ class EventRepository:
         count_result = await self.session.execute(count_stmt)
         total = count_result.scalar_one() or 0
 
-        # 按 tick 正序 + created_at 正序（方便时间线从旧到新回放）
-        stmt: Select[tuple[Event]] = (
-            select(Event)
-            .where(where_clause)
-            .order_by(Event.tick_no.asc(), Event.created_at.asc())
-            .limit(limit)
-            .offset(offset)
-        )
+        # 根据 order_desc 参数决定排序方向
+        if order_desc:
+            # 按 tick 倒序 + created_at 倒序（最新事件在前，方便复盘最近发生的事件）
+            stmt: Select[tuple[Event]] = (
+                select(Event)
+                .where(where_clause)
+                .order_by(Event.tick_no.desc(), Event.created_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+        else:
+            # 按 tick 正序 + created_at 正序（方便时间线从旧到新回放）
+            stmt = (
+                select(Event)
+                .where(where_clause)
+                .order_by(Event.tick_no.asc(), Event.created_at.asc())
+                .limit(limit)
+                .offset(offset)
+            )
         result = await self.session.execute(stmt)
         return result.scalars().all(), total
+
+    async def count_events_by_type(
+        self,
+        run_id: str,
+        tick_from: int | None = None,
+        tick_to: int | None = None,
+        event_types: list[str] | None = None,
+    ) -> dict[str, int]:
+        """统计指定 tick 范围内各类型事件的数量。
+
+        Args:
+            run_id: 运行 ID
+            tick_from: 起始 tick（包含）
+            tick_to: 结束 tick（包含）
+            event_types: 要统计的事件类型列表，默认为常用类型
+
+        Returns:
+            事件类型到数量的映射字典
+        """
+        from sqlalchemy import func as sql_func
+
+        if event_types is None:
+            event_types = ["talk", "move", "move_rejected", "talk_rejected"]
+
+        conditions = [Event.run_id == run_id]
+        if tick_from is not None:
+            conditions.append(Event.tick_no >= tick_from)
+        if tick_to is not None:
+            conditions.append(Event.tick_no <= tick_to)
+
+        where_clause = and_(*conditions)
+
+        # 按事件类型分组统计
+        stmt = (
+            select(Event.event_type, sql_func.count(Event.id))
+            .where(where_clause)
+            .where(Event.event_type.in_(event_types))
+            .group_by(Event.event_type)
+        )
+        result = await self.session.execute(stmt)
+        rows = result.all()
+
+        return {row[0]: row[1] for row in rows}
 
     async def create(self, event: Event) -> Event:
         self.session.add(event)

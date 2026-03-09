@@ -181,6 +181,12 @@ class WorldDirectorStatsResponse(BaseModel):
     execution_rate: int = 0
 
 
+class WorldDailyStatsResponse(BaseModel):
+    talk_count: int = 0
+    move_count: int = 0
+    rejection_count: int = 0
+
+
 class DirectorMemoryResponse(BaseModel):
     id: str
     tick_no: int
@@ -217,3 +223,4 @@ class WorldSnapshotResponse(BaseModel):
     locations: list[WorldLocationResponse]
     recent_events: list[WorldEventResponse]
     director_stats: WorldDirectorStatsResponse = Field(default_factory=WorldDirectorStatsResponse)
+    daily_stats: WorldDailyStatsResponse = Field(default_factory=WorldDailyStatsResponse)

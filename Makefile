@@ -1,8 +1,12 @@
 PYTHON ?= python3
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
+LOGS_DIR := logs
 
-.PHONY: install backend-install frontend-install backend-dev frontend-dev lint format test migrate pre-commit dev db-start db-stop db-status db-wait db-migrate db-clean check-ports kill-ports sync-agent-logos
+# 生成带时间戳的日志文件名
+LOG_TIMESTAMP := $(shell date +%Y%m%d_%H%M%S)
+
+.PHONY: install backend-install frontend-install backend-dev frontend-dev lint format test migrate pre-commit dev docker-dev db-start db-stop db-status db-wait db-migrate db-clean check-ports kill-ports sync-agent-logos
 
 # 同步 agent logo 到前端 public 目录
 sync-agent-logos:
@@ -164,17 +168,35 @@ db-migrate: db-wait
 
 # 一行命令同时启动前后端（测试环境，非 Docker）
 # 使用非常用端口避免冲突：后端 18080，前端 13000
+# 日志会自动保存到 logs/ 目录，文件名包含时间戳
 dev: check-ports db-start db-migrate sync-agent-logos
-	@echo ""
-	@echo "🚀 启动 Truman World 开发环境..."
-	@echo "================================"
-	@echo "数据库: postgresql://$(DB_USER):$(DB_PASSWORD)@127.0.0.1:$(DB_PORT)/$(DB_NAME)"
-	@echo "后端:   http://127.0.0.1:$(BACKEND_PORT)"
-	@echo "前端:   http://127.0.0.1:$(FRONTEND_PORT)"
-	@echo "================================"
-	@echo "按 Ctrl+C 停止前后端（数据库会继续运行）"
-	@echo ""
-	@(trap 'kill %1 %2 2>/dev/null' INT; \
-		(cd $(BACKEND_DIR) && uv run uvicorn app.main:app --host 127.0.0.1 --port $(BACKEND_PORT)) & \
-		(cd $(FRONTEND_DIR) && npm run dev -- --port $(FRONTEND_PORT)) & \
+	@mkdir -p $(LOGS_DIR)
+	@LOG_TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	LOG_FILE_BACKEND="$(CURDIR)/$(LOGS_DIR)/dev_$${LOG_TIMESTAMP}_backend.log"; \
+	LOG_FILE_FRONTEND="$(CURDIR)/$(LOGS_DIR)/dev_$${LOG_TIMESTAMP}_frontend.log"; \
+	echo ""; \
+	echo "🚀 启动 Truman World 开发环境..."; \
+	echo "================================"; \
+	echo "数据库: postgresql://$(DB_USER):$(DB_PASSWORD)@127.0.0.1:$(DB_PORT)/$(DB_NAME)"; \
+	echo "后端:   http://127.0.0.1:$(BACKEND_PORT)"; \
+	echo "前端:   http://127.0.0.1:$(FRONTEND_PORT)"; \
+	echo "日志:   $(LOGS_DIR)/dev_$${LOG_TIMESTAMP}_*.log"; \
+	echo "================================"; \
+	echo "按 Ctrl+C 停止前后端（数据库会继续运行）"; \
+	echo ""; \
+	(trap 'kill %1 %2 2>/dev/null' INT; \
+		(cd $(BACKEND_DIR) && uv run uvicorn app.main:app --host 127.0.0.1 --port $(BACKEND_PORT) 2>&1 | tee "$${LOG_FILE_BACKEND}") & \
+		(cd $(FRONTEND_DIR) && npm run dev -- --port $(FRONTEND_PORT) 2>&1 | tee "$${LOG_FILE_FRONTEND}") & \
 		wait)
+
+# Docker 开发环境启动（带日志输出）
+docker-dev:
+	@mkdir -p $(LOGS_DIR)
+	@LOG_TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	echo ""; \
+	echo "🐳 启动 Truman World Docker 开发环境..."; \
+	echo "================================"; \
+	echo "日志目录: $(LOGS_DIR)/"; \
+	echo "日志文件: docker_$${LOG_TIMESTAMP}.log"; \
+	echo "================================"; \
+	docker-compose up 2>&1 | tee $(LOGS_DIR)/docker_$${LOG_TIMESTAMP}.log

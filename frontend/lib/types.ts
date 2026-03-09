@@ -123,6 +123,11 @@ export type WorldSnapshot = {
     executed: number;
     execution_rate: number;
   };
+  daily_stats?: {
+    talk_count: number;
+    move_count: number;
+    rejection_count: number;
+  };
 };
 
 export type DirectorMemory = {

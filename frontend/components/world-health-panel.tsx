@@ -256,6 +256,7 @@ interface ActivitySummaryProps {
     working: number;
     resting: number;
     commuting: number;
+    socializing: number;
     total: number;
   };
 }
@@ -264,12 +265,18 @@ function ActivitySummary({ summary }: ActivitySummaryProps) {
   return (
     <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/50 p-3">
       <div className="text-xs font-medium text-slate-500">当前活动分布</div>
-      <div className="mt-2 flex items-center justify-between">
+      <div className="mt-2 grid grid-cols-4 gap-2">
         <ActivityBadge
           icon="⚒️"
           label="在岗中"
           count={summary.working}
           color="amber"
+        />
+        <ActivityBadge
+          icon="💬"
+          label="对话中"
+          count={summary.socializing}
+          color="emerald"
         />
         <ActivityBadge
           icon="😴"
@@ -292,7 +299,7 @@ interface ActivityBadgeProps {
   icon: string;
   label: string;
   count: number;
-  color: "amber" | "slate" | "blue";
+  color: "amber" | "slate" | "blue" | "emerald";
 }
 
 function ActivityBadge({ icon, label, count, color }: ActivityBadgeProps) {
@@ -300,6 +307,7 @@ function ActivityBadge({ icon, label, count, color }: ActivityBadgeProps) {
     amber: "bg-amber-50 text-amber-700 border-amber-100",
     slate: "bg-slate-50 text-slate-700 border-slate-100",
     blue: "bg-blue-50 text-blue-700 border-blue-100",
+    emerald: "bg-emerald-50 text-emerald-700 border-emerald-100",
   };
 
   return (

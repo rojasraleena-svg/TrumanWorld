@@ -33,6 +33,7 @@ export interface WorldHealthMetrics {
     working: number;
     resting: number;
     commuting: number;
+    socializing: number;
     total: number;
   };
 
@@ -134,9 +135,10 @@ export function calculateWorldHealthMetrics(
 
     activitySummary,
 
-    recentTalkCount: talkEvents.length,
-    recentMoveCount: events.filter((e) => e.event_type === EVENT_MOVE).length,
-    recentRejectionCount: rejectionEvents.length,
+    // Use daily_stats from backend if available, otherwise fall back to recent_events count
+    recentTalkCount: world.daily_stats?.talk_count ?? talkEvents.length,
+    recentMoveCount: world.daily_stats?.move_count ?? events.filter((e) => e.event_type === EVENT_MOVE).length,
+    recentRejectionCount: world.daily_stats?.rejection_count ?? rejectionEvents.length,
   };
 }
 
@@ -158,6 +160,7 @@ function calculateActivitySummary(agents: AgentSummary[], locations: WorldSnapsh
   let working = 0;
   let resting = 0;
   let commuting = 0;
+  let socializing = 0;
   const locationTypeMap = new Map(locations.map((location) => [location.id, location.location_type]));
 
   for (const agent of agents) {
@@ -173,11 +176,21 @@ function calculateActivitySummary(agents: AgentSummary[], locations: WorldSnapsh
       } else {
         commuting++;
       }
-    } else if (goal === "rest" || goal === "wander") {
+    } else if (goal === "talk") {
+      // 对话中算作社交
+      socializing++;
+    } else if (goal === "rest") {
       resting++;
-    } else if (goal === "commute") {
+    } else if (goal === "wander") {
+      // 闲逛算作活动中，归入 resting 类别但显示为活动
+      resting++;
+    } else if (goal === "commute" || goal === "go_home") {
+      commuting++;
+    } else if (goal.startsWith("move:")) {
+      // 移动中算作通勤
       commuting++;
     } else {
+      // 其他未知状态默认归为休息
       resting++;
     }
   }
@@ -186,6 +199,7 @@ function calculateActivitySummary(agents: AgentSummary[], locations: WorldSnapsh
     working,
     resting,
     commuting,
+    socializing,
     total: agents.length,
   };
 }

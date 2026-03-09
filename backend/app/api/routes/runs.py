@@ -18,6 +18,7 @@ from app.api.schemas.simulation import (
     TimelineResponse,
     TimelineRunInfo,
     WorldClockResponse,
+    WorldDailyStatsResponse,
     WorldDirectorStatsResponse,
     WorldEventResponse,
     WorldEventsResponse,
@@ -393,7 +394,7 @@ async def get_run(
     "/{run_id}/timeline",
     response_model=TimelineResponse,
     summary="获取时间线",
-    description="获取模拟运行的完整事件时间线，支持按 tick 范围、模拟世界时间范围、事件类型、角色等多维过滤",
+    description="获取模拟运行的完整事件时间线，支持按 tick 范围、模拟世界时间范围、事件类型、角色等多维过滤。支持正序/倒序排列。",
 )
 async def get_timeline(
     run_id: UUID,
@@ -405,6 +406,7 @@ async def get_timeline(
     agent_id: str | None = None,
     limit: int = 2000,
     offset: int = 0,
+    order_desc: bool = False,  # 是否按 tick 倒序排列（最新事件在前）
     session: AsyncSession = Depends(get_db_session),
 ) -> TimelineResponse:
     from datetime import timedelta
@@ -491,6 +493,7 @@ async def get_timeline(
         actor_agent_id=resolved_agent_id,
         limit=limit,
         offset=offset,
+        order_desc=order_desc,
     )
 
     def enrich_payload(event) -> dict:
@@ -814,6 +817,14 @@ async def get_world_snapshot(
     agent_name_map = {agent.id: agent.name for agent in agents}
     location_name_map = {location.id: location.name for location in locations}
 
+    # Get all-time event statistics (not just today)
+    all_time_event_counts = await event_repo.count_events_by_type(
+        str(run_id),
+        tick_from=None,  # No tick_from limit - get all events from the beginning
+        tick_to=None,    # No tick_to limit - get all events up to now
+        event_types=["talk", "move", "move_rejected", "talk_rejected"],
+    )
+
     return WorldSnapshotResponse(
         run=WorldSnapshotRunResponse(
             id=run.id,
@@ -857,6 +868,11 @@ async def get_world_snapshot(
             execution_rate=(
                 round((director_executed / director_total) * 100) if director_total > 0 else 0
             ),
+        ),
+        daily_stats=WorldDailyStatsResponse(
+            talk_count=all_time_event_counts.get("talk", 0),
+            move_count=all_time_event_counts.get("move", 0),
+            rejection_count=all_time_event_counts.get("move_rejected", 0) + all_time_event_counts.get("talk_rejected", 0),
         ),
     )
 

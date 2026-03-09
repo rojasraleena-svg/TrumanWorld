@@ -43,7 +43,14 @@ const EMPTY_FILTERS: Filters = {
   agentId: "",
 };
 
-function buildTimelineUrl(baseUrl: string, runId: string, f: Filters, limit: number, offset: number): string {
+function buildTimelineUrl(
+  baseUrl: string,
+  runId: string,
+  f: Filters,
+  limit: number,
+  offset: number,
+  orderDesc: boolean = true,  // 默认倒序，最新事件在前
+): string {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (f.tickFrom) params.set("tick_from", f.tickFrom);
   if (f.tickTo) params.set("tick_to", f.tickTo);
@@ -51,6 +58,7 @@ function buildTimelineUrl(baseUrl: string, runId: string, f: Filters, limit: num
   if (f.worldDatetimeTo) params.set("world_datetime_to", f.worldDatetimeTo);
   if (f.eventType) params.set("event_type", f.eventType);
   if (f.agentId) params.set("agent_id", f.agentId);
+  if (orderDesc) params.set("order_desc", "true");
   return `${baseUrl}/runs/${runId}/timeline?${params.toString()}`;
 }
 
@@ -83,11 +91,11 @@ export default function TimelinePage() {
   }, [runId]);
 
   const fetchTimeline = useCallback(
-    async (appliedFilters: Filters, currentOffset: number) => {
+    async (appliedFilters: Filters, currentOffset: number, orderDesc: boolean = true) => {
       setLoading(true);
       setError(null);
       try {
-        const url = buildTimelineUrl(getApiBaseUrl(), runId, appliedFilters, PAGE_SIZE, currentOffset);
+        const url = buildTimelineUrl(getApiBaseUrl(), runId, appliedFilters, PAGE_SIZE, currentOffset, orderDesc);
         const res = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
         if (!res.ok) throw new Error(`请求失败: ${res.status}`);
         const data = (await res.json()) as TimelineResponse;
@@ -133,13 +141,15 @@ export default function TimelinePage() {
     void fetchTimeline(filters, newOffset);
   };
 
-  // 将事件按 tick 分组，从大到小排列（最新在上）
+  // 将事件按 tick 分组，保持后端返回的顺序（后端已按倒序排列）
   const groups = useMemo(() => {
     if (!timeline) return [];
     const grouped: Record<number, TimelineEvent[]> = {};
+    // 按后端返回的顺序插入，保持 tick 的倒序（最新的在前）
     for (const event of timeline.events) {
       (grouped[event.tick_no] ??= []).push(event);
     }
+    // 将分组按 tick 倒序排列（最新的 tick 在前）
     return Object.entries(grouped).sort(([a], [b]) => Number(b) - Number(a));
   }, [timeline]);
 
