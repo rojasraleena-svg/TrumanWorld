@@ -27,6 +27,8 @@ type IntelligenceStreamModalProps = {
   onClose: () => void;
   world: WorldSnapshot;
   runId: string;
+  maxEvents?: number;
+  pollIntervalMs?: number;
 };
 
 export function IntelligenceStreamModal({
@@ -34,6 +36,8 @@ export function IntelligenceStreamModal({
   onClose,
   world,
   runId,
+  maxEvents,
+  pollIntervalMs,
 }: IntelligenceStreamModalProps) {
   const [eventFilter, setEventFilter] = useState<EventFilter>("all");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>(null);
@@ -58,7 +62,7 @@ export function IntelligenceStreamModal({
     const isFirstLoad = knownIdsRef.current.size === 0;
     if (isFirstLoad) setIsLoading(true);
     setLoadError(false);
-    const result = await getRunEventsResult(runId, undefined, 500);
+    const result = await getRunEventsResult(runId, undefined, maxEvents ?? 500);
     if (isFirstLoad) setIsLoading(false);
     isLoadingRef.current = false;
     if (result.data) {
@@ -74,8 +78,7 @@ export function IntelligenceStreamModal({
       // Fall back to latest world snapshot events
       if (knownIdsRef.current.size === 0) setAllEvents(recentEventsRef.current);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId]); // intentionally exclude recentEventsRef – it's a ref, stable by design
+  }, [runId, maxEvents]); // intentionally exclude recentEventsRef – it's a ref, stable by design
 
   // Reset known-ids whenever the modal is freshly opened so a full reload occurs
   const prevIsOpenRef = useRef(false);
@@ -92,7 +95,7 @@ export function IntelligenceStreamModal({
   useEffect(() => {
     if (!isOpen) return;
     loadAllEvents();
-    const timer = setInterval(() => loadAllEvents(), 5000);
+    const timer = setInterval(() => loadAllEvents(), pollIntervalMs ?? 5000);
     return () => clearInterval(timer);
   }, [isOpen, loadAllEvents]);
 

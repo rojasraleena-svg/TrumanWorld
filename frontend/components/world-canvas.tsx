@@ -126,7 +126,7 @@ export function WorldCanvas({ runId }: Props) {
         {/* 中间列：世界健康度 + 地点详情 */}
         <div className="flex min-h-0 flex-col gap-4 overflow-auto">
           {/* 世界健康度面板 */}
-          {healthMetrics && <WorldHealthPanel metrics={healthMetrics} runId={runId} />}
+          {healthMetrics && <WorldHealthPanel metrics={healthMetrics} runId={runId} world={world} />}
 
           {/* 地点详情卡片 */}
           <div className="rounded-[28px] border border-slate-200 bg-white/80 p-4 shadow-sm">
@@ -198,6 +198,8 @@ export function WorldCanvas({ runId }: Props) {
               onClose={() => setIsStreamExpanded(false)}
               world={world}
               runId={runId}
+              maxEvents={world.health_metrics_config?.ui_intelligence_stream_max_events}
+              pollIntervalMs={world.health_metrics_config?.ui_intelligence_stream_poll_interval}
             />
           )}
 

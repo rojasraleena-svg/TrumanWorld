@@ -137,9 +137,11 @@ export function calculateWorldHealthMetrics(
       talksPerPersonPerDay > trendUpThreshold ? "up" : talksPerPersonPerDay > trendStableThreshold ? "stable" : "down";
   } else {
     const talkEvents = events.filter((e) => e.event_type === EVENT_TALK);
-    socialActivity = Math.min(100, (talkEvents.length / 10) * 100);
+    // 使用配置的基准值（默认 20）
+    const fallbackBaseline = world.health_metrics_config?.social_baseline_talks_per_person_per_day ?? 20;
+    socialActivity = Math.min(100, (talkEvents.length / fallbackBaseline) * 100);
     socialTrend =
-      talkEvents.length > 5 ? "up" : talkEvents.length > 0 ? "stable" : "down";
+      talkEvents.length > (fallbackBaseline / 2) ? "up" : talkEvents.length > 0 ? "stable" : "down";
   }
 
   // 3. Truman怀疑度

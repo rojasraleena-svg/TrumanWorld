@@ -14,13 +14,15 @@ import {
 import { DirectorEventForm } from "@/components/director-event-form";
 import { useWorld } from "@/components/world-context";
 import { getDirectorMemoriesResult } from "@/lib/api";
+import type { WorldSnapshot } from "@/lib/types";
 
 interface WorldHealthPanelProps {
   metrics: WorldHealthMetrics;
   runId: string;
+  world?: WorldSnapshot;
 }
 
-export function WorldHealthPanel({ metrics, runId }: WorldHealthPanelProps) {
+export function WorldHealthPanel({ metrics, runId, world }: WorldHealthPanelProps) {
   const [isDirectorExpanded, setIsDirectorExpanded] = useState(false);
   const { refresh } = useWorld();
   return (
@@ -77,6 +79,7 @@ export function WorldHealthPanel({ metrics, runId }: WorldHealthPanelProps) {
           stats={metrics.directorStats}
           runId={runId}
           onInjected={refresh}
+          maxMemories={world?.health_metrics_config?.ui_director_panel_max_memories}
         />
       </div>
 
@@ -393,6 +396,7 @@ interface DirectorInterventionModalProps {
   };
   runId: string;
   onInjected: () => void;
+  maxMemories?: number;
 }
 
 type DirectorFilter = "all" | "queued" | "consumed" | "expired";
@@ -403,6 +407,7 @@ function DirectorInterventionModal({
   stats,
   runId,
   onInjected,
+  maxMemories,
 }: DirectorInterventionModalProps) {
   const [selectedFilter, setSelectedFilter] = useState<DirectorFilter>("all");
   const [memories, setMemories] = useState<DirectorMemory[]>([]);
@@ -421,7 +426,7 @@ function DirectorInterventionModal({
     async function loadMemories() {
       setIsLoadingMemories(true);
       setMemoryError(null);
-      const result = await getDirectorMemoriesResult(runId, 100);
+      const result = await getDirectorMemoriesResult(runId, maxMemories ?? 100);
       if (cancelled) return;
       if (result.data) {
         setMemories(result.data.memories);
@@ -455,7 +460,7 @@ function DirectorInterventionModal({
   const handleInjected = () => {
     onInjected();
     void (async () => {
-      const result = await getDirectorMemoriesResult(runId, 100);
+      const result = await getDirectorMemoriesResult(runId, maxMemories ?? 100);
       if (result.data) {
         setMemories(result.data.memories);
       }

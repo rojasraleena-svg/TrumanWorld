@@ -721,6 +721,10 @@ def _build_health_metrics_config() -> WorldHealthMetricsConfig:
         soc = cfg.get("social", {})
         heat = world_cfg.get("location_heat", {})
         thresholds = heat.get("thresholds", {})
+        ui = world_cfg.get("ui_config", {})
+        ui_loc = ui.get("location_detail", {})
+        ui_intel = ui.get("intelligence_stream", {})
+        ui_dir = ui.get("director_panel", {})
         return WorldHealthMetricsConfig(
             continuity_penalty_factor=cont.get("penalty_factor", 200.0),
             continuity_warning_threshold=cont.get("warning_threshold", 0.2),
@@ -734,6 +738,10 @@ def _build_health_metrics_config() -> WorldHealthMetricsConfig:
             heat_threshold_active=thresholds.get("active", 0.4),
             heat_threshold_mild=thresholds.get("mild", 0.15),
             heat_glow_threshold=heat.get("glow_threshold", 0.1),
+            ui_location_detail_max_events=ui_loc.get("max_events_display", 50),
+            ui_intelligence_stream_max_events=ui_intel.get("max_events_load", 500),
+            ui_intelligence_stream_poll_interval=ui_intel.get("poll_interval_ms", 5000),
+            ui_director_panel_max_memories=ui_dir.get("max_memories_load", 100),
         )
     except Exception:
         return WorldHealthMetricsConfig()

@@ -142,6 +142,11 @@ export type WorldSnapshot = {
     heat_threshold_active: number;
     heat_threshold_mild: number;
     heat_glow_threshold: number;
+    // UI config
+    ui_location_detail_max_events: number;
+    ui_intelligence_stream_max_events: number;
+    ui_intelligence_stream_poll_interval: number;
+    ui_director_panel_max_memories: number;
   };
 };
 

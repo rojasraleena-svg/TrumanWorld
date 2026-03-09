@@ -173,25 +173,27 @@ export function LocationDetailModal({
               </div>
             ) : (
               <div className="space-y-2">
-                {locationEvents.slice(0, 50).map((event, index) => (
-                  <EventCard
-                    key={event.id}
-                    event={event}
-                    index={index}
-                    isLatest={event.tick_no === latestTick}
-                    agentNameMap={agentNameMap}
-                    locationNameMap={locationNameMap}
-                    simTime={tickToSimDayTime(
-                      event.tick_no,
-                      world.run.tick_minutes ?? 5,
-                      world.run.current_tick ?? 0,
-                      world.world_clock?.iso,
-                    )}
-                  />
-                ))}
-                {locationEvents.length > 50 && (
+                {locationEvents
+                  .slice(0, world.health_metrics_config?.ui_location_detail_max_events ?? 50)
+                  .map((event, index) => (
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      index={index}
+                      isLatest={event.tick_no === latestTick}
+                      agentNameMap={agentNameMap}
+                      locationNameMap={locationNameMap}
+                      simTime={tickToSimDayTime(
+                        event.tick_no,
+                        world.run.tick_minutes ?? 5,
+                        world.run.current_tick ?? 0,
+                        world.world_clock?.iso,
+                      )}
+                    />
+                  ))}
+                {locationEvents.length > (world.health_metrics_config?.ui_location_detail_max_events ?? 50) && (
                   <p className="text-center text-xs text-slate-500">
-                    还有 {locationEvents.length - 50} 条事件
+                    还有 {locationEvents.length - (world.health_metrics_config?.ui_location_detail_max_events ?? 50)} 条事件
                   </p>
                 )}
               </div>

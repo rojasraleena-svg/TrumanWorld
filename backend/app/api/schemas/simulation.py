@@ -204,6 +204,11 @@ class WorldHealthMetricsConfig(BaseModel):
     heat_threshold_active: float = 0.4
     heat_threshold_mild: float = 0.15
     heat_glow_threshold: float = 0.1
+    # UI config
+    ui_location_detail_max_events: int = 50
+    ui_intelligence_stream_max_events: int = 500
+    ui_intelligence_stream_poll_interval: int = 5000
+    ui_director_panel_max_memories: int = 100
 
 
 class DirectorMemoryResponse(BaseModel):
