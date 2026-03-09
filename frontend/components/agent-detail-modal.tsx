@@ -101,8 +101,7 @@ export function AgentDetailModal({ isOpen, onClose, runId, agentId }: AgentDetai
       onClose={onClose}
       size="full"
       showCloseButton={false}
-      title={`👤 ${agent.name}`}
-      subtitle={agent.occupation || "居民"}
+      title="智能体详情"
     >
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* 左侧：基本信息 */}
@@ -181,8 +180,8 @@ export function AgentDetailModal({ isOpen, onClose, runId, agentId }: AgentDetai
                 </p>
                 <div className="mt-3 space-y-2">
                   {relationships.slice(0, 5).map((rel, index) => (
-                    <div key={`${rel.target_agent_id}-${index}`} className="flex items-center justify-between">
-                      <span className="text-sm text-slate-700">{rel.target_name}</span>
+                    <div key={`${rel.other_agent_id}-${index}`} className="flex items-center justify-between">
+                      <span className="text-sm text-slate-700">{rel.other_agent_name || "未知"}</span>
                       <span
                         className={`text-[10px] ${
                           relationshipTone(rel.familiarity) === "close"
