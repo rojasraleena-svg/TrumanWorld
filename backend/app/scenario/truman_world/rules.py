@@ -110,6 +110,35 @@ def build_role_context(world_role: str, world: dict[str, Any]) -> dict[str, Any]
     }
 
 
+def build_world_common_knowledge() -> dict[str, Any]:
+    """Build world common knowledge shared by all agents in TrumanWorld.
+    
+    This defines the shared understanding of how the world works,
+    including daily rhythms, location purposes, and social norms.
+    """
+    return {
+        "daily_rhythm": {
+            "lunch_time": "11:30-13:30",
+            "social_time": "18:00-22:00",
+            "work_days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+        },
+        "location_purposes": {
+            "cafe": ["用餐", "喝咖啡", "社交", "工作"],
+            "mall": ["购物", "用餐", "休闲", "社交"],
+            "hospital": ["看病", "探病", "工作"],
+            "plaza": ["散步", "社交", "活动", "休息"],
+            "office": ["工作", "会议", "办公"],
+        },
+        "social_norms": [
+            "小镇居民通常在 11:30-13:30 去咖啡馆或商场吃午餐",
+            "傍晚 18:00-22:00 是人们社交的时间，常去广场、咖啡馆",
+            "海湾医院提供医疗服务，也是 Meryl 的工作地点",
+            "港湾商场可以购物、用餐、休闲",
+            "街角咖啡馆是居民常去的社交场所",
+        ],
+    }
+
+
 def build_scene_guidance(world_role: str, world: dict[str, Any]) -> dict[str, Any]:
     """Build scene guidance for cast agents.
 

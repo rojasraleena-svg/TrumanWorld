@@ -7,6 +7,7 @@ from app.scenario.base import Scenario
 from app.scenario.truman_world.rules import (
     build_role_context,
     build_scene_guidance,
+    build_world_common_knowledge,
     filter_world_for_role,
 )
 from app.scenario.truman_world.coordinator import TrumanWorldCoordinator
@@ -43,6 +44,7 @@ class TrumanWorldScenario(Scenario):
                 world_filter_hook=filter_world_for_role,
                 role_context_hook=build_role_context,
                 scene_guidance_hook=build_scene_guidance,
+                world_knowledge_hook=build_world_common_knowledge,
             )
         )
 

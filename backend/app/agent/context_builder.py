@@ -10,6 +10,7 @@ from app.agent.config_loader import AgentConfig
 WorldFilterHook = Callable[[str, dict[str, Any]], dict[str, Any]]
 RoleContextHook = Callable[[str, dict[str, Any]], dict[str, Any]]
 SceneGuidanceHook = Callable[[str, dict[str, Any]], dict[str, Any]]
+WorldKnowledgeHook = Callable[[], dict[str, Any]]
 
 
 @dataclass(slots=True)
@@ -17,6 +18,7 @@ class ScenarioContextHooks:
     world_filter_hook: WorldFilterHook | None = None
     role_context_hook: RoleContextHook | None = None
     scene_guidance_hook: SceneGuidanceHook | None = None
+    world_knowledge_hook: WorldKnowledgeHook | None = None
 
 
 class ContextBuilder:
@@ -27,11 +29,13 @@ class ContextBuilder:
         world_filter_hook: WorldFilterHook | None = None,
         role_context_hook: RoleContextHook | None = None,
         scene_guidance_hook: SceneGuidanceHook | None = None,
+        world_knowledge_hook: WorldKnowledgeHook | None = None,
     ) -> None:
         self._hooks = ScenarioContextHooks(
             world_filter_hook=world_filter_hook,
             role_context_hook=role_context_hook,
             scene_guidance_hook=scene_guidance_hook,
+            world_knowledge_hook=world_knowledge_hook,
         )
 
     def configure_policy(self, hooks: ScenarioContextHooks | None = None) -> None:
@@ -43,12 +47,14 @@ class ContextBuilder:
         world_filter_hook: WorldFilterHook | None = None,
         role_context_hook: RoleContextHook | None = None,
         scene_guidance_hook: SceneGuidanceHook | None = None,
+        world_knowledge_hook: WorldKnowledgeHook | None = None,
     ) -> None:
         self.configure_policy(
             ScenarioContextHooks(
                 world_filter_hook=world_filter_hook,
                 role_context_hook=role_context_hook,
                 scene_guidance_hook=scene_guidance_hook,
+                world_knowledge_hook=world_knowledge_hook,
             )
         )
 
@@ -68,6 +74,7 @@ class ContextBuilder:
             "personality": agent.personality,
             "world": filtered_world,
             "memory": memory or {},
+            "world_common_knowledge": self._build_world_knowledge(),
             "role_context": self._build_role_context(agent.world_role, filtered_world),
             "scene_guidance": self._build_scene_guidance(agent.world_role, filtered_world),
         }
@@ -129,4 +136,9 @@ class ContextBuilder:
     def _build_scene_guidance(self, world_role: str, world: dict[str, Any]) -> dict[str, Any]:
         if self._hooks.scene_guidance_hook is not None:
             return self._hooks.scene_guidance_hook(world_role, world)
+        return {}
+
+    def _build_world_knowledge(self) -> dict[str, Any]:
+        if self._hooks.world_knowledge_hook is not None:
+            return self._hooks.world_knowledge_hook()
         return {}
