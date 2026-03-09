@@ -17,6 +17,7 @@ import { getDirectorMemoriesResult } from "@/lib/api";
 import type { WorldSnapshot } from "@/lib/types";
 import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
+import { Modal } from "@/components/modal";
 
 interface WorldHealthPanelProps {
   metrics: WorldHealthMetrics;
@@ -472,37 +473,13 @@ function DirectorInterventionModal({
   const modal = (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-6 backdrop-blur-sm"
-          onClick={onClose}
+        <Modal
+          isOpen={isOpen}
+          onClose={onClose}
+          size="xl"
+          title="🎬 导演干预控制台"
+          subtitle="管理和监控所有导演干预计划"
         >
-          <motion.div
-            initial={{ scale: 0.93, opacity: 0, y: 16 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.93, opacity: 0, y: 16 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
-            className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* 头部 */}
-            <div className="flex items-start justify-between border-b border-slate-100 px-7 py-5">
-              <div>
-                <h2 className="text-xl font-semibold text-ink">🎬 导演干预控制台</h2>
-                <p className="mt-0.5 text-sm text-slate-400">管理和监控所有导演干预计划</p>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
 
             {/* 主体：左右两列 */}
             <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -625,8 +602,7 @@ function DirectorInterventionModal({
                 </div>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
+        </Modal>
       )}
     </AnimatePresence>
   );

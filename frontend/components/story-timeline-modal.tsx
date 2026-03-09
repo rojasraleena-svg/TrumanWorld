@@ -1,8 +1,8 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
 import { useState, useMemo } from "react";
 import type { StoryChapter, StoryEvent } from "@/lib/world-insights";
+import { Modal } from "@/components/modal";
 
 interface StoryTimelineModalProps {
   isOpen: boolean;
@@ -39,43 +39,15 @@ export function StoryTimelineModal({ isOpen, onClose, chapters }: StoryTimelineM
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-        onClick={onClose}
-      >
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/95 shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* 头部 */}
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-            <div>
-              <h2 className="text-xl font-semibold text-ink">📖 完整故事时间线</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                共 {stats.totalEvents} 个事件 · {chapters.length} 个时段
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* 统计栏 */}
-          <div className="flex items-center gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-3">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="lg"
+      title="📖 完整故事时间线"
+      subtitle={`共 ${stats.totalEvents} 个事件 · ${chapters.length} 个时段`}
+    >
+      {/* 统计栏 */}
+      <div className="flex items-center gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-3">
             <StatBadge
               icon="💬"
               label="对话"
@@ -128,9 +100,7 @@ export function StoryTimelineModal({ isOpen, onClose, chapters }: StoryTimelineM
               </div>
             </div>
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+    </Modal>
   );
 }
 
@@ -249,3 +219,5 @@ function TimelineEventItem({ event }: { event: StoryEvent }) {
     </div>
   );
 }
+
+

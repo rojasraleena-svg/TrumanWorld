@@ -15,7 +15,7 @@ import { getRunEventsResult } from "@/lib/api";
 import { EVENT_FILTERS } from "@/lib/constants";
 import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
-import { useModal } from "@/lib/hooks";
+import { Modal } from "@/components/modal";
 
 type LocationFilter = string | null;
 
@@ -105,19 +105,8 @@ export function IntelligenceStreamModal({
 
   if (!isOpen) return null;
 
-  const { handleBackdropClick } = useModal({ isOpen, onClose });
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
-      onClick={handleBackdropClick}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-white/20 bg-white shadow-2xl"
-      >
+    <Modal isOpen={isOpen} onClose={onClose} size="lg" showCloseButton={false}>
         {/* Header */}
         <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-4">
           <div className="flex items-center justify-between">
@@ -262,7 +251,6 @@ export function IntelligenceStreamModal({
             </Link>
           </div>
         </div>
-      </motion.div>
-    </div>
+    </Modal>
   );
 }
