@@ -30,6 +30,7 @@ export function WorldHealthPanel({ metrics, runId, world }: WorldHealthPanelProp
   const { refresh } = useWorld();
   return (
     <div className="rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur">
+      {/* 标题区 */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-ink">🌍 世界健康度</h2>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-600">
@@ -38,8 +39,8 @@ export function WorldHealthPanel({ metrics, runId, world }: WorldHealthPanelProp
         </span>
       </div>
 
-      <div className="mt-4 space-y-4">
-        {/* 剧情连贯性 */}
+      {/* 核心指标区 - 紧凑排列 */}
+      <div className="mt-4 space-y-3">
         <MetricBar
           label="剧情连贯性"
           value={metrics.continuityScore}
@@ -47,8 +48,6 @@ export function WorldHealthPanel({ metrics, runId, world }: WorldHealthPanelProp
           warning={metrics.continuityIssue}
           description="世界运行的流畅程度"
         />
-
-        {/* 社交活跃度 */}
         <MetricBar
           label="社交活跃度"
           value={metrics.socialActivity}
@@ -60,22 +59,20 @@ export function WorldHealthPanel({ metrics, runId, world }: WorldHealthPanelProp
           }
           description="居民之间的交流频率"
         />
-
-        {/* Truman怀疑度 */}
         <MetricBar
           label="Truman怀疑度"
           value={metrics.trumanSuspicion}
           trend={metrics.suspicionTrend}
           description="Truman 对世界的信任程度"
         />
+      </div>
 
-        {/* 导演干预状态 */}
+      {/* 导演干预 - 独立卡片区域 */}
+      <div className="mt-4">
         <DirectorStats
           stats={metrics.directorStats}
           onClick={() => setIsDirectorExpanded(true)}
         />
-
-        {/* 导演干预详情弹窗 */}
         <DirectorInterventionModal
           isOpen={isDirectorExpanded}
           onClose={() => setIsDirectorExpanded(false)}
@@ -86,15 +83,47 @@ export function WorldHealthPanel({ metrics, runId, world }: WorldHealthPanelProp
         />
       </div>
 
-      {/* 活动摘要 */}
-      <ActivitySummary summary={metrics.activitySummary} />
-
-      {/* 今日统计 */}
-      <DailyStats
-        talkCount={metrics.recentTalkCount}
-        moveCount={metrics.recentMoveCount}
-        rejectionCount={metrics.recentRejectionCount}
-      />
+      {/* 活动分布 - 与下方统计合并视觉区域 */}
+      <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+        <div className="text-xs font-medium text-slate-500">当前活动分布</div>
+        <div className="mt-2 grid grid-cols-4 gap-2">
+          <ActivityBadge
+            icon="⚒️"
+            label="在岗中"
+            count={metrics.activitySummary.working}
+            color="amber"
+          />
+          <ActivityBadge
+            icon="💬"
+            label="对话中"
+            count={metrics.activitySummary.socializing}
+            color="emerald"
+          />
+          <ActivityBadge
+            icon="😴"
+            label="休息中"
+            count={metrics.activitySummary.resting}
+            color="slate"
+          />
+          <ActivityBadge
+            icon="🚶"
+            label="通勤中"
+            count={metrics.activitySummary.commuting}
+            color="blue"
+          />
+        </div>
+        {/* 今日统计 - 内嵌在活动区域底部 */}
+        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-200/60 pt-3">
+          <StatItem icon="💬" value={metrics.recentTalkCount} label="对话" />
+          <StatItem icon="🚶" value={metrics.recentMoveCount} label="移动" />
+          <StatItem
+            icon="⚠️"
+            value={metrics.recentRejectionCount}
+            label="异常"
+            highlight={metrics.recentRejectionCount > 0}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -254,52 +283,8 @@ function DirectorStats({ stats, onClick }: DirectorStatsProps) {
 }
 
 // ============================================================================
-// 活动摘要组件
+// 活动徽章组件
 // ============================================================================
-
-interface ActivitySummaryProps {
-  summary: {
-    working: number;
-    resting: number;
-    commuting: number;
-    socializing: number;
-    total: number;
-  };
-}
-
-function ActivitySummary({ summary }: ActivitySummaryProps) {
-  return (
-    <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/50 p-3">
-      <div className="text-xs font-medium text-slate-500">当前活动分布</div>
-      <div className="mt-2 grid grid-cols-4 gap-2">
-        <ActivityBadge
-          icon="⚒️"
-          label="在岗中"
-          count={summary.working}
-          color="amber"
-        />
-        <ActivityBadge
-          icon="💬"
-          label="对话中"
-          count={summary.socializing}
-          color="emerald"
-        />
-        <ActivityBadge
-          icon="😴"
-          label="休息中"
-          count={summary.resting}
-          color="slate"
-        />
-        <ActivityBadge
-          icon="🚶"
-          label="通勤中"
-          count={summary.commuting}
-          color="blue"
-        />
-      </div>
-    </div>
-  );
-}
 
 interface ActivityBadgeProps {
   icon: string;
@@ -318,9 +303,9 @@ function ActivityBadge({ icon, label, count, color }: ActivityBadgeProps) {
 
   return (
     <div
-      className={`flex flex-col items-center rounded-lg border px-3 py-2 ${colorClasses[color]}`}
+      className={`flex flex-col items-center rounded-lg border px-2 py-2 ${colorClasses[color]}`}
     >
-      <span className="text-lg">{icon}</span>
+      <span className="text-base">{icon}</span>
       <span className="text-sm font-semibold">{count}</span>
       <span className="text-[10px] text-slate-500">{label}</span>
     </div>
@@ -328,33 +313,8 @@ function ActivityBadge({ icon, label, count, color }: ActivityBadgeProps) {
 }
 
 // ============================================================================
-// 今日统计组件
+// 统计项组件
 // ============================================================================
-
-interface DailyStatsProps {
-  talkCount: number;
-  moveCount: number;
-  rejectionCount: number;
-}
-
-function DailyStats({
-  talkCount,
-  moveCount,
-  rejectionCount,
-}: DailyStatsProps) {
-  return (
-    <div className="mt-4 grid grid-cols-3 gap-2">
-      <StatItem icon="💬" value={talkCount} label="对话" />
-      <StatItem icon="🚶" value={moveCount} label="移动" />
-      <StatItem
-        icon="⚠️"
-        value={rejectionCount}
-        label="异常"
-        highlight={rejectionCount > 0}
-      />
-    </div>
-  );
-}
 
 interface StatItemProps {
   icon: string;
@@ -366,13 +326,13 @@ interface StatItemProps {
 function StatItem({ icon, value, label, highlight }: StatItemProps) {
   return (
     <div
-      className={`flex flex-col items-center rounded-xl px-2 py-2 ${
+      className={`flex flex-col items-center rounded-lg px-2 py-1.5 ${
         highlight
           ? "bg-amber-50 border border-amber-100"
-          : "bg-slate-50"
+          : "bg-slate-100/50"
       }`}
     >
-      <span className="text-base">{icon}</span>
+      <span className="text-sm">{icon}</span>
       <span
         className={`text-sm font-semibold ${
           highlight ? "text-amber-700" : "text-slate-700"

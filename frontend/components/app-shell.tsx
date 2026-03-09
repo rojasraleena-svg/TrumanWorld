@@ -67,7 +67,7 @@ export function AppShell({ children }: AppShellProps) {
             </div>
             <div className="overflow-hidden">
               <h1 className="text-sm font-semibold text-ink">Truman World</h1>
-              <p className="text-xs text-slate-400">楚门的世界 AI 版 · 导演控制台</p>
+              <p className="text-[11px] text-slate-400">AI 版导演控制台</p>
             </div>
           </div>
 
@@ -108,12 +108,12 @@ export function AppShell({ children }: AppShellProps) {
           ) : null}
 
           {runs && runs.length > 0 && (
-            <div className="mt-4 px-3">
+            <div className="mt-3 px-3">
               <div className="mb-2 flex items-center justify-between px-2">
-                <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-slate-400">
                   世界列表
                 </p>
-                <span className="text-[10px] text-slate-400">{runs.length} 个</span>
+                <span className="text-[10px] text-slate-400">{runs.length}</span>
               </div>
               <div className="space-y-1">
                 {runs.map((run, index) => (
