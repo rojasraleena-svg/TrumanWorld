@@ -16,6 +16,11 @@ from app.director.observer import DirectorAssessment
 from app.director.types import DirectorPlan
 from app.infra.logging import get_logger
 from app.infra.settings import get_settings
+from app.scenario.truman_world.director_config import (
+    DirectorConfig,
+    DirectorContext as ConfigContext,
+    load_director_config,
+)
 from app.scenario.truman_world.types import get_agent_config_id, get_world_role
 
 if TYPE_CHECKING:
@@ -67,9 +72,11 @@ class DirectorAgent:
 
     def __init__(self) -> None:
         self.settings = get_settings()
-        self._enabled = self.settings.director_agent_enabled
-        self._decision_interval = self.settings.director_decision_interval
-        self._model = self.settings.director_agent_model or self.settings.agent_model
+        self._config = load_director_config()
+        # Use settings as fallback, but config takes precedence
+        self._enabled = self._config.enabled and self.settings.director_agent_enabled
+        self._decision_interval = self._config.decision_interval
+        self._model = self._config.llm.model or self.settings.director_agent_model or self.settings.agent_model
 
     def is_enabled(self) -> bool:
         """Check if director agent is enabled."""
@@ -80,6 +87,14 @@ class DirectorAgent:
         if not self._enabled:
             return False
         return tick_no % self._decision_interval == 0
+    
+    def reload_config(self) -> None:
+        """Reload configuration from file (for hot-reloading)."""
+        self._config = load_director_config(force_reload=True)
+        self._enabled = self._config.enabled and self.settings.director_agent_enabled
+        self._decision_interval = self._config.decision_interval
+        self._model = self._config.llm.model or self.settings.director_agent_model or self.settings.agent_model
+        logger.debug("DirectorAgent configuration reloaded")
 
     async def decide(
         self,
@@ -119,8 +134,8 @@ class DirectorAgent:
         cast_agents: list[Agent],
         recent_goals: set[str],
     ) -> str:
-        """Build the decision prompt for LLM."""
-
+        """Build the decision prompt for LLM using configuration template."""
+        
         # Build cast agents info
         cast_info = []
         for agent in sorted(cast_agents, key=lambda a: a.name):
@@ -129,92 +144,60 @@ class DirectorAgent:
                 f"- {agent.name} (role: {config_id}, location: {agent.current_location_id})"
             )
 
-        # Build recent events summary
+        # Build recent events summary (using config limit)
+        recent_events_limit = self._config.prompt.recent_events_limit
         events_summary = []
-        for event in context.recent_events[-10:]:  # Last 10 events
+        for event in context.recent_events[-recent_events_limit:]:
             events_summary.append(
                 f"  - tick {event.get('tick_no')}: {event.get('event_type')} - {event.get('description', 'N/A')}"
             )
 
-        # Build recent interventions
+        # Build recent interventions (using config limit)
+        recent_interventions_limit = self._config.prompt.recent_interventions_limit
         interventions_summary = []
-        for intervention in context.recent_interventions[-5:]:  # Last 5 interventions
+        for intervention in context.recent_interventions[-recent_interventions_limit:]:
             interventions_summary.append(
                 f"  - tick {intervention.get('tick_no')}: {intervention.get('scene_goal')} - {intervention.get('reason', 'N/A')[:50]}..."
             )
+        
+        # Build scene goals info
+        scene_goals_info = []
+        for goal_id, goal_data in self._config.scene_goals.items():
+            desc = goal_data.get("description", "")
+            priority = goal_data.get("priority", "normal")
+            scene_goals_info.append(f"- {goal_id}: {desc} (priority: {priority})")
 
         # Assessment details
         assessment = context.assessment
 
-        prompt = f"""You are the Director of the Truman World simulation. Your role is to observe the world state and decide whether to intervene to maintain the illusion and keep Truman engaged.
+        # Build context for template rendering
+        prompt_context = {
+            "world_time": context.world_time,
+            "current_tick": context.current_tick,
+            "run_id": context.run_id,
+            "truman_agent_id": assessment.truman_agent_id or "unknown",
+            "truman_suspicion_score": f"{assessment.truman_suspicion_score:.2f}",
+            "suspicion_level": assessment.suspicion_level,
+            "truman_isolation_ticks": assessment.truman_isolation_ticks,
+            "recent_rejections": assessment.recent_rejections,
+            "continuity_risk": assessment.continuity_risk,
+            "cast_agents_info": chr(10).join(cast_info) if cast_info else "(none)",
+            "recent_events_limit": recent_events_limit,
+            "recent_events_info": chr(10).join(events_summary) if events_summary else "(no recent events)",
+            "recent_interventions_limit": recent_interventions_limit,
+            "recent_interventions_info": chr(10).join(interventions_summary) if interventions_summary else "(no recent interventions)",
+            "recent_goals_info": ", ".join(recent_goals) if recent_goals else "(none)",
+            "scene_goals_info": chr(10).join(scene_goals_info) if scene_goals_info else "(none defined)",
+        }
 
-## Current World State
-
-- **World Time**: {context.world_time}
-- **Current Tick**: {context.current_tick}
-- **Run ID**: {context.run_id}
-
-## Truman's Status
-
-- **Agent ID**: {assessment.truman_agent_id}
-- **Suspicion Score**: {assessment.truman_suspicion_score:.2f} (level: {assessment.suspicion_level})
-- **Isolation Ticks**: {assessment.truman_isolation_ticks}
-- **Recent Rejections**: {assessment.recent_rejections}
-- **Continuity Risk**: {assessment.continuity_risk}
-
-## Cast Agents Available
-
-{chr(10).join(cast_info) if cast_info else "(none)"}
-
-## Recent Events (last 10)
-
-{chr(10).join(events_summary) if events_summary else "(no recent events)"}
-
-## Recent Interventions (last 5)
-
-{chr(10).join(interventions_summary) if interventions_summary else "(no recent interventions)"}
-
-## Recently Used Goals (avoid repeating)
-
-{', '.join(recent_goals) if recent_goals else "(none)"}
-
-## Your Task
-
-Based on the world state, decide whether to intervene. Consider:
-1. Is Truman's suspicion rising? If so, what type of intervention would help?
-2. Has Truman been isolated too long? Should someone naturally encounter him?
-3. Are there continuity risks that need addressing?
-4. What interventions have been tried recently? Avoid repetition.
-
-Choose the most appropriate intervention strategy that feels natural and maintains the illusion.
-
-## Output Format
-
-Respond with a JSON object:
-
-```json
-{{
-  "should_intervene": true/false,
-  "scene_goal": "one of: soft_check_in, preemptive_comfort, keep_scene_natural, break_isolation, rejection_recovery, or none",
-  "target_cast_names": ["name of cast agent(s) to involve"],
-  "priority": "low/normal/high/critical",
-  "urgency": "advisory/immediate/emergency",
-  "reasoning": "detailed explanation of why this intervention is needed",
-  "message_hint": "specific guidance for the cast agent on how to behave",
-  "strategy": "brief description of the intervention strategy",
-  "cooldown_ticks": 3
-}}
-
-If no intervention is needed, set "should_intervene": false and "scene_goal": "none".
-
-Make your decision:"""
-
-        return prompt
+        # Render prompt using configuration template
+        return self._config.render_prompt(prompt_context)
 
     async def _call_llm(self, prompt: str) -> str:
         """Call LLM for decision using Claude SDK.
 
         Uses the same LLM infrastructure as agent decisions.
+        Uses configuration from director.yml for LLM parameters.
         """
         from claude_agent_sdk import ClaudeAgentOptions, query
 
@@ -233,10 +216,11 @@ Make your decision:"""
             logger.warning("Claude CLI not available, falling back to mock")
             return self._mock_llm_response()
 
-        # Build options
+        # Build options from configuration
+        llm_config = self._config.llm
         options = ClaudeAgentOptions(
-            max_turns=1,
-            max_budget_usd=0.1,  # Director decisions are simpler, lower budget
+            max_turns=llm_config.max_turns,
+            max_budget_usd=llm_config.max_budget_usd,
             model=self._model,
             cwd=str(self.settings.project_root),
             env=env,

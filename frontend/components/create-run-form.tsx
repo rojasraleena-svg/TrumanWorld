@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useCallback } from "react";
 
 import { createRunResult } from "@/lib/api";
+import { WorldOpeningAnimation } from "@/components/world-opening-animation";
 
 export function CreateRunForm() {
   const router = useRouter();
@@ -12,20 +13,56 @@ export function CreateRunForm() {
   const [tickMinutes, setTickMinutes] = useState(5);
   const [message, setMessage] = useState<string>("");
   const [isPending, startTransition] = useTransition();
+  const [showAnimation, setShowAnimation] = useState(false);
+  const [animationName, setAnimationName] = useState("");
+  // 用 ref 保存待跳转的 runId，避免动画与创建完成的时序问题
+  const pendingRunId = useRef<string | null>(null);
+  const animationDone = useRef(false);
   const suggestions = ["demo-run", "town-morning", "story-lab", "night-shift"];
 
+  const doNavigate = useCallback(() => {
+    if (pendingRunId.current) {
+      router.push(`/runs/${pendingRunId.current}/world`);
+      router.refresh();
+    }
+  }, [router]);
+
+  const handleAnimationComplete = useCallback(() => {
+    animationDone.current = true;
+    setShowAnimation(false);
+    doNavigate();
+  }, [doNavigate]);
+
   return (
+    <>
+      {/* 创建动画覆盖全屏 */}
+      <WorldOpeningAnimation
+        isVisible={showAnimation}
+        onComplete={handleAnimationComplete}
+        runName={animationName}
+      />
     <form
       className="space-y-3"
       onSubmit={(event) => {
         event.preventDefault();
+        // 立即启动动画
+        setAnimationName(name);
+        setShowAnimation(true);
+        animationDone.current = false;
+        pendingRunId.current = null;
+
         startTransition(async () => {
           const result = await createRunResult(name, scenarioType, true, tickMinutes);
           if (result.data) {
-            setMessage(`已创建：${result.data.name}`);
-            router.push(`/runs/${result.data.id}?new=1`);
-            router.refresh();
+            pendingRunId.current = result.data.id;
+            // 如果动画已经先播完，立即跳转
+            if (animationDone.current) {
+              doNavigate();
+            }
+            // 否则等动画 onComplete 时再跳转
           } else {
+            // 创建失败：终止动画并显示错误
+            setShowAnimation(false);
             setMessage(
               result.error === "network_error"
                 ? "创建失败，后端当前不可达"
@@ -129,5 +166,6 @@ export function CreateRunForm() {
         </p>
       )}
     </form>
+    </>
   );
 }

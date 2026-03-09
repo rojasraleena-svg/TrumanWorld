@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from typing import Any
 
@@ -31,10 +32,16 @@ class DirectorPlanner:
     - rejection_recovery: 处理连续被拒绝的场景
 
     实验性功能：当 director_agent_enabled=true 时，优先使用LLM智能决策
+    
+    性能优化：
+    - 导演决策与 tick 执行并行（非阻塞）
+    - 可配置决策间隔（默认 5 tick）
     """
 
     def __init__(self) -> None:
         self._agent = DirectorAgent()
+        self._pending_decision: asyncio.Task[DirectorPlan | None] | None = None
+        self._last_decision_tick: int = 0
 
     async def build_plan(
         self,
@@ -49,6 +56,10 @@ class DirectorPlanner:
         run_id: str = "",
     ) -> DirectorPlan | None:
         """构建导演干预计划
+
+        支持两种模式：
+        1. 同步模式：立即返回决策结果（使用规则决策）
+        2. 异步模式：启动 LLM 决策任务，不阻塞 tick 执行
 
         Args:
             assessment: 世界状态评估
@@ -70,9 +81,29 @@ class DirectorPlanner:
         # 检查最近已执行的干预，避免重复
         recent_goals = set(recent_intervention_goals or [])
 
-        # 实验性功能：尝试使用LLM智能决策
+        # 检查是否有待完成的 LLM 决策
+        if self._pending_decision is not None:
+            if self._pending_decision.done():
+                # LLM 决策已完成，获取结果
+                try:
+                    plan = self._pending_decision.result()
+                    self._pending_decision = None
+                    if plan is not None:
+                        logger.info(
+                            f"DirectorAgent async decision completed at tick {current_tick}: "
+                            f"{plan.scene_goal} targeting {plan.target_cast_ids}"
+                        )
+                        return plan
+                except Exception as exc:
+                    logger.warning(f"DirectorAgent async decision failed: {exc}")
+                    self._pending_decision = None
+            # 如果决策还在进行中，继续执行规则决策（不阻塞）
+
+        # 实验性功能：启动 LLM 智能决策（异步，不阻塞）
         if self._agent.is_enabled() and self._agent.should_decide(current_tick):
-            try:
+            if self._pending_decision is None and current_tick > self._last_decision_tick:
+                # 启动新的异步决策任务
+                self._last_decision_tick = current_tick
                 context = DirectorContext(
                     run_id=run_id,
                     current_tick=current_tick,
@@ -82,19 +113,12 @@ class DirectorPlanner:
                     recent_interventions=recent_interventions or [],
                     world_time=world_time,
                 )
-                plan = await self._agent.decide(context, recent_goals)
-                if plan is not None:
-                    # 标记为智能决策
-                    plan.is_intelligent_decision = True
-                    logger.info(
-                        f"DirectorAgent made intelligent decision at tick {current_tick}: "
-                        f"{plan.scene_goal} targeting {plan.target_cast_ids}"
-                    )
-                    return plan
-            except Exception as exc:
-                logger.warning(f"DirectorAgent decision failed, falling back to rules: {exc}")
+                self._pending_decision = asyncio.create_task(
+                    self._agent.decide(context, recent_goals)
+                )
+                logger.debug(f"DirectorAgent started async decision at tick {current_tick}")
 
-        # 回退到规则决策
+        # 回退到规则决策（同步，立即返回）
         return self._build_rule_based_plan(assessment, cast_agents, recent_goals)
 
     def _build_rule_based_plan(
