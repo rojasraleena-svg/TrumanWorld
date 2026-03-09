@@ -49,8 +49,9 @@ class RunRepository:
         from datetime import UTC, datetime
         now = datetime.now(UTC)
         if status == "running":
-            # 开始运行：记录本次启动时间
-            run.started_at = now
+            # 开始运行：记录本次启动时间（仅当之前未启动时才设置，避免恢复时重置）
+            if run.started_at is None:
+                run.started_at = now
         elif run.started_at is not None:
             # 暂停/停止：把本次运行时长累加到 elapsed_seconds
             delta = int((now - run.started_at).total_seconds())
@@ -76,9 +77,13 @@ class RunRepository:
         """Reset all running runs to paused on startup.
 
         Sets was_running_before_restart=True for runs that were running,
-        then sets their status to 'paused'. Returns the list of affected runs.
+        accumulates elapsed time from started_at to now, then sets status
+        to 'paused'. Returns the list of affected runs.
         """
+        from datetime import UTC, datetime
         from sqlalchemy import update
+
+        now = datetime.now(UTC)
 
         # First, get all running runs
         stmt = select(SimulationRun).where(SimulationRun.status == "running")
@@ -87,6 +92,13 @@ class RunRepository:
 
         if not running_runs:
             return []
+
+        # Accumulate elapsed time for each run before pausing
+        for run in running_runs:
+            if run.started_at is not None:
+                delta = int((now - run.started_at).total_seconds())
+                run.elapsed_seconds = (run.elapsed_seconds or 0) + max(0, delta)
+                run.started_at = None
 
         # Update: set was_running_before_restart=True, status='paused'
         run_ids = [run.id for run in running_runs]

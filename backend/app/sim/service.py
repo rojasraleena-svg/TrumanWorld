@@ -316,8 +316,12 @@ class SimulationService:
                 workplace_location_id=workplace_location_id,
             )
 
-        # Execute all agent decisions in PARALLEL
-        results = await asyncio.gather(*[decide_for_agent(snapshot) for snapshot in agent_data])
+        # Execute agent decisions SEQUENTIALLY to avoid greenlet conflicts.
+        # psycopg3 + SQLAlchemy 2.x asyncio sessions are not safe to create
+        # concurrently inside asyncio.gather tasks (greenlet_spawn context mismatch).
+        results = []
+        for snapshot in agent_data:
+            results.append(await decide_for_agent(snapshot))
 
         # Filter out None results (agents without valid state)
         intents = [r for r in results if r is not None]
