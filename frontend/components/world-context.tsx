@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import useSWR from "swr";
 import { buildApiUrl, fetchApiResult, type ApiResult } from "@/lib/api";
 import type { WorldSnapshot } from "@/lib/types";
@@ -23,6 +23,27 @@ export function useWorld() {
   return context;
 }
 
+// Deep equality check for world data to prevent unnecessary re-renders
+function isWorldDataEqual(a: WorldSnapshot | null, b: WorldSnapshot | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  
+  // Compare key fields that affect rendering
+  if (a.run.current_tick !== b.run.current_tick) return false;
+  if (a.run.status !== b.run.status) return false;
+  if (a.locations.length !== b.locations.length) return false;
+  if (a.recent_events.length !== b.recent_events.length) return false;
+  
+  // Compare location occupant counts (main visual change)
+  for (let i = 0; i < a.locations.length; i++) {
+    if (a.locations[i].occupant_ids.length !== b.locations[i].occupant_ids.length) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
 type Props = {
   runId: string;
   initialData?: WorldSnapshot | null;
@@ -31,6 +52,7 @@ type Props = {
 
 export function WorldProvider({ runId, initialData, children }: Props) {
   const [isClient, setIsClient] = useState(false);
+  const worldRef = useRef<WorldSnapshot | null>(initialData ?? null);
 
   useEffect(() => {
     setIsClient(true);
@@ -48,6 +70,11 @@ export function WorldProvider({ runId, initialData, children }: Props) {
       refreshInterval: (snapshot) => (snapshot?.data?.run.status === "running" ? 5000 : 0),
       revalidateOnFocus: true,
       revalidateOnMount: true,
+      // Use compare function to prevent re-renders when data hasn't meaningfully changed
+      compare: (a, b) => {
+        if (!a?.data && !b?.data) return true;
+        return isWorldDataEqual(a?.data ?? null, b?.data ?? null);
+      },
     },
   );
 
@@ -55,7 +82,15 @@ export function WorldProvider({ runId, initialData, children }: Props) {
     void mutate();
   }, [mutate]);
 
-  const world = result?.data ?? null;
+  // Use memoized world to maintain stable reference
+  const world = useMemo(() => {
+    const newWorld = result?.data ?? null;
+    if (newWorld && !isWorldDataEqual(worldRef.current, newWorld)) {
+      worldRef.current = newWorld;
+    }
+    return worldRef.current;
+  }, [result?.data]);
+
   const error = result?.error ?? null;
 
   return (

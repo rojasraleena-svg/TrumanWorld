@@ -36,9 +36,9 @@ export default function WorldPage() {
       <div className="flex flex-shrink-0 items-center justify-between border-b border-white/40 bg-white/55 px-6 py-3 backdrop-blur">
         <div className="flex items-center gap-6">
           <div>
-            <div className="text-sm text-slate-500">{world.run.name ?? "Run"}</div>
+            <div className="text-sm text-slate-500">World Viewer</div>
             <div className="mt-0.5 flex items-baseline gap-3">
-              <h1 className="text-xl font-semibold text-ink">World Viewer</h1>
+              <h1 className="text-xl font-semibold text-ink">{world.run.name ?? "Run"}</h1>
               <span className="text-sm text-slate-500">地图与实时事件</span>
             </div>
           </div>
