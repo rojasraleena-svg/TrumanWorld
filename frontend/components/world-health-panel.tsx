@@ -15,6 +15,8 @@ import { DirectorEventForm } from "@/components/director-event-form";
 import { useWorld } from "@/components/world-context";
 import { getDirectorMemoriesResult } from "@/lib/api";
 import type { WorldSnapshot } from "@/lib/types";
+import { LoadingState } from "@/components/loading-state";
+import { ErrorState } from "@/components/error-state";
 
 interface WorldHealthPanelProps {
   metrics: WorldHealthMetrics;
@@ -592,13 +594,25 @@ function DirectorInterventionModal({
 
                 <div className="space-y-3">
                   {isLoadingMemories ? (
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                      正在加载导演明细...
-                    </div>
+                    <LoadingState message="正在加载导演明细..." size="sm" />
                   ) : memoryError ? (
-                    <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-8 text-center text-sm text-rose-600">
-                      {memoryError}
-                    </div>
+                    <ErrorState
+                      message={memoryError}
+                      onRetry={() => {
+                        void (async () => {
+                          setIsLoadingMemories(true);
+                          setMemoryError(null);
+                          const result = await getDirectorMemoriesResult(runId, maxMemories ?? 100);
+                          if (result.data) {
+                            setMemories(result.data.memories);
+                          } else {
+                            setMemoryError(result.error === "network_error" ? "后端不可达" : "明细加载失败");
+                          }
+                          setIsLoadingMemories(false);
+                        })();
+                      }}
+                      size="sm"
+                    />
                   ) : filteredMemories.length === 0 ? (
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
                       暂无{selectedFilter === "all" ? "" : "此类"}干预记录

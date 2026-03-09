@@ -8,6 +8,7 @@ import { AgentAvatar } from "@/components/agent-avatar";
 import { inferAgentStatus } from "@/lib/agent-utils";
 import { EventCard } from "@/components/event-card";
 import { beatBadge, buildWorldNameMaps, locationBeat, tickToSimDayTime } from "@/lib/world-utils";
+import { useModal } from "@/lib/hooks";
 
 type LocationDetailModalProps = {
   isOpen: boolean;
@@ -45,14 +46,12 @@ export function LocationDetailModal({
 
   if (!isOpen || !location) return null;
 
+  const { handleBackdropClick } = useModal({ isOpen, onClose });
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
+      onClick={handleBackdropClick}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}

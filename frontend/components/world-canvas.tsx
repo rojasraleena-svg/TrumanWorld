@@ -28,13 +28,7 @@ import {
   locationTone,
   type EventFilter,
 } from "@/lib/world-utils";
-
-const EVENT_FILTERS: Array<{ id: EventFilter; label: string }> = [
-  { id: "all", label: "全部事件" },
-  { id: "social", label: "对话" },
-  { id: "activity", label: "动作" },
-  { id: "movement", label: "移动" },
-];
+import { EVENT_FILTERS } from "@/lib/constants";
 
 type Props = {
   runId: string;

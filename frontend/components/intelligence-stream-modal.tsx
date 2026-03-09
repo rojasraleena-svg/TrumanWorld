@@ -12,15 +12,12 @@ import {
   type EventFilter,
 } from "@/lib/world-utils";
 import { getRunEventsResult } from "@/lib/api";
+import { EVENT_FILTERS } from "@/lib/constants";
+import { LoadingState } from "@/components/loading-state";
+import { ErrorState } from "@/components/error-state";
+import { useModal } from "@/lib/hooks";
 
 type LocationFilter = string | null;
-
-const EVENT_FILTERS: Array<{ id: EventFilter; label: string }> = [
-  { id: "all", label: "全部事件" },
-  { id: "social", label: "对话" },
-  { id: "activity", label: "动作" },
-  { id: "movement", label: "移动" },
-];
 
 type IntelligenceStreamModalProps = {
   isOpen: boolean;
@@ -108,8 +105,13 @@ export function IntelligenceStreamModal({
 
   if (!isOpen) return null;
 
+  const { handleBackdropClick } = useModal({ isOpen, onClose });
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
+      onClick={handleBackdropClick}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -204,28 +206,19 @@ export function IntelligenceStreamModal({
         {/* Event list */}
         <div className="flex-1 overflow-y-auto bg-slate-50/30 p-6">
           {isLoading ? (
-            <div className="flex h-32 items-center justify-center gap-2 text-slate-400">
-              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              <span className="text-sm">加载全量事件中...</span>
-            </div>
+            <LoadingState message="加载全量事件中..." size="sm" />
+          ) : loadError ? (
+            <ErrorState
+              message="加载失败"
+              onRetry={() => loadAllEvents(true)}
+              size="sm"
+            />
           ) : visibleEvents.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-slate-400">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-12 w-12">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <p className="mt-3 text-sm">当前筛选条件下没有事件</p>
-              {loadError && (
-                <button
-                  type="button"
-                  onClick={() => loadAllEvents(true)}
-                  className="mt-3 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs text-slate-600 hover:border-moss hover:text-moss"
-                >
-                  重试加载
-                </button>
-              )}
             </div>
           ) : (
             <div className="space-y-3">
