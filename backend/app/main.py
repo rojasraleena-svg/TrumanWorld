@@ -48,9 +48,9 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
         description="""
-## AI Truman World - AI 社会模拟系统
+## 楚门的世界 AI 版 - 你是导演
 
-一个可持续运行、可观察、可回放的 AI 社会模拟系统。创建 10-20 个拥有独立人格的 AI agent，让它们在小镇中生活、社交、成长。
+AI 居民们不知道自己是 AI。你只能观察、记录、注入事件——**不能操控任何人的想法**。
 
 ### 核心功能
 

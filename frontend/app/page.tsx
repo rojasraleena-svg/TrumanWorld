@@ -15,7 +15,7 @@ export default async function HomePage() {
       {/* 顶部 header */}
       <div className="flex-shrink-0 border-b border-slate-200/60 bg-white px-8 py-5">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-ink">控制台</h1>
+          <h1 className="text-xl font-semibold text-ink">导演控制台</h1>
           {hasRuns && (
             <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
               <span className="relative flex h-2 w-2">

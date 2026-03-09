@@ -4,8 +4,8 @@ import { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 
 export const metadata: Metadata = {
-  title: "AI Truman World",
-  description: "Director console for the TrumanWorld MVP",
+  title: "Truman World",
+  description: "你是导演 | 观察、记录、注入事件——但不能操控 AI 居民的想法 | 楚门的世界 AI 版",
   icons: {
     icon: "/icon.svg",
   },

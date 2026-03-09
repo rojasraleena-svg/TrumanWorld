@@ -1,7 +1,7 @@
 [project]
 name = "trumanworld-backend"
 version = "0.1.0"
-description = "Backend service for AI Truman World MVP"
+description = "楚门的世界 AI 版后端服务 | 你是导演，只能观察和创造条件——不能操控 AI 居民的想法"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",

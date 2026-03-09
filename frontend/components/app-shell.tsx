@@ -67,7 +67,7 @@ export function AppShell({ children }: AppShellProps) {
             {!isCollapsed && (
               <div className="overflow-hidden">
                 <h1 className="text-sm font-semibold text-ink">Truman World</h1>
-                <p className="text-xs text-slate-400">导演控制台</p>
+                <p className="text-xs text-slate-400">楚门的世界 AI 版 · 导演控制台</p>
               </div>
             )}
           </div>
