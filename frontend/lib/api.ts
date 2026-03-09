@@ -37,15 +37,19 @@ export type ApiResult<T> = {
 
 
 const DEFAULT_API_BASE_URL = "/api";
+// SSR 场景下相对路径无效，需要绝对地址
+const DEFAULT_INTERNAL_API_BASE_URL = "http://127.0.0.1:18080/api";
 
 function resolveApiBaseUrl() {
   const publicBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
   const internalBaseUrl = process.env.INTERNAL_API_BASE_URL?.replace(/\/$/, "");
 
   if (typeof window === "undefined") {
-    return internalBaseUrl ?? publicBaseUrl ?? DEFAULT_API_BASE_URL;
+    // 服务端：必须用绝对路径
+    return internalBaseUrl ?? publicBaseUrl ?? DEFAULT_INTERNAL_API_BASE_URL;
   }
 
+  // 浏览器端：优先用配置，fallback 相对路径（走 Next.js rewrites 代理）
   return publicBaseUrl ?? DEFAULT_API_BASE_URL;
 }
 
