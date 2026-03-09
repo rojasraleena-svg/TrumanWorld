@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useCallback } from "react";
 import { deleteRunResult } from "@/lib/api";
+import { WorldOpeningAnimation } from "@/components/world-opening-animation";
 
 type Run = {
   id: string;
@@ -24,6 +24,22 @@ export function RunList({ runs }: RunListProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [animationVisible, setAnimationVisible] = useState(false);
+  const [animationRunName, setAnimationRunName] = useState("");
+  const pendingRunId = useRef<string | null>(null);
+
+  const handleWorldClick = useCallback((run: Run) => {
+    pendingRunId.current = run.id;
+    setAnimationRunName(run.name);
+    setAnimationVisible(true);
+  }, []);
+
+  const handleAnimationComplete = useCallback(() => {
+    setAnimationVisible(false);
+    if (pendingRunId.current) {
+      router.push(`/runs/${pendingRunId.current}/world`);
+    }
+  }, [router]);
 
   const handleDelete = (runId: string) => {
     if (!confirm("确定要删除这个模拟运行吗？此操作不可撤销。")) {
@@ -57,6 +73,13 @@ export function RunList({ runs }: RunListProps) {
   }
 
   return (
+    <>
+      <WorldOpeningAnimation
+        isVisible={animationVisible}
+        onComplete={handleAnimationComplete}
+        runName={animationRunName}
+        mode="enter"
+      />
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {runs.map((run) => {
         const isRunning = run.status === "running";
@@ -175,20 +198,22 @@ export function RunList({ runs }: RunListProps) {
                   </svg>
                   总览
                 </Link>
-                <Link
-                  href={`/runs/${run.id}/world`}
+                <button
+                  type="button"
+                  onClick={() => handleWorldClick(run)}
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
                 >
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="12" r="9" /><path d="M12 3a15 15 0 0 1 0 18M3 12h18" />
                   </svg>
                   世界
-                </Link>
+                </button>
               </div>
             </div>
           </div>
         );
       })}
     </div>
+    </>
   );
 }

@@ -8,11 +8,12 @@ interface WorldOpeningAnimationProps {
   isVisible: boolean;
   onComplete: () => void;
   runName?: string;
+  mode?: "enter" | "create";
 }
 
 type Stage = "noise" | "zoom" | "text" | "fade" | "done";
 
-export function WorldOpeningAnimation({ isVisible, onComplete, runName }: WorldOpeningAnimationProps) {
+export function WorldOpeningAnimation({ isVisible, onComplete, runName, mode = "create" }: WorldOpeningAnimationProps) {
   const [stage, setStage] = useState<Stage>("done");
 
   useEffect(() => {
@@ -47,12 +48,6 @@ export function WorldOpeningAnimation({ isVisible, onComplete, runName }: WorldO
     };
   }, [isVisible, onComplete]);
 
-  // 跳过动画
-  const handleSkip = () => {
-    setStage("done");
-    onComplete();
-  };
-
   const isAnimating = stage !== "done";
 
   return (
@@ -63,7 +58,6 @@ export function WorldOpeningAnimation({ isVisible, onComplete, runName }: WorldO
           animate={{ opacity: isAnimating ? 1 : 0 }}
           transition={{ duration: 0.5 }}
           className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black"
-          onClick={handleSkip}
         >
           {/* 阶段 1: 雪花噪点效果 */}
           {stage === "noise" && (
@@ -102,17 +96,13 @@ export function WorldOpeningAnimation({ isVisible, onComplete, runName }: WorldO
               className="absolute bottom-32 text-center"
             >
               <TypewriterText
-                text={runName ? `世界 "${runName}" 已创建` : "新世界已创建"}
+                text={
+                  mode === "enter"
+                    ? runName ? `进入世界 "${runName}"` : "进入世界"
+                    : runName ? `世界 "${runName}" 已创建` : "新世界已创建"
+                }
                 className="text-2xl font-medium text-white"
               />
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.5 }}
-                transition={{ delay: 1.5 }}
-                className="mt-4 text-sm text-slate-400"
-              >
-                点击任意位置跳过
-              </motion.p>
             </motion.div>
           )}
 
