@@ -12,7 +12,7 @@
 |------|------|------|
 | Python | 3.12+ | 后端运行时 |
 | Node.js | 20+ | 前端运行时 |
-| PostgreSQL | 16+ | 主数据库 |
+| PostgreSQL | 18+ | 主数据库 |
 | Redis | 7+ | 缓存层 |
 | uv | latest | Python 包管理 |
 
@@ -72,6 +72,14 @@ make frontend-install
 make db-start
 
 # 或手动启动 PostgreSQL 后，执行迁移
+make db-migrate
+```
+
+如果你不保留本地数据库数据，先执行一次清理再重建：
+
+```bash
+make db-clean
+make db-start
 make db-migrate
 ```
 

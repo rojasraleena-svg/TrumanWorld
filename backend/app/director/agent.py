@@ -142,7 +142,7 @@ class DirectorAgent:
     def _build_decision_prompt(
         self,
         context: DirectorContext,
-        cast_agents: list[Agent],
+        cast_agents: list[dict[str, Any]],
         recent_goals: set[str],
     ) -> str:
         """Build the decision prompt for LLM using configuration template."""
@@ -334,7 +334,7 @@ class DirectorAgent:
         self,
         response: str,
         context: DirectorContext,
-        cast_agents: list[Agent],
+        cast_agents: list[dict[str, Any]],
     ) -> DirectorPlan | None:
         """Parse LLM response into DirectorPlan."""
         try:
