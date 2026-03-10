@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 from app.scenario.types import get_world_role
@@ -39,12 +40,8 @@ async def build_agent_memory_cache(
     )
     agent_names = {row.id: row.name for row in agents_result}
 
-    agent_memory_cache: dict[str, dict[str, list[dict[str, Any]]]] = {}
-
-    for agent in agents:
+    async def _load_one_agent_memories(agent: "Agent") -> tuple[str, dict[str, Any]]:
         agent_id = agent.id
-
-        # 查询该 agent 的所有记忆
         result = await session.execute(
             select(Memory)
             .where(Memory.run_id == run_id, Memory.agent_id == agent_id)
@@ -52,10 +49,9 @@ async def build_agent_memory_cache(
         )
         memories = result.scalars().all()
 
-        # 分类整理记忆
-        short_term = []
-        long_term = []
-        about_others: dict[str, list[dict]] = {}  # key: other_agent_id
+        short_term: list[dict] = []
+        long_term: list[dict] = []
+        about_others: dict[str, list[dict]] = {}
 
         for mem in memories:
             mem_dict = {
@@ -70,26 +66,24 @@ async def build_agent_memory_cache(
                 "related_agent_name": agent_names.get(mem.related_agent_id),
                 "location_id": mem.location_id,
             }
-
             if mem.memory_category == "short_term":
                 short_term.append(mem_dict)
             else:
                 long_term.append(mem_dict)
-
-            # 按相关 agent 分类
             if mem.related_agent_id:
                 if mem.related_agent_id not in about_others:
                     about_others[mem.related_agent_id] = []
                 about_others[mem.related_agent_id].append(mem_dict)
 
-        agent_memory_cache[agent_id] = {
-            "short_term": short_term[:10],  # 限制数量，避免过大
+        return agent_id, {
+            "short_term": short_term[:10],
             "long_term": long_term[:20],
             "about_others": about_others,
-            "all": short_term[:10] + long_term[:20],  # 综合列表
+            "all": short_term[:10] + long_term[:20],
         }
 
-    return agent_memory_cache
+    results = await asyncio.gather(*[_load_one_agent_memories(a) for a in agents])
+    return dict(results)
 
 
 async def build_agent_recent_events(
@@ -102,9 +96,10 @@ async def build_agent_recent_events(
 ) -> dict[str, list[dict[str, Any]]]:
     agent_repo = ContextBuilder(session).agent_repo
     context_builder = ContextBuilder(session)
-    agent_recent_events: dict[str, list[dict[str, Any]]] = {}
 
-    for agent in agents:
+    async def _load_one_agent_events(
+        agent: "Agent",
+    ) -> tuple[str, list[dict[str, Any]]]:
         include_director_system_events = get_world_role(agent.profile) == "cast"
         current_location_id = (
             agent_states[agent.id].location_id if agent.id in agent_states else None
@@ -116,12 +111,13 @@ async def build_agent_recent_events(
             include_director_system_events=include_director_system_events,
             current_location_id=current_location_id,
         )
-        agent_recent_events[agent.id] = [
+        return agent.id, [
             context_builder.format_event_for_context(evt, agent_states, location_states)
             for evt in recent_events
         ]
 
-    return agent_recent_events
+    results = await asyncio.gather(*[_load_one_agent_events(a) for a in agents])
+    return dict(results)
 
 
 async def build_agent_snapshots(

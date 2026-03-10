@@ -80,6 +80,10 @@ class SimulationScheduler:
         """Check if a run is being automatically scheduled."""
         return run_id in self._scheduled
 
+    def running_count(self) -> int:
+        """Return the number of currently scheduled runs."""
+        return len(self._scheduled)
+
     async def _tick_loop(
         self,
         run_id: str,

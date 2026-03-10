@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infra.logging import get_logger
+from app.infra.metrics import observe_llm_records
 
 if TYPE_CHECKING:
     from app.store.models import LlmCall
@@ -23,5 +24,6 @@ class LlmCallWriter:
                 for record in llm_records:
                     llm_session.add(record)
                 await llm_session.commit()
+            observe_llm_records(llm_records)
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"Failed to persist llm_calls for run {run_id}: {exc}")

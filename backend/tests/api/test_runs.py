@@ -23,6 +23,19 @@ async def test_health_check(client):
 
 
 @pytest.mark.asyncio
+async def test_metrics_endpoint_exposes_runtime_metrics(client):
+    response = await client.get("/api/metrics")
+
+    assert response.status_code == 200
+    assert "text/plain" in response.headers["content-type"]
+    body = response.text
+    assert "trumanworld_tick_total" in body
+    assert "trumanworld_tick_duration_seconds" in body
+    assert "trumanworld_active_runs" in body
+    assert "process_resident_memory_bytes" in body
+
+
+@pytest.mark.asyncio
 async def test_cors_preflight_allows_frontend_origin(client):
     response = await client.options(
         "/api/runs",

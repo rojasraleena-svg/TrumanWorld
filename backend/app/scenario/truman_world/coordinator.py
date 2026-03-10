@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 from app.agent.providers import HeuristicDecisionProvider
@@ -105,41 +106,74 @@ class TrumanWorldCoordinator:
         if run is None:
             return None
 
-        assessment = await self.observe_run(run_id)
-
-        # 获取最近的干预目标，避免重复
+        # 并行加载所有只读数据，避免串行等待
+        previous_suspicion_score = 0.0
         recent_goals: list[str] = []
         recent_interventions: list[dict[str, Any]] = []
-        if self.director_memory_repo is not None:
-            recent_goals = await self.director_memory_repo.get_recent_goals(
-                run_id=run_id,
-                current_tick=run.current_tick,
-                lookback_ticks=10,
-            )
-            # 获取最近干预记录用于智能决策
-            recent_memories = await self.director_memory_repo.list_for_run(run_id, limit=10)
-            recent_interventions = [
-                {
-                    "tick_no": m.tick_no,
-                    "scene_goal": m.scene_goal,
-                    "reason": m.reason,
-                    "was_executed": m.was_executed,
-                }
-                for m in recent_memories
-            ]
+        raw_events: list[Any] = []
 
-        # 获取最近事件用于智能决策
-        recent_events: list[dict[str, Any]] = []
-        if self.event_repo is not None:
-            events = await self.event_repo.list_for_run(run_id, limit=20)
-            recent_events = [
-                {
-                    "tick_no": e.tick_no,
-                    "event_type": e.event_type,
-                    "description": str(e.payload)[:100] if e.payload else "N/A",
-                }
-                for e in events
-            ]
+        async def _load_suspicion() -> float:
+            if self.director_memory_repo is not None:
+                return await self.director_memory_repo.get_latest_suspicion_score(run_id)
+            return 0.0
+
+        async def _load_goals() -> list[str]:
+            if self.director_memory_repo is not None:
+                return await self.director_memory_repo.get_recent_goals(
+                    run_id=run_id,
+                    current_tick=run.current_tick,
+                    lookback_ticks=10,
+                )
+            return []
+
+        async def _load_interventions() -> list[dict[str, Any]]:
+            if self.director_memory_repo is not None:
+                recent_memories = await self.director_memory_repo.list_for_run(run_id, limit=10)
+                return [
+                    {
+                        "tick_no": m.tick_no,
+                        "scene_goal": m.scene_goal,
+                        "reason": m.reason,
+                        "was_executed": m.was_executed,
+                    }
+                    for m in recent_memories
+                ]
+            return []
+
+        async def _load_events() -> list[Any]:
+            if self.event_repo is not None:
+                return await self.event_repo.list_for_run(run_id, limit=20)
+            return []
+
+        (
+            previous_suspicion_score,
+            recent_goals,
+            recent_interventions,
+            raw_events,
+        ) = await asyncio.gather(
+            _load_suspicion(),
+            _load_goals(),
+            _load_interventions(),
+            _load_events(),
+        )
+
+        # 用已加载的 events 构建 assessment（不再重复查询）
+        assessment = self.observer.assess(
+            run_id=run_id,
+            current_tick=run.current_tick,
+            agents=agents,
+            events=list(raw_events),
+            previous_suspicion_score=previous_suspicion_score,
+        )
+
+        recent_events: list[dict[str, Any]] = [
+            {
+                "tick_no": e.tick_no,
+                "event_type": e.event_type,
+                "description": str(e.payload)[:100] if e.payload else "N/A",
+            }
+            for e in raw_events
+        ]
 
         # 获取世界时间
         world_time = get_run_world_time(run).isoformat()

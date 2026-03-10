@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from time import perf_counter
 from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +10,7 @@ from app.agent.registry import AgentRegistry
 from app.agent.runtime import AgentRuntime
 from app.director.observer import DirectorAssessment
 from app.infra.logging import get_logger
+from app.infra.metrics import observe_tick
 from app.infra.settings import get_settings
 from app.scenario.base import Scenario
 from app.scenario.factory import create_scenario
@@ -133,25 +135,33 @@ class SimulationService:
         return TickEventWriter(self.session)
 
     async def run_tick(self, run_id: str, intents: list[ActionIntent] | None = None) -> TickResult:
+        started_at = perf_counter()
         run_repo = self._require_run_repo()
-        run = await run_repo.get(run_id)
-        if run is None:
-            msg = f"Run not found: {run_id}"
-            raise ValueError(msg)
-        self._configure_scenario_for_run(run)
+        try:
+            run = await run_repo.get(run_id)
+            if run is None:
+                msg = f"Run not found: {run_id}"
+                raise ValueError(msg)
+            self._configure_scenario_for_run(run)
 
-        world = await self._load_world(run_id, tick_minutes=run.tick_minutes)
-        if not intents:
-            intents = await self.prepare_tick_intents(run_id, world)
-        result = self._build_tick_orchestrator().execute_tick(
-            world=world,
-            current_tick=run.current_tick,
-            intents=intents,
-        )
+            world = await self._load_world(run_id, tick_minutes=run.tick_minutes)
+            if not intents:
+                intents = await self.prepare_tick_intents(run_id, world)
+            result = self._build_tick_orchestrator().execute_tick(
+                world=world,
+                current_tick=run.current_tick,
+                intents=intents,
+            )
 
-        await self._require_persistence().persist_agent_locations(run_id, world)
-        await run_repo.update_tick(run, result.tick_no)
-        await self._persist_tick_events(run_id, result)
+            await self._require_persistence().persist_agent_locations(run_id, world)
+            await run_repo.update_tick(run, result.tick_no)
+            await self._persist_tick_events(run_id, result)
+        except Exception:
+            observe_tick(
+                mode="inline", status="error", duration_seconds=perf_counter() - started_at
+            )
+            raise
+        observe_tick(mode="inline", status="success", duration_seconds=perf_counter() - started_at)
         return result
 
     async def run_tick_isolated(
@@ -170,10 +180,24 @@ class SimulationService:
         This prevents conflicts between SQLAlchemy's greenlet mechanism and
         anyio's task groups used by claude_agent_sdk.
         """
-        result, scenario = await IsolatedTickRunner(agent_runtime=self.agent_runtime).run(
-            run_id=run_id,
-            engine=engine,
-            intents=intents,
+        started_at = perf_counter()
+        try:
+            result, scenario = await IsolatedTickRunner(agent_runtime=self.agent_runtime).run(
+                run_id=run_id,
+                engine=engine,
+                intents=intents,
+            )
+        except Exception:
+            observe_tick(
+                mode="isolated",
+                status="error",
+                duration_seconds=perf_counter() - started_at,
+            )
+            raise
+        observe_tick(
+            mode="isolated",
+            status="success",
+            duration_seconds=perf_counter() - started_at,
         )
         self._scenario = scenario
         return result
