@@ -495,12 +495,14 @@ class TestPersistTickMemoriesParallelQueries:
 
         async def slow_agent_list(self, run_id):
             import time
+
             call_log.append(("agent", time.monotonic()))
             await asyncio.sleep(0.05)
             return await real_agent_list(self, run_id)
 
         async def slow_loc_list(self, run_id):
             import time
+
             call_log.append(("location", time.monotonic()))
             await asyncio.sleep(0.05)
             return await real_loc_list(self, run_id)
@@ -524,9 +526,7 @@ class TestPersistTickMemoriesParallelQueries:
             elapsed = time.monotonic() - t0
 
         # 串行需要 100ms+，并行应 < 80ms
-        assert elapsed < 0.08, (
-            f"agents+locations 应并行查询，但耗时 {elapsed:.3f}s（预期 < 0.08s）"
-        )
+        assert elapsed < 0.08, f"agents+locations 应并行查询，但耗时 {elapsed:.3f}s（预期 < 0.08s）"
         # 两个查询都应被调用
         call_types = {c[0] for c in call_log}
         assert call_types == {"agent", "location"}, f"两个查询都应被调用，实际: {call_types}"
@@ -559,12 +559,14 @@ class TestLoadWorldParallelQueries:
 
         async def slow_agent_list(self, run_id):
             import time
+
             call_log.append(("agent", time.monotonic()))
             await asyncio.sleep(0.05)
             return await real_agent_list(self, run_id)
 
         async def slow_loc_list(self, run_id):
             import time
+
             call_log.append(("location", time.monotonic()))
             await asyncio.sleep(0.05)
             return await real_loc_list(self, run_id)
@@ -620,12 +622,14 @@ class TestObserveRunParallelQueries:
 
         async def slow_agent_list(self, run_id):
             import time
+
             call_log.append(("agent", time.monotonic()))
             await asyncio.sleep(0.05)
             return await real_agent_list(self, run_id)
 
         async def slow_event_list(self, run_id, limit=None, **kwargs):
             import time
+
             call_log.append(("event", time.monotonic()))
             await asyncio.sleep(0.05)
             return await real_event_list(self, run_id, limit=limit, **kwargs)

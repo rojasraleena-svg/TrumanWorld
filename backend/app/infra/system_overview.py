@@ -152,7 +152,9 @@ def _frontend_matcher(frontend_root: Path) -> Callable[[psutil.Process], bool]:
         cmdline = _safe_cmdline(process)
         name = _safe_name(process)
         in_frontend = _is_under(cwd, frontend_root) or str(frontend_root).lower() in cmdline
-        runtime_match = any(token in cmdline for token in ("next", "next-server", "npm run dev")) or name in {
+        runtime_match = any(
+            token in cmdline for token in ("next", "next-server", "npm run dev")
+        ) or name in {
             "node",
             "npm",
         }

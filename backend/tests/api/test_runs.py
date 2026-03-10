@@ -37,7 +37,9 @@ async def test_metrics_endpoint_exposes_runtime_metrics(client):
 
 
 @pytest.mark.asyncio
-async def test_system_overview_endpoint_returns_project_components(client, monkeypatch: pytest.MonkeyPatch):
+async def test_system_overview_endpoint_returns_project_components(
+    client, monkeypatch: pytest.MonkeyPatch
+):
     monkeypatch.setattr(
         system_route,
         "get_system_overview_payload",

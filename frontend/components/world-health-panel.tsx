@@ -241,8 +241,19 @@ function formatCount(value: number) {
   return new Intl.NumberFormat("zh-CN").format(value);
 }
 
-function formatCost(value: number) {
-  return `$${value.toFixed(4)}`;
+const TOKEN_PRICE_CNY_PER_MILLION = {
+  input: 2.1,
+  output: 8.4,
+  cacheRead: 0.21,
+  cacheCreation: 2.625,
+} as const;
+
+function calculateTokenCostCny(tokens: number, unitPricePerMillion: number) {
+  return (tokens / 1_000_000) * unitPricePerMillion;
+}
+
+function formatCnyCost(value: number) {
+  return `¥${value.toFixed(4)}`;
 }
 
 function formatCpuPercent(value: number) {
@@ -358,7 +369,24 @@ function SystemStatusModal({
   const inlineErrorValue = metrics ? formatCount(metrics.tickTotal.inlineError) : "—";
   const isolatedErrorValue = metrics ? formatCount(metrics.tickTotal.isolatedError) : "—";
   const llmCallTotalValue = metrics ? formatCount(metrics.llmCallTotal) : "—";
-  const llmCostValue = metrics ? formatCost(metrics.llmCostUsdTotal) : "—";
+  const inputCostCny = metrics
+    ? calculateTokenCostCny(metrics.llmTokensTotal.input, TOKEN_PRICE_CNY_PER_MILLION.input)
+    : 0;
+  const outputCostCny = metrics
+    ? calculateTokenCostCny(metrics.llmTokensTotal.output, TOKEN_PRICE_CNY_PER_MILLION.output)
+    : 0;
+  const cacheReadCostCny = metrics
+    ? calculateTokenCostCny(metrics.llmTokensTotal.cacheRead, TOKEN_PRICE_CNY_PER_MILLION.cacheRead)
+    : 0;
+  const cacheCreationCostCny = metrics
+    ? calculateTokenCostCny(
+        metrics.llmTokensTotal.cacheCreation,
+        TOKEN_PRICE_CNY_PER_MILLION.cacheCreation,
+      )
+    : 0;
+  const llmCostTotalCny =
+    inputCostCny + outputCostCny + cacheReadCostCny + cacheCreationCostCny;
+  const llmCostValue = metrics ? formatCnyCost(llmCostTotalCny) : "—";
   const cacheTokenValue = metrics
     ? formatCount(metrics.llmTokensTotal.cacheRead + metrics.llmTokensTotal.cacheCreation)
     : "—";
@@ -535,6 +563,28 @@ function SystemStatusModal({
                           label="缓存创建"
                           value={cacheCreationValue}
                         />
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                      <div className="text-sm font-semibold text-slate-700">费用明细（元 / 百万 tokens）</div>
+                      <div className="mt-3 space-y-2">
+                        <StatusRow
+                          label={`输入 @ ${TOKEN_PRICE_CNY_PER_MILLION.input}`}
+                          value={formatCnyCost(inputCostCny)}
+                        />
+                        <StatusRow
+                          label={`输出 @ ${TOKEN_PRICE_CNY_PER_MILLION.output}`}
+                          value={formatCnyCost(outputCostCny)}
+                        />
+                        <StatusRow
+                          label={`缓存读取 @ ${TOKEN_PRICE_CNY_PER_MILLION.cacheRead}`}
+                          value={formatCnyCost(cacheReadCostCny)}
+                        />
+                        <StatusRow
+                          label={`缓存写入 @ ${TOKEN_PRICE_CNY_PER_MILLION.cacheCreation}`}
+                          value={formatCnyCost(cacheCreationCostCny)}
+                        />
+                        <StatusRow label="合计" value={formatCnyCost(llmCostTotalCny)} />
                       </div>
                     </div>
                   </div>
