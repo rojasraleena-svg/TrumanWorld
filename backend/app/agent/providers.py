@@ -250,7 +250,9 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
                 return RuntimeDecision(action_type="rest")
             except RuntimeError as e:
                 if "cancel scope" in str(e).lower() or "different task" in str(e).lower():
-                    logger.debug(f"Claude SDK pool cancel scope error for agent {invocation.agent_id}: {e}")
+                    logger.debug(
+                        f"Claude SDK pool cancel scope error for agent {invocation.agent_id}: {e}"
+                    )
                     return RuntimeDecision(action_type="rest")
                 last_exc = e
                 if attempt < max_attempts - 1:

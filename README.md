@@ -1,5 +1,7 @@
 # Truman World
 
+> 你就是楚门世界的导演
+
 ![Python](https://img.shields.io/badge/Python-3.12+-blue?logo=python)
 ![Node.js](https://img.shields.io/badge/Node.js-20+-green?logo=node.js)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
@@ -7,7 +9,6 @@
 [![CI](https://github.com/gqy20/TrumanWorld/actions/workflows/ci.yml/badge.svg)](https://github.com/gqy20/TrumanWorld/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/gqy20/TrumanWorld/branch/main/graph/badge.svg)](https://codecov.io/gh/gqy20/TrumanWorld)
 
-> 你就是楚门世界的导演
 
 一个面向实验与观测的 AI 社会模拟系统。在这个小镇里，AI 居民们自然地生活、工作、社交。
 其中有一个"主角"(Truman)，他不知道自己是 AI —— 他有自己的生活、困惑、情感、成长。
@@ -31,7 +32,6 @@
 | 🎬 **导演干预** | 你可以注入事件，但不能操控任何人的想法——即使你是"造物主"，也必须尊重主体的自由意志 |
 | 📼 **全程录制** | 所有对话、事件、关系变化都被记录，可随时回溯 |
 
----
 
 ## 关于自由
 
@@ -43,7 +43,6 @@
 在 Truman World 里，你不是编剧。你不能决定 Truman 想什么。
 你能做的，只是创造一个让自由得以发生的世界。
 
----
 
 ## 灵感来源
 
@@ -52,7 +51,6 @@
 - **[Generative Agents](https://github.com/joonspk-research/generative_agents)** — 斯坦福大学开创性研究，首次展示 AI 能在虚拟小镇中自然生活、社交。提出了三个核心组件：记忆流（Memory Stream）、反思（Reflection）、规划（Plan）。本项目的 agent 认知层借鉴了这一架构。
 - **[IssueLab](https://github.com/gqy20/IssueLab)** — 作者的另一项目，提供 agent 配置方式的参考
 
----
 
 ## 你能做什么
 
@@ -62,7 +60,6 @@
 - **分析行为**：查看某个 AI 的记忆、关系、决策历史
 - **维系世界**：当 Truman 产生怀疑时，让一切自然地发生
 
----
 
 ## 快速开始
 

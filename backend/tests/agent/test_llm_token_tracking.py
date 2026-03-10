@@ -8,16 +8,14 @@ This test verifies that all LLM call paths properly record token usage:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from pathlib import Path
-import tempfile
 import asyncio
 import os
 
 from claude_agent_sdk import ResultMessage
 from app.agent.runtime import AgentRuntime, RuntimeContext
 from app.agent.registry import AgentRegistry
-from app.agent.context_builder import ContextBuilder
 from app.agent.providers import AgentDecisionProvider, RuntimeDecision
 
 
@@ -67,6 +65,7 @@ def agent_runtime_claude_provider(tmp_path: Path):
 
     # Clear settings cache
     from app.infra.settings import get_settings
+
     get_settings.cache_clear()
 
     agent_dir = tmp_path / "test_agent"
@@ -100,21 +99,28 @@ class TestReactorTokenTracking:
 
         # Create runtime context with callback
         captured_records = []
+
         def on_llm_call(agent_id, task_type, usage, total_cost_usd, duration_ms):
-            captured_records.append({
-                "agent_id": agent_id,
-                "task_type": task_type,
-                "usage": usage,
-                "cost": total_cost_usd,
-                "duration": duration_ms,
-            })
+            captured_records.append(
+                {
+                    "agent_id": agent_id,
+                    "task_type": task_type,
+                    "usage": usage,
+                    "cost": total_cost_usd,
+                    "duration": duration_ms,
+                }
+            )
 
         runtime_ctx = RuntimeContext(on_llm_call=on_llm_call)
 
         # Call react (which internally calls decide)
         await runtime.react(
             agent_id="test_agent",
-            world={"current_goal": "rest", "current_location_id": "home", "home_location_id": "home"},
+            world={
+                "current_goal": "rest",
+                "current_location_id": "home",
+                "home_location_id": "home",
+            },
             runtime_ctx=runtime_ctx,
         )
 
@@ -129,7 +135,9 @@ class TestPlannerTokenTracking:
     """Test that planner (morning planning) LLM calls properly record tokens."""
 
     @pytest.mark.asyncio
-    async def test_run_planner_llm_call_triggers_callback(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    async def test_run_planner_llm_call_triggers_callback(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
         """Verify that run_planner triggers on_llm_call callback."""
         # Import and mock settings before anything else
         import app.agent.runtime as runtime_module
@@ -146,7 +154,9 @@ class TestPlannerTokenTracking:
         # Monkey patch get_settings in the runtime module
         monkeypatch.setattr(runtime_module, "get_settings", lambda: mock_settings)
         # Also patch shutil.which
-        monkeypatch.setattr(runtime_module.shutil, "which", lambda x: "/usr/bin/claude" if x == "claude" else None)
+        monkeypatch.setattr(
+            runtime_module.shutil, "which", lambda x: "/usr/bin/claude" if x == "claude" else None
+        )
 
         agent_dir = tmp_path / "test_agent"
         agent_dir.mkdir(parents=True)
@@ -161,35 +171,40 @@ class TestPlannerTokenTracking:
 
         # Create runtime context with callback
         captured_records = []
+
         def on_llm_call(agent_id, task_type, usage, total_cost_usd, duration_ms):
-            captured_records.append({
-                "agent_id": agent_id,
-                "task_type": task_type,
-                "usage": usage,
-                "cost": total_cost_usd,
-                "duration": duration_ms,
-            })
+            captured_records.append(
+                {
+                    "agent_id": agent_id,
+                    "task_type": task_type,
+                    "usage": usage,
+                    "cost": total_cost_usd,
+                    "duration": duration_ms,
+                }
+            )
 
         runtime_ctx = RuntimeContext(on_llm_call=on_llm_call)
 
         # Mock the claude_agent_sdk.query
         mock_result = asyncio.Queue()
-        await mock_result.put(MagicMock(
-            spec=ResultMessage,
-            is_error=False,
-            usage={"input_tokens": 150, "output_tokens": 300},
-            total_cost_usd=0.02,
-            duration_ms=1000,
-            result='{"morning": "work", "daytime": "work", "evening": "rest"}'
-        ))
+        await mock_result.put(
+            MagicMock(
+                spec=ResultMessage,
+                is_error=False,
+                usage={"input_tokens": 150, "output_tokens": 300},
+                total_cost_usd=0.02,
+                duration_ms=1000,
+                result='{"morning": "work", "daytime": "work", "evening": "rest"}',
+            )
+        )
 
         async def mock_query(*args, **kwargs):
             while not mock_result.empty():
                 yield await mock_result.get()
 
-        with patch('claude_agent_sdk.query', mock_query):
+        with patch("claude_agent_sdk.query", mock_query):
             # Call run_planner with runtime_ctx
-            result = await runtime.run_planner(
+            await runtime.run_planner(
                 agent_id="test_agent",
                 agent_name="Test Agent",
                 world_context={"time": "08:00"},
@@ -210,7 +225,9 @@ class TestReflectorTokenTracking:
     """Test that reflector (evening reflection) LLM calls properly record tokens."""
 
     @pytest.mark.asyncio
-    async def test_run_reflector_llm_call_triggers_callback(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    async def test_run_reflector_llm_call_triggers_callback(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
         """Verify that run_reflector triggers on_llm_call callback."""
         # Import and mock settings before anything else
         import app.agent.runtime as runtime_module
@@ -227,7 +244,9 @@ class TestReflectorTokenTracking:
         # Monkey patch get_settings in the runtime module
         monkeypatch.setattr(runtime_module, "get_settings", lambda: mock_settings)
         # Also patch shutil.which
-        monkeypatch.setattr(runtime_module.shutil, "which", lambda x: "/usr/bin/claude" if x == "claude" else None)
+        monkeypatch.setattr(
+            runtime_module.shutil, "which", lambda x: "/usr/bin/claude" if x == "claude" else None
+        )
 
         agent_dir = tmp_path / "test_agent"
         agent_dir.mkdir(parents=True)
@@ -242,35 +261,40 @@ class TestReflectorTokenTracking:
 
         # Create runtime context with callback
         captured_records = []
+
         def on_llm_call(agent_id, task_type, usage, total_cost_usd, duration_ms):
-            captured_records.append({
-                "agent_id": agent_id,
-                "task_type": task_type,
-                "usage": usage,
-                "cost": total_cost_usd,
-                "duration": duration_ms,
-            })
+            captured_records.append(
+                {
+                    "agent_id": agent_id,
+                    "task_type": task_type,
+                    "usage": usage,
+                    "cost": total_cost_usd,
+                    "duration": duration_ms,
+                }
+            )
 
         runtime_ctx = RuntimeContext(on_llm_call=on_llm_call)
 
         # Mock the claude_agent_sdk.query
         mock_result = asyncio.Queue()
-        await mock_result.put(MagicMock(
-            spec=ResultMessage,
-            is_error=False,
-            usage={"input_tokens": 200, "output_tokens": 400},
-            total_cost_usd=0.03,
-            duration_ms=1500,
-            result='{"reflection": "Good day", "mood": "happy"}'
-        ))
+        await mock_result.put(
+            MagicMock(
+                spec=ResultMessage,
+                is_error=False,
+                usage={"input_tokens": 200, "output_tokens": 400},
+                total_cost_usd=0.03,
+                duration_ms=1500,
+                result='{"reflection": "Good day", "mood": "happy"}',
+            )
+        )
 
         async def mock_query(*args, **kwargs):
             while not mock_result.empty():
                 yield await mock_result.get()
 
-        with patch('claude_agent_sdk.query', mock_query):
+        with patch("claude_agent_sdk.query", mock_query):
             # Call run_reflector with runtime_ctx
-            result = await runtime.run_reflector(
+            await runtime.run_reflector(
                 agent_id="test_agent",
                 agent_name="Test Agent",
                 world_context={"time": "20:00"},
