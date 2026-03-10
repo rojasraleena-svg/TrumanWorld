@@ -1,12 +1,5 @@
-"""Simulation service for running ticks and managing world state.
-
-This module provides the main SimulationService class that orchestrates
-simulation ticks, agent decisions, and persistence.
-"""
-
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -22,33 +15,17 @@ from app.infra.settings import get_settings
 from app.scenario.base import Scenario
 from app.scenario.factory import create_scenario
 from app.scenario.types import (
-    get_agent_config_id,
     get_world_role,
 )
-from app.scenario.truman_world.types import (
-    get_director_guidance,
-)
 from app.sim.action_resolver import ActionIntent
-from app.sim.agent_snapshot_builder import build_agent_recent_events
 from app.sim.context import ContextBuilder, get_run_world_time
 from app.sim.event_utils import build_event
-from app.sim.day_boundary import (
-    run_evening_reflection,
-    run_morning_planning,
-    should_run_planner,
-    should_run_reflector,
-)
-from app.sim.runtime_context_utils import (
-    build_agent_world_context,
-    extract_truman_suspicion_from_agent_data,
-    inject_profile_fields_into_context,
-)
 from app.sim.persistence import PersistenceManager
-from app.sim.runner import SimulationRunner, TickResult
-from app.sim.types import AgentDecisionSnapshot
+from app.sim.runner import TickResult
+from app.sim.tick_orchestrator import TickOrchestrator
+from app.sim.tick_persistence import TickPersistenceService
 from app.sim.world import WorldState
 from app.sim.world_loader import load_tick_data
-from app.sim.world_queries import find_nearby_agent, get_agent
 from app.store.repositories import (
     AgentRepository,
     DirectorMemoryRepository,
@@ -56,8 +33,7 @@ from app.store.repositories import (
     LocationRepository,
     RunRepository,
 )
-from app.store.models import Agent, SimulationRun
-from app.store.models import LlmCall
+from app.store.models import SimulationRun
 
 if TYPE_CHECKING:
     from app.infra.db import async_engine
@@ -67,7 +43,7 @@ logger = get_logger(__name__)
 
 
 class SimulationService:
-    """Loads persisted state, executes one tick, and persists results."""
+    """Thin application service coordinating tick orchestration and persistence."""
 
     def __init__(
         self,
@@ -164,6 +140,18 @@ class SimulationService:
             raise RuntimeError(msg)
         return self._persistence
 
+    def _build_tick_orchestrator(self) -> TickOrchestrator:
+        return TickOrchestrator(
+            agent_runtime=self.agent_runtime,
+            scenario=self._scenario,
+            session=self.session,
+            context_builder=self._context_builder,
+            agent_repo=self.agent_repo,
+        )
+
+    def _build_tick_persistence(self) -> TickPersistenceService:
+        return TickPersistenceService(self.session)
+
     async def run_tick(self, run_id: str, intents: list[ActionIntent] | None = None) -> TickResult:
         run_repo = self._require_run_repo()
         run = await run_repo.get(run_id)
@@ -175,9 +163,11 @@ class SimulationService:
         world = await self._load_world(run_id, tick_minutes=run.tick_minutes)
         if not intents:
             intents = await self.prepare_tick_intents(run_id, world)
-        runner = SimulationRunner(world)
-        runner.tick_no = run.current_tick
-        result = runner.tick(intents)
+        result = self._build_tick_orchestrator().execute_tick(
+            world=world,
+            current_tick=run.current_tick,
+            intents=intents,
+        )
 
         await self._require_persistence().persist_agent_locations(run_id, world)
         await run_repo.update_tick(run, result.tick_no)
@@ -221,303 +211,44 @@ class SimulationService:
             director_plan = loaded.director_plan
         self._scenario = create_scenario(run.scenario_type)
         self._scenario.configure_runtime(self.agent_runtime)
+        orchestrator = self._build_tick_orchestrator()
 
         # Phase 2: Prepare intents (SDK calls happen here, no active session)
         if not intents:
-            intents, llm_records = await self._prepare_intents_from_data(
+            intents, llm_records = await orchestrator.prepare_intents_from_data(
                 world, agent_data, engine, run_id, current_tick
             )
         else:
             llm_records = []
 
-        # Run simulation logic
-        runner = SimulationRunner(world)
-        runner.tick_no = current_tick
-        result = runner.tick(intents)
-
-        # Phase 3: Persist results with a fresh session
-        async with AsyncSessionType(engine, expire_on_commit=False) as write_session:
-            persistence = PersistenceManager(write_session)
-            persisted_events = await persistence.persist_tick_results(
-                run_id, result, world, current_tick + 1
-            )
-            await self._scenario.with_session(write_session).update_state_from_events(
-                run_id, persisted_events
-            )
-            if director_plan is not None:
-                try:
-                    write_scenario = self._scenario.with_session(write_session)
-                    await write_scenario.persist_director_plan(run_id, director_plan)
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning(f"Failed to persist director plan for run {run_id}: {exc}")
-            # Persist LLM call records (独立 session，失败不影响主流程)
-        if llm_records and engine is not None:
-            from sqlalchemy.ext.asyncio import AsyncSession as _AsyncSession
-            from app.infra.logging import get_logger as _get_logger
-
-            _logger = _get_logger(__name__)
-            try:
-                async with _AsyncSession(engine, expire_on_commit=False) as llm_session:
-                    for record in llm_records:
-                        llm_session.add(record)
-                    await llm_session.commit()
-            except Exception as exc:
-                _logger.warning(f"Failed to persist llm_calls for run {run_id}: {exc}")
-
-        # Phase 4: Day boundary tasks (planner / reflector) – non-blocking, errors are logged
-        if engine is not None:
-            try:
-                if should_run_planner(world):
-                    await run_morning_planning(
-                        run_id=run_id,
-                        tick_no=result.tick_no,
-                        world=world,
-                        engine=engine,
-                        agent_runtime=self.agent_runtime,
-                    )
-                elif should_run_reflector(world):
-                    await run_evening_reflection(
-                        run_id=run_id,
-                        tick_no=result.tick_no,
-                        world=world,
-                        engine=engine,
-                        agent_runtime=self.agent_runtime,
-                    )
-            except Exception as _exc:  # noqa: BLE001
-                from app.infra.logging import get_logger as _get_logger
-
-                _get_logger(__name__).warning(f"Day boundary task failed: {_exc}")
+        result = orchestrator.execute_tick(
+            world=world,
+            current_tick=current_tick,
+            intents=intents,
+        )
+        await TickPersistenceService().persist_isolated_tick(
+            run_id=run_id,
+            current_tick=current_tick,
+            result=result,
+            world=world,
+            scenario=self._scenario,
+            director_plan=director_plan,
+            llm_records=llm_records,
+            engine=engine,
+            agent_runtime=self.agent_runtime,
+        )
 
         return result
 
-    async def _prepare_intents_from_data(
-        self,
-        world: WorldState,
-        agent_data: list[AgentDecisionSnapshot],
-        engine: "async_engine | None" = None,
-        run_id: str | None = None,
-        tick_no: int = 0,
-    ) -> list[ActionIntent]:
-        """Prepare intents from pre-loaded agent data.
-
-        This method is called without an active database session,
-        allowing SDK calls to use anyio without greenlet conflicts.
-
-        Agent decisions are made in PARALLEL for performance.
-        Memory tools are available via MCP if engine is provided.
-        """
-        from app.agent.runtime import RuntimeContext
-        from uuid import uuid4
-
-        # Collect LLM call records in a thread-safe list
-        llm_records: list[LlmCall] = []
-
-        async def decide_for_agent(agent_snapshot: AgentDecisionSnapshot) -> ActionIntent | None:
-            agent_id = agent_snapshot.id
-            state = get_agent(world, agent_id)
-            if state is None:
-                return None
-
-            profile = agent_snapshot.profile
-            runtime_agent_id = get_agent_config_id(profile) or agent_id
-            truman_suspicion_score = extract_truman_suspicion_from_agent_data(agent_data, world)
-
-            # Build runtime context with memory tools support
-            runtime_ctx = None
-            if run_id is not None:
-                # 捕获真实 DB agent id（UUID），避免被回调参数遮蔽
-                db_agent_id = agent_snapshot.id
-
-                def on_llm_call(
-                    agent_id: str,
-                    task_type: str,
-                    usage: dict | None,
-                    total_cost_usd: float | None,
-                    duration_ms: int,
-                ) -> None:
-                    record = LlmCall(
-                        id=str(uuid4()),
-                        run_id=run_id,
-                        agent_id=db_agent_id,  # 使用真实 UUID，满足外键约束
-                        task_type=task_type,
-                        tick_no=tick_no,
-                        input_tokens=int((usage or {}).get("input_tokens", 0)),
-                        output_tokens=int((usage or {}).get("output_tokens", 0)),
-                        cache_read_tokens=int((usage or {}).get("cache_read_input_tokens", 0)),
-                        cache_creation_tokens=int(
-                            (usage or {}).get("cache_creation_input_tokens", 0)
-                        ),
-                        total_cost_usd=total_cost_usd,
-                        duration_ms=duration_ms or 0,
-                    )
-                    llm_records.append(record)
-
-                # 使用预加载的 memory_cache（避免在 anyio task 中创建 DB session）
-                from app.agent.memory_cache import MemoryCache
-
-                memory_cache = (
-                    MemoryCache(agent_snapshot.memory_cache)
-                    if agent_snapshot.memory_cache
-                    else None
-                )
-
-                runtime_ctx = RuntimeContext(
-                    db_engine=engine,  # 保留 engine 用于其他用途
-                    run_id=run_id,
-                    enable_memory_tools=True,
-                    on_llm_call=on_llm_call,
-                    memory_cache=memory_cache,  # 优先使用缓存
-                )
-
-            # Extract workplace_location_id from profile
-            workplace_location_id = None
-            if isinstance(profile, dict):
-                workplace_location_id = profile.get("workplace_location_id")
-
-            return await self._decide_intent_for_agent(
-                agent_id=agent_id,
-                runtime_agent_id=runtime_agent_id,
-                world=world,
-                current_goal=agent_snapshot.current_goal,
-                current_location_id=agent_snapshot.current_location_id,
-                home_location_id=agent_snapshot.home_location_id,
-                current_status=state.status,
-                profile=profile if isinstance(profile, dict) else {},
-                recent_events=agent_snapshot.recent_events,
-                truman_suspicion_score=truman_suspicion_score,
-                runtime_ctx=runtime_ctx,
-                workplace_location_id=workplace_location_id,
-                current_plan=agent_snapshot.current_plan,
-            )
-
-        # Execute all agent decisions in PARALLEL
-        # Memory tools now use pre-loaded cache (no DB session creation in anyio tasks)
-        results = await asyncio.gather(*[decide_for_agent(snapshot) for snapshot in agent_data])
-
-        # Filter out None results (agents without valid state)
-        intents = [r for r in results if r is not None]
-        return intents, llm_records
-
     async def _persist_tick_events(self, run_id: str, result: TickResult) -> None:
-        """Persist tick events and related data."""
-        events = [
-            build_event(
-                run_id=run_id,
-                tick_no=result.tick_no,
-                world_time=result.world_time,
-                action_type=item.action_type,
-                payload=item.event_payload,
-                accepted=True,
-            )
-            for item in result.accepted
-        ]
-        events.extend(
-            build_event(
-                run_id=run_id,
-                tick_no=result.tick_no,
-                world_time=result.world_time,
-                action_type=item.action_type,
-                payload={"reason": item.reason, **item.event_payload},
-                accepted=False,
-            )
-            for item in result.rejected
+        await self._build_tick_persistence().persist_tick_events(
+            run_id=run_id,
+            result=result,
+            scenario=self._scenario,
         )
-        if events:
-            persisted = await self._require_event_repo().create_many(events)
-            await self._require_persistence().persist_tick_memories(run_id, persisted)
-            await self._require_persistence().persist_tick_relationships(run_id, persisted)
-            await self._scenario.update_state_from_events(run_id, persisted)
 
     async def prepare_tick_intents(self, run_id: str, world: WorldState) -> list[ActionIntent]:
-        agents = await self._require_agent_repo().list_for_run(run_id)
-        intents: list[ActionIntent] = []
-        truman_suspicion_score = (
-            self._require_context_builder().extract_truman_suspicion_from_agents(agents, world)
-        )
-        plan = await self._scenario.build_director_plan(run_id, agents)
-        agent_recent_events = await build_agent_recent_events(
-            session=self._require_session_bound(),
-            run_id=run_id,
-            agents=list(agents),
-            agent_states=world.agents,
-            location_states=world.locations,
-        )
-
-        for agent in agents:
-            state = get_agent(world, agent.id)
-            if state is None:
-                continue
-
-            runtime_agent_id = self._resolve_runtime_agent_id(agent)
-            profile = self._scenario.merge_agent_profile(agent, plan)
-            intents.append(
-                await self._decide_intent_for_agent(
-                    agent_id=agent.id,
-                    runtime_agent_id=runtime_agent_id,
-                    world=world,
-                    current_goal=agent.current_goal,
-                    current_location_id=state.location_id,
-                    home_location_id=agent.home_location_id,
-                    current_status=state.status,
-                    profile=profile,
-                    recent_events=agent_recent_events.get(agent.id, []),
-                    truman_suspicion_score=truman_suspicion_score,
-                )
-            )
-
-        return intents
-
-    async def _decide_intent_for_agent(
-        self,
-        *,
-        agent_id: str,
-        runtime_agent_id: str,
-        world: WorldState,
-        current_goal: str | None,
-        current_location_id: str | None,
-        home_location_id: str | None,
-        current_status: dict | None,
-        profile: dict,
-        recent_events: list[dict],
-        truman_suspicion_score: float,
-        runtime_ctx=None,
-        workplace_location_id: str | None = None,
-        current_plan: dict | None = None,
-    ) -> ActionIntent:
-        nearby_agent_id = (
-            find_nearby_agent(world, agent_id, current_location_id)
-            if current_location_id is not None
-            else None
-        )
-        director_guidance = get_director_guidance(profile)
-
-        world_ctx = build_agent_world_context(
-            world=world,
-            current_goal=current_goal,
-            current_location_id=current_location_id,
-            home_location_id=home_location_id,
-            nearby_agent_id=nearby_agent_id,
-            current_status=current_status,
-            truman_suspicion_score=truman_suspicion_score,
-            world_role=get_world_role(profile),
-            director_guidance=director_guidance,
-            workplace_location_id=workplace_location_id,
-            current_plan=current_plan,
-        )
-        inject_profile_fields_into_context(world_ctx, profile)
-        intent = await self.agent_runtime.react(
-            runtime_agent_id,
-            world=world_ctx,
-            memory={"recent": []},
-            event={},
-            recent_events=recent_events,
-            runtime_ctx=runtime_ctx,
-        )
-        intent.agent_id = agent_id
-        return intent
-
-    def _resolve_runtime_agent_id(self, agent: Agent) -> str:
-        return get_agent_config_id(agent.profile) or agent.id
+        return await self._build_tick_orchestrator().prepare_tick_intents(run_id, world)
 
     async def inject_director_event(
         self,

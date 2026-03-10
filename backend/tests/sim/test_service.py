@@ -7,6 +7,7 @@ from app.scenario.truman_world.coordinator import TrumanWorldCoordinator
 from app.scenario.types import ScenarioGuidance
 from app.sim.action_resolver import ActionIntent
 from app.sim.service import SimulationService
+from app.sim.tick_orchestrator import TickOrchestrator
 from app.store.models import Agent, Location, SimulationRun
 from app.store.repositories import (
     AgentRepository,
@@ -895,7 +896,10 @@ async def test_prepare_intents_collects_llm_records_when_on_llm_call_set(db_sess
         registry=AgentRegistry(tmp_path),
         decision_provider=provider,
     )
-    service = SimulationService.create_for_scheduler(runtime)
+    orchestrator = TickOrchestrator(
+        agent_runtime=runtime,
+        scenario=FakeScenario(),
+    )
 
     # 构建 WorldState 和 AgentDecisionSnapshot
     from datetime import datetime, timezone
@@ -915,7 +919,7 @@ async def test_prepare_intents_collects_llm_records_when_on_llm_call_set(db_sess
     )
 
     # 没有 engine，llm_records 应为空（不影响主流程）
-    intents, llm_records = await service._prepare_intents_from_data(
+    intents, llm_records = await orchestrator.prepare_intents_from_data(
         world=world,
         agent_data=[snapshot],
         engine=None,
