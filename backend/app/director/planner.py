@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.director.agent import DirectorAgent, DirectorContext
 from app.director.observer import DirectorAssessment
@@ -10,7 +10,9 @@ from app.director.types import DirectorPlan
 from app.infra.logging import get_logger
 from app.scenario.truman_world.director_config import load_director_config
 from app.scenario.types import get_agent_config_id, get_world_role
-from app.store.models import Agent
+
+if TYPE_CHECKING:
+    from app.store.models import Agent
 
 logger = get_logger(__name__)
 
@@ -43,7 +45,7 @@ class DirectorPlanner:
         self,
         *,
         assessment: DirectorAssessment,
-        agents: list[Agent],
+        agents: list["Agent"],
         recent_intervention_goals: list[str] | None = None,
         current_tick: int = 0,
         recent_events: list[dict[str, Any]] | None = None,
@@ -98,13 +100,25 @@ class DirectorPlanner:
         # 实验性功能：启动 LLM 智能决策（异步，不阻塞）
         if self._agent.is_enabled() and self._agent.should_decide(current_tick):
             if self._pending_decision is None and current_tick > self._last_decision_tick:
+                # 在 create_task 之前，将 ORM Agent 对象序列化为纯 dict
+                # 必须在这里（session 仍活着时）读取属性，避免后台 Task 在 session
+                # 关闭后访问 detached 对象触发懒加载 → greenlet_spawn 报错
+                agent_snapshots: list[dict[str, Any]] = [
+                    {
+                        "id": a.id,
+                        "name": a.name,
+                        "profile": dict(a.profile or {}),
+                        "current_location_id": a.current_location_id,
+                    }
+                    for a in agents
+                ]
                 # 启动新的异步决策任务
                 self._last_decision_tick = current_tick
                 context = DirectorContext(
                     run_id=run_id,
                     current_tick=current_tick,
                     assessment=assessment,
-                    agents=agents,
+                    agents=agent_snapshots,  # 纯 dict，不绑定 session
                     recent_events=recent_events or [],
                     recent_interventions=recent_interventions or [],
                     world_time=world_time,
@@ -115,12 +129,13 @@ class DirectorPlanner:
                 logger.debug(f"DirectorAgent started async decision at tick {current_tick}")
 
         # 回退到配置化规则决策（同步，立即返回）
+        # _build_config_based_plan 仍使用原始 ORM 对象（同步访问，无 greenlet 问题）
         return self._build_config_based_plan(assessment, cast_agents, recent_goals)
 
     def _build_config_based_plan(
         self,
         assessment: DirectorAssessment,
-        cast_agents: list[Agent],
+        cast_agents: list["Agent"],
         recent_goals: set[str],
     ) -> DirectorPlan | None:
         """基于配置的干预计划构建（回退方案）
@@ -159,7 +174,7 @@ class DirectorPlanner:
             cooldown_ticks=plan_data["cooldown_ticks"],
         )
 
-    def _pick_primary_cast(self, cast_agents: list[Agent]) -> Agent | None:
+    def _pick_primary_cast(self, cast_agents: list["Agent"]) -> "Agent | None":
         sorted_agents = sorted(
             cast_agents,
             key=lambda agent: (

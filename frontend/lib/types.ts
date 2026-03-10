@@ -199,6 +199,7 @@ export type AgentMemory = {
   importance?: number;
   related_agent_id?: string;
   related_agent_name?: string;
+  created_at?: string;
 };
 
 export type AgentRelationship = {

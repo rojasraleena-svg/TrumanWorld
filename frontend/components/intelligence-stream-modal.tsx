@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import type { WorldSnapshot, WorldEvent } from "@/lib/types";
 import { EventCard } from "@/components/event-card";
@@ -39,11 +38,6 @@ export function IntelligenceStreamModal({
   const [eventFilter, setEventFilter] = useState<EventFilter>("all");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>(null);
 
-  // Full event list loaded independently from world snapshot
-  // Use world.recent_events as initial value; refreshed every time modal opens
-  const recentEventsRef = useRef<WorldEvent[]>(world.recent_events);
-  recentEventsRef.current = world.recent_events; // keep ref in sync with latest snapshot
-
   const [allEvents, setAllEvents] = useState<WorldEvent[]>(world.recent_events);
   // Track known event ids to avoid replacing the whole list on every poll tick
   const knownIdsRef = useRef<Set<string>>(new Set(world.recent_events.map((e) => e.id)));
@@ -73,9 +67,9 @@ export function IntelligenceStreamModal({
     } else {
       setLoadError(true);
       // Fall back to latest world snapshot events
-      if (knownIdsRef.current.size === 0) setAllEvents(recentEventsRef.current);
+      if (knownIdsRef.current.size === 0) setAllEvents(world.recent_events);
     }
-  }, [runId, maxEvents]); // intentionally exclude recentEventsRef – it's a ref, stable by design
+  }, [runId, maxEvents, world.recent_events]);
 
   // Reset known-ids whenever the modal is freshly opened so a full reload occurs
   const prevIsOpenRef = useRef(false);
@@ -83,9 +77,10 @@ export function IntelligenceStreamModal({
     if (isOpen && !prevIsOpenRef.current) {
       // Fresh open: clear cache so first poll does a full replace
       knownIdsRef.current = new Set();
+      setAllEvents(world.recent_events);
     }
     prevIsOpenRef.current = isOpen;
-  }, [isOpen]);
+  }, [isOpen, world.recent_events]);
 
   // Reload every time the modal is opened so new ticks are always reflected;
   // also poll every 5 s while open so live events appear without re-opening.
@@ -94,7 +89,7 @@ export function IntelligenceStreamModal({
     loadAllEvents();
     const timer = setInterval(() => loadAllEvents(), pollIntervalMs ?? 5000);
     return () => clearInterval(timer);
-  }, [isOpen, loadAllEvents]);
+  }, [isOpen, loadAllEvents, pollIntervalMs]);
 
   const { agentNameMap, locationNameMap, visibleEvents, latestTick } = useMemo(() => {
     const { agentNameMap, locationNameMap } = buildWorldNameMaps(world);

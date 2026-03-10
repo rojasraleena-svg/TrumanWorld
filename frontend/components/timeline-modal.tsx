@@ -394,8 +394,10 @@ interface EventCardProps {
 }
 
 function EventCard({ event }: EventCardProps) {
-  const meta = getEventMeta(event);
+  const meta = getEventMeta(event.event_type);
   const description = describeTimelineEvent(event);
+  const actorName = event.payload.actor_name;
+  const locationName = event.payload.location_name;
 
   return (
     <div className="rounded-xl border border-white bg-white p-3 shadow-sm transition hover:shadow-md">
@@ -406,31 +408,31 @@ function EventCard({ event }: EventCardProps) {
         </div>
         <span
           className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] ${
-            meta.badge === "对话"
+            meta.label === "对话"
               ? "bg-emerald-50 text-emerald-600"
-              : meta.badge === "移动"
+              : meta.label === "移动"
                 ? "bg-blue-50 text-blue-600"
-                : meta.badge === "工作"
+                : meta.label === "工作"
                   ? "bg-amber-50 text-amber-600"
-                  : meta.badge === "休息"
+                  : meta.label === "休息"
                     ? "bg-slate-100 text-slate-600"
                     : "bg-violet-50 text-violet-600"
           }`}
         >
-          {meta.badge}
+          {meta.label}
         </span>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {event.agent_name && (
+        {typeof actorName === "string" && actorName && (
           <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
             <span className="h-1 w-1 rounded-full bg-slate-400" />
-            {event.agent_name}
+            {actorName}
           </span>
         )}
-        {event.location_name && (
+        {typeof locationName === "string" && locationName && (
           <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
             <span className="h-1 w-1 rounded-full bg-rose-400" />
-            {event.location_name}
+            {locationName}
           </span>
         )}
         <span className="ml-auto text-[10px] text-slate-400">

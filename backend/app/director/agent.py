@@ -21,7 +21,6 @@ from app.scenario.types import get_agent_config_id, get_world_role
 
 if TYPE_CHECKING:
     from claude_agent_sdk import ClaudeAgentOptions
-    from app.store.models import Agent
 
 logger = get_logger(__name__)
 
@@ -61,7 +60,7 @@ class DirectorContext:
     run_id: str
     current_tick: int
     assessment: DirectorAssessment
-    agents: list[Agent]
+    agents: list[dict[str, Any]]  # 纯 dict 快照，脱离 SQLAlchemy session，避免 greenlet 冲突
     recent_events: list[dict[str, Any]]
     recent_interventions: list[dict[str, Any]]
     world_time: str
@@ -125,7 +124,7 @@ class DirectorAgent:
         if not self._enabled:
             return None
 
-        cast_agents = [a for a in context.agents if get_world_role(a.profile) == "cast"]
+        cast_agents = [a for a in context.agents if get_world_role(a.get("profile")) == "cast"]
         if not cast_agents or context.assessment.truman_agent_id is None:
             return None
 
@@ -149,10 +148,10 @@ class DirectorAgent:
         """Build the decision prompt for LLM using configuration template."""
         # Build cast agents info
         cast_info = []
-        for agent in sorted(cast_agents, key=lambda a: a.name):
-            config_id = get_agent_config_id(agent.profile) or "unknown"
+        for agent in sorted(cast_agents, key=lambda a: a.get("name", "")):
+            config_id = get_agent_config_id(agent.get("profile")) or "unknown"
             cast_info.append(
-                f"- {agent.name} (role: {config_id}, location: {agent.current_location_id})"
+                f"- {agent.get('name')} (role: {config_id}, location: {agent.get('current_location_id')})"
             )
 
         # Build recent events summary (using config limit)
@@ -360,13 +359,13 @@ class DirectorAgent:
             target_cast_ids = []
             for name in target_cast_names:
                 for agent in cast_agents:
-                    if agent.name.lower() == name.lower():
-                        target_cast_ids.append(agent.id)
+                    if (agent.get("name") or "").lower() == name.lower():
+                        target_cast_ids.append(agent.get("id", ""))
                         break
 
             if not target_cast_ids and cast_agents:
                 # Fallback to first cast agent if names don't match
-                target_cast_ids = [cast_agents[0].id]
+                target_cast_ids = [cast_agents[0].get("id", "")]
 
             return DirectorPlan(
                 scene_goal=scene_goal,

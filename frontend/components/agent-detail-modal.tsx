@@ -7,7 +7,7 @@ import { inferAgentStatus, relationshipTone } from "@/lib/agent-utils";
 import { getAgentResult, getWorldResult } from "@/lib/api";
 import { describeAgentEvent } from "@/lib/event-utils";
 import { tickToSimDayTime } from "@/lib/world-utils";
-import type { AgentDetail, WorldSnapshot } from "@/lib/types";
+import type { AgentDetails, AgentRecentEvent, AgentRelationship, WorldSnapshot } from "@/lib/types";
 
 // 人格特质中文映射
 const PERSONALITY_LABELS: Record<string, string> = {
@@ -44,7 +44,7 @@ interface AgentDetailModalProps {
 }
 
 export function AgentDetailModal({ isOpen, onClose, runId, agentId }: AgentDetailModalProps) {
-  const [agent, setAgent] = useState<AgentDetail | null>(null);
+  const [agent, setAgent] = useState<AgentDetails | null>(null);
   const [world, setWorld] = useState<WorldSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -179,7 +179,7 @@ export function AgentDetailModal({ isOpen, onClose, runId, agentId }: AgentDetai
                   关系网络 ({relationships.length})
                 </p>
                 <div className="mt-3 space-y-3">
-                  {relationships.slice(0, 5).map((rel, index) => {
+                  {relationships.slice(0, 5).map((rel: AgentRelationship, index: number) => {
                     const familiarityPct = (rel.familiarity * 100).toFixed(0);
                     const barColor = relationshipTone(rel.familiarity);
                     const textColor = rel.familiarity >= 0.75
@@ -224,7 +224,7 @@ export function AgentDetailModal({ isOpen, onClose, runId, agentId }: AgentDetai
                 <p className="text-sm text-slate-400">暂无近期事件</p>
               ) : (
                 <div className="space-y-2">
-                  {agent.recent_events.map((event) => (
+                  {agent.recent_events.map((event: AgentRecentEvent) => (
                     <div
                       key={event.id}
                       className="rounded-xl border border-slate-100 bg-slate-50/50 p-3"
@@ -237,8 +237,8 @@ export function AgentDetailModal({ isOpen, onClose, runId, agentId }: AgentDetai
                           {world &&
                             tickToSimDayTime(
                               event.tick_no,
-                              world.run.tick_minutes,
-                              world.run.current_tick,
+                              world.run.tick_minutes ?? 5,
+                              world.run.current_tick ?? 0,
                               world.world_clock?.iso
                             )}
                         </span>

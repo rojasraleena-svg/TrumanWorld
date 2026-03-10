@@ -382,12 +382,13 @@ export default function TimelinePage() {
               <>
                 <div className="space-y-6">
                   {groups.map(([tick, events]) => {
+                    const tickNo = Number(tick);
                     // 取该 tick 组第一个事件的世界时间
                     const firstEvent = events[0];
                     const worldTime = firstEvent?.world_time;
                     // 从 tick 号计算模拟天数标签
                     const tickMinutes = timeline.run_info?.tick_minutes ?? 5;
-                    const simDayStr = simDayLabel(tick as number, tickMinutes);
+                    const simDayStr = simDayLabel(tickNo, tickMinutes);
 
                     return (
                       <div key={tick} className="rounded-[28px] border border-slate-200 bg-white/85 p-4 shadow-sm">
