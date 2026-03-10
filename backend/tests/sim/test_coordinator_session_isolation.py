@@ -9,6 +9,7 @@ Bug 描述:
     2. director plan 的持久化改由 run_tick_isolated Phase 3 (write_session) 负责
     3. run_tick_isolated 完成后，director_memories 表中应存在对应记录
 """
+
 from __future__ import annotations
 
 import pytest
@@ -25,6 +26,7 @@ from app.store.models import Agent, Base, DirectorMemory, Location, SimulationRu
 # ---------------------------------------------------------------------------
 # 辅助工具
 # ---------------------------------------------------------------------------
+
 
 def _make_run(run_id: str, current_tick: int = 3) -> SimulationRun:
     return SimulationRun(
@@ -84,6 +86,7 @@ def _make_truman(agent_id: str, run_id: str, loc_id: str, suspicion: float = 0.9
 # 修复后：director_memory_repo.create() 从 _build_auto_plan 中移除，不再在此阶段写入
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_build_director_plan_does_not_write_db_in_read_phase(db_session):
     """TDD 红灯: build_director_plan 不能在 read_session 中产生任何 DB 写入。
@@ -138,6 +141,7 @@ async def test_build_director_plan_does_not_write_db_in_read_phase(db_session):
 # 测试 2（红灯）: run_tick_isolated 完成后，plan 应被持久化
 # 修复后：Phase 3 write_session 中保存 director plan
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_run_tick_isolated_persists_director_plan_after_tick(db_session):
@@ -211,6 +215,7 @@ async def test_run_tick_isolated_persists_director_plan_after_tick(db_session):
 # ---------------------------------------------------------------------------
 # 测试 3: load_tick_data 应返回 director_plan（修复后的接口合约）
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_load_tick_data_returns_director_plan_for_high_suspicion(db_session):
