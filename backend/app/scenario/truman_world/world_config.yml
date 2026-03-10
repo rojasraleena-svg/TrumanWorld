@@ -15,6 +15,10 @@ daily_rhythm:
     - wednesday
     - thursday
     - friday
+  # 睡眠时段：模拟引擎将在进入此时段后直接跳到次日清晨，节省 LLM 调用
+  sleep_hours:
+    start: 23   # 23:00 开始睡眠，跳过夜间
+    end: 6      # 06:00 醒来（自然触发早晨 Planner）
 
 # 地点用途定义
 location_purposes:

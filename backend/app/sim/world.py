@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Any
 
 
@@ -34,11 +34,15 @@ class WorldState:
         tick_minutes: int = 5,
         locations: dict[str, LocationState] | None = None,
         agents: dict[str, AgentState] | None = None,
+        sleep_start_hour: int = 23,
+        sleep_end_hour: int = 6,
     ) -> None:
         self.current_time = current_time
         self.tick_minutes = tick_minutes
         self.locations = locations or {}
         self.agents = agents or {}
+        self.sleep_start_hour = sleep_start_hour
+        self.sleep_end_hour = sleep_end_hour
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -84,6 +88,10 @@ class WorldState:
 
     def advance_tick(self) -> datetime:
         self.current_time = self.current_time + timedelta(minutes=self.tick_minutes)
+        # 跳夜：若进入睡眠时段，直接跳到次日 sleep_end_hour（默认 06:00）
+        if self.current_time.hour >= self.sleep_start_hour:
+            next_day = (self.current_time + timedelta(days=1)).date()
+            self.current_time = datetime.combine(next_day, time(self.sleep_end_hour, 0))
         return self.current_time
 
     def get_agent(self, agent_id: str) -> AgentState | None:
