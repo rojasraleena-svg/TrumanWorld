@@ -6,7 +6,7 @@ build_agent_profile, merge_agent_profile) now live in app.scenario.types.
 
 from __future__ import annotations
 
-from typing import Any, Literal, Mapping, TypedDict
+from typing import Any, Mapping, TypedDict
 
 from app.scenario.types import (
     AgentProfile,
@@ -83,10 +83,9 @@ def get_director_guidance(profile: Mapping[str, Any] | None) -> DirectorGuidance
 def merge_scenario_agent_profile(
     profile: Mapping[str, Any] | None,
     guidance: DirectorGuidance | None = None,
-) -> "ScenarioAgentProfile":
+) -> AgentProfile:
     """Merge a profile dict with optional TrumanWorld DirectorGuidance."""
     from typing import cast as _cast
-    from app.scenario.types import AgentProfile
     base = _cast(AgentProfile, dict(profile or {}))
     if guidance:
         base.update(guidance)
