@@ -9,8 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from app.scenario.types import get_world_role
-from app.scenario.truman_world.types import DirectorGuidance
+from app.scenario.types import ScenarioGuidance, get_world_role
 from app.sim.event_utils import format_event_for_context
 from app.sim.runtime_context_utils import (
     build_agent_world_context,
@@ -108,7 +107,7 @@ class ContextBuilder:
         current_status: dict | None = None,
         truman_suspicion_score: float = 0.0,
         world_role: str | None = None,
-        director_guidance: DirectorGuidance | None = None,
+        director_guidance: ScenarioGuidance | None = None,
     ) -> dict:
         """Build context dict for agent decision making.
 

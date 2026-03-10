@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from app.scenario.types import get_world_role
-from app.scenario.truman_world.types import DirectorGuidance
+from app.scenario.types import ScenarioGuidance, get_world_role
 from app.sim.types import AgentDecisionSnapshot, RuntimeWorldContext
 from app.sim.world_queries import get_agent, get_location, get_location_occupants
 
@@ -21,7 +20,7 @@ def build_agent_world_context(
     current_status: dict | None = None,
     truman_suspicion_score: float = 0.0,
     world_role: str | None = None,
-    director_guidance: DirectorGuidance | None = None,
+    director_guidance: ScenarioGuidance | None = None,
     workplace_location_id: str | None = None,
     current_plan: dict | None = None,
 ) -> RuntimeWorldContext:
@@ -107,12 +106,12 @@ def extract_truman_suspicion_from_agent_data(
     return 0.0
 
 
-def _normalize_director_guidance(guidance: DirectorGuidance) -> DirectorGuidance:
+def _normalize_director_guidance(guidance: ScenarioGuidance) -> ScenarioGuidance:
     scene_goal = guidance.get("director_scene_goal")
     if scene_goal is None:
         return {}
 
-    normalized: DirectorGuidance = {"director_scene_goal": scene_goal}
+    normalized: ScenarioGuidance = {"director_scene_goal": scene_goal}
     normalized["director_priority"] = guidance.get("director_priority") or "advisory"
 
     for key in (

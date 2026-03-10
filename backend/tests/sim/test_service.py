@@ -3,6 +3,7 @@ import pytest
 from app.agent.providers import AgentDecisionProvider, RuntimeDecision
 from app.agent.runtime import RuntimeInvocation
 from app.scenario.base import Scenario
+from app.director.service import DirectorEventService
 from app.scenario.truman_world.coordinator import TrumanWorldCoordinator
 from app.scenario.types import ScenarioGuidance
 from app.sim.action_resolver import ActionIntent
@@ -426,8 +427,7 @@ async def test_simulation_service_includes_director_system_events_for_cast_recen
     db_session.add_all([run, square, cast, truman])
     await db_session.commit()
 
-    service = SimulationService(db_session)
-    await service.inject_director_event(
+    await DirectorEventService(db_session).inject_event(
         run_id=run.id,
         event_type="broadcast",
         payload={"message": "Town hall at plaza"},
@@ -524,8 +524,7 @@ async def test_manual_director_intervention_is_consumed_once(db_session):
     db_session.add_all([run, square, cast, truman])
     await db_session.commit()
 
-    service = SimulationService(db_session)
-    await service.inject_director_event(
+    await DirectorEventService(db_session).inject_event(
         run_id=run.id,
         event_type="broadcast",
         payload={"message": "Town hall at plaza"},

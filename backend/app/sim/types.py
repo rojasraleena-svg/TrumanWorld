@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, TypedDict
 
-from app.scenario.types import AgentProfile
-from app.scenario.truman_world.types import DirectorGuidance
+from app.scenario.types import AgentProfile, ScenarioGuidance
 
 
 @dataclass
@@ -27,7 +26,7 @@ class NearbyAgentContext(TypedDict):
     occupation: str | None
 
 
-class RuntimeWorldContext(DirectorGuidance, total=False):
+class RuntimeWorldContext(ScenarioGuidance, total=False):
     current_goal: str
     current_location_id: str
     current_location_name: str

@@ -6,8 +6,7 @@ from uuid import uuid4
 
 from app.agent.runtime import RuntimeContext
 from app.scenario.base import Scenario
-from app.scenario.truman_world.types import get_director_guidance
-from app.scenario.types import get_agent_config_id, get_world_role
+from app.scenario.types import get_agent_config_id, get_scenario_guidance, get_world_role
 from app.sim.agent_snapshot_builder import build_agent_recent_events
 from app.sim.runner import SimulationRunner, TickResult
 from app.sim.runtime_context_utils import (
@@ -200,7 +199,7 @@ class TickOrchestrator:
             if current_location_id is not None
             else None
         )
-        director_guidance = get_director_guidance(profile)
+        director_guidance = get_scenario_guidance(profile)
 
         world_ctx = build_agent_world_context(
             world=world,

@@ -39,12 +39,12 @@ class AgentProfile(TypedDict, total=False):
 
 
 class ScenarioGuidance(TypedDict, total=False):
-    scene_goal: str
-    priority: str
-    message_hint: str
-    target_agent_id: str
-    location_hint: str
-    reason: str
+    director_scene_goal: str
+    director_priority: str
+    director_message_hint: str
+    director_target_agent_id: str
+    director_location_hint: str
+    director_reason: str
 
 
 # ---------------------------------------------------------------------------
@@ -104,3 +104,47 @@ def merge_agent_profile(
     if guidance:
         base.update(guidance)
     return base
+
+
+def build_scenario_guidance(
+    *,
+    scene_goal: str | None,
+    priority: str | None,
+    message_hint: str | None,
+    target_agent_id: str | None,
+    location_hint: str | None,
+    reason: str | None,
+) -> ScenarioGuidance:
+    guidance: ScenarioGuidance = {}
+    if scene_goal is None:
+        return guidance
+
+    guidance["director_scene_goal"] = scene_goal
+    if priority is not None:
+        guidance["director_priority"] = priority
+    if message_hint is not None:
+        guidance["director_message_hint"] = message_hint
+    if target_agent_id is not None:
+        guidance["director_target_agent_id"] = target_agent_id
+    if location_hint is not None:
+        guidance["director_location_hint"] = location_hint
+    if reason is not None:
+        guidance["director_reason"] = reason
+    return guidance
+
+
+def get_scenario_guidance(profile: Mapping[str, Any] | None) -> ScenarioGuidance:
+    if not profile:
+        return {}
+    return build_scenario_guidance(
+        scene_goal=_as_optional_str(profile.get("director_scene_goal")),
+        priority=_as_optional_str(profile.get("director_priority")),
+        message_hint=_as_optional_str(profile.get("director_message_hint")),
+        target_agent_id=_as_optional_str(profile.get("director_target_agent_id")),
+        location_hint=_as_optional_str(profile.get("director_location_hint")),
+        reason=_as_optional_str(profile.get("director_reason")),
+    )
+
+
+def _as_optional_str(value: Any) -> str | None:
+    return value if isinstance(value, str) and value else None

@@ -28,6 +28,7 @@ from app.api.schemas.simulation import (
     WorldSnapshotRunResponse,
     AgentSummaryResponse,
 )
+from app.director.service import DirectorEventService
 from app.infra.db import get_db_session
 from app.infra.logging import get_logger
 from app.scenario.factory import create_scenario
@@ -956,9 +957,8 @@ async def inject_director_event(
     run = await repo.get(str(run_id))
     if run is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
-    service = SimulationService(session)
     try:
-        await service.inject_director_event(
+        await DirectorEventService(session).inject_event(
             run_id=str(run_id),
             event_type=payload.event_type,
             payload=payload.payload,
