@@ -6,6 +6,7 @@ after each simulation tick.
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -118,10 +119,12 @@ class PersistenceManager:
 
     async def persist_tick_memories(self, run_id: str, events: list[Event]) -> None:
         """Persist memories from tick events."""
-        agent_name_map = {a.id: a.name for a in await self.agent_repo.list_for_run(run_id)}
-        location_name_map = {
-            loc.id: loc.name for loc in await self.location_repo.list_for_run(run_id)
-        }
+        agents_list, locations_list = await asyncio.gather(
+            self.agent_repo.list_for_run(run_id),
+            self.location_repo.list_for_run(run_id),
+        )
+        agent_name_map = {a.id: a.name for a in agents_list}
+        location_name_map = {loc.id: loc.name for loc in locations_list}
         memories: list[Memory] = []
         for event in events:
             if event.event_type.endswith("_rejected") or event.actor_agent_id is None:
@@ -159,11 +162,12 @@ class PersistenceManager:
     ) -> None:
         """Persist memories using a provided session (for isolated tick operations)."""
         agent_repo = AgentRepository(session)
-        agents = await agent_repo.list_for_run(run_id)
-        agent_name_map = {a.id: a.name for a in agents}
-
         location_repo = LocationRepository(session)
-        locations = await location_repo.list_for_run(run_id)
+        agents, locations = await asyncio.gather(
+            agent_repo.list_for_run(run_id),
+            location_repo.list_for_run(run_id),
+        )
+        agent_name_map = {a.id: a.name for a in agents}
         location_name_map = {loc.id: loc.name for loc in locations}
 
         memories: list[Memory] = []

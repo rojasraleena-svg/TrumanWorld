@@ -24,15 +24,9 @@ export function WorldStatusBar() {
   // 总时长 = elapsed_seconds(历史累计) + (now - started_at)(本次运行)
   // 暂停时仅展示 elapsed_seconds，不再递增
   // 惰性初始化：mount 时直接从已有 world 数据计算，避免从 0 闪烁
-  const [elapsed, setElapsed] = useState(() => {
-    if (!world) return 0;
-    const base = world.run.elapsed_seconds ?? 0;
-    if (world.run.status === "running" && world.run.started_at) {
-      const sessionSecs = Math.floor((Date.now() - new Date(world.run.started_at).getTime()) / 1000);
-      return sessionSecs > 7200 ? base : base + Math.max(0, sessionSecs);
-    }
-    return base;
-  });
+  // 注意：world 在 mount 时可能还是 null（SWR 异步加载），
+  // 所以这里即使返回 0 也无妨，useEffect 会在 world 到达后立即修正
+  const [elapsed, setElapsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const localStartRef = useRef<number | null>(null);
 
@@ -41,22 +35,24 @@ export function WorldStatusBar() {
   const elapsedBase = world?.run.elapsed_seconds ?? 0;
 
   useEffect(() => {
+    // world 尚未加载，跳过
+    if (!world) return;
+
     if (isRunning) {
       if (startedAt) {
         // 有服务端时间戳：累计历史 + 本次运行时长
-        // 如果 started_at 距现超过 1 小时，说明是崩溃脂数据，跳过本次计算
         localStartRef.current = null;
         const calcElapsed = () => {
           const startMs = new Date(startedAt).getTime();
           const sessionSecs = Math.floor((Date.now() - startMs) / 1000);
-          // 如果 sessionSecs 异常大（超过 2 小时），认为是崩溃脂数据，不叠加
+          // 如果 sessionSecs 异常大（超过 2 小时），认为是崩溃脏数据，不叠加
           if (sessionSecs > 7200) {
             setElapsed(elapsedBase);
           } else {
             setElapsed(elapsedBase + Math.max(0, sessionSecs));
           }
         };
-        calcElapsed();
+        calcElapsed(); // 立即同步一次，避免刷新后从 0 闪烁
         if (!intervalRef.current) {
           intervalRef.current = setInterval(calcElapsed, 1000);
         }
@@ -73,7 +69,7 @@ export function WorldStatusBar() {
         }
       }
     } else {
-      // 暂停：展示历史累计秒数，停止计时
+      // 暂停：展示历史累计秒数，停止计时，立即同步
       localStartRef.current = null;
       setElapsed(elapsedBase);
       if (intervalRef.current) {
@@ -87,7 +83,7 @@ export function WorldStatusBar() {
         intervalRef.current = null;
       }
     };
-  }, [isRunning, startedAt, elapsedBase]);
+  }, [world, isRunning, startedAt, elapsedBase]);
 
   if (!world) {
     return (

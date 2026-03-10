@@ -472,3 +472,248 @@ class TestDayBoundaryPreloadParallel:
         assert mem_load_peak > 1, (
             f"_load_recent_memories 应并行执行，但峰值并发为 {mem_load_peak}（预期 > 1）"
         )
+
+
+# ---------------------------------------------------------------------------
+# 5. persistence.py: persist_tick_memories agents+locations 并行查询
+# ---------------------------------------------------------------------------
+
+
+class TestPersistTickMemoriesParallelQueries:
+    """persist_tick_memories 中 agents 和 locations 的查询应并行执行。"""
+
+    @pytest.mark.asyncio
+    async def test_agents_and_locations_queried_in_parallel(self, db_session):
+        """agents 和 locations 两个独立 DB 查询应并行执行，不串行。"""
+        from app.sim.persistence import PersistenceManager
+        from app.store.repositories import AgentRepository, LocationRepository
+
+        call_log: list[tuple[str, float]] = []
+
+        real_agent_list = AgentRepository.list_for_run
+        real_loc_list = LocationRepository.list_for_run
+
+        async def slow_agent_list(self, run_id):
+            import time
+            call_log.append(("agent", time.monotonic()))
+            await asyncio.sleep(0.05)
+            return await real_agent_list(self, run_id)
+
+        async def slow_loc_list(self, run_id):
+            import time
+            call_log.append(("location", time.monotonic()))
+            await asyncio.sleep(0.05)
+            return await real_loc_list(self, run_id)
+
+        run_id = "perf-persist-parallel"
+        run = _make_run(run_id)
+        loc = _make_location(f"{run_id}-loc", run_id)
+        agent = _make_agent(f"{run_id}-agent-0", run_id, loc.id)
+        db_session.add_all([run, loc, agent])
+        await db_session.commit()
+
+        import time
+
+        with (
+            patch.object(AgentRepository, "list_for_run", slow_agent_list),
+            patch.object(LocationRepository, "list_for_run", slow_loc_list),
+        ):
+            pm = PersistenceManager(db_session)
+            t0 = time.monotonic()
+            await pm.persist_tick_memories(run_id, [])
+            elapsed = time.monotonic() - t0
+
+        # 串行需要 100ms+，并行应 < 80ms
+        assert elapsed < 0.08, (
+            f"agents+locations 应并行查询，但耗时 {elapsed:.3f}s（预期 < 0.08s）"
+        )
+        # 两个查询都应被调用
+        call_types = {c[0] for c in call_log}
+        assert call_types == {"agent", "location"}, f"两个查询都应被调用，实际: {call_types}"
+        # 两个查询应几乎同时开始（时间差 < 30ms）
+        if len(call_log) >= 2:
+            sorted_log = sorted(call_log, key=lambda x: x[1])
+            time_diff = sorted_log[1][1] - sorted_log[0][1]
+            assert time_diff < 0.03, (
+                f"两个查询应并行开始，但时间差为 {time_diff:.3f}s（预期 < 0.03s）"
+            )
+
+
+# ---------------------------------------------------------------------------
+# 6. context.py: load_world locations+agents 并行查询
+# ---------------------------------------------------------------------------
+
+
+class TestLoadWorldParallelQueries:
+    """ContextBuilder.load_world 中 locations 和 agents 的查询应并行执行。"""
+
+    @pytest.mark.asyncio
+    async def test_load_world_queries_parallel(self, db_session):
+        """load_world 的 locations 和 agents 查询应并行，不串行。"""
+        from app.sim.context import ContextBuilder
+        from app.store.repositories import AgentRepository, LocationRepository
+
+        call_log: list[tuple[str, float]] = []
+        real_agent_list = AgentRepository.list_for_run
+        real_loc_list = LocationRepository.list_for_run
+
+        async def slow_agent_list(self, run_id):
+            import time
+            call_log.append(("agent", time.monotonic()))
+            await asyncio.sleep(0.05)
+            return await real_agent_list(self, run_id)
+
+        async def slow_loc_list(self, run_id):
+            import time
+            call_log.append(("location", time.monotonic()))
+            await asyncio.sleep(0.05)
+            return await real_loc_list(self, run_id)
+
+        run_id = "perf-load-world-parallel"
+        run = _make_run(run_id)
+        loc = _make_location(f"{run_id}-loc", run_id)
+        agent = _make_agent(f"{run_id}-agent-0", run_id, loc.id)
+        db_session.add_all([run, loc, agent])
+        await db_session.commit()
+
+        import time
+
+        with (
+            patch.object(AgentRepository, "list_for_run", slow_agent_list),
+            patch.object(LocationRepository, "list_for_run", slow_loc_list),
+        ):
+            cb = ContextBuilder(db_session)
+            t0 = time.monotonic()
+            await cb.load_world(run_id, run, tick_minutes=5)
+            elapsed = time.monotonic() - t0
+
+        assert elapsed < 0.08, (
+            f"load_world locations+agents 应并行查询，但耗时 {elapsed:.3f}s（预期 < 0.08s）"
+        )
+        call_types = {c[0] for c in call_log}
+        assert call_types == {"agent", "location"}
+        if len(call_log) >= 2:
+            sorted_log = sorted(call_log, key=lambda x: x[1])
+            time_diff = sorted_log[1][1] - sorted_log[0][1]
+            assert time_diff < 0.03, (
+                f"两个查询应并行开始，但时间差为 {time_diff:.3f}s（预期 < 0.03s）"
+            )
+
+
+# ---------------------------------------------------------------------------
+# 7. coordinator.py: observe_run agents+events 并行查询
+# ---------------------------------------------------------------------------
+
+
+class TestObserveRunParallelQueries:
+    """observe_run 中 agents 和 events 查询应并行执行。"""
+
+    @pytest.mark.asyncio
+    async def test_observe_run_queries_parallel(self, db_session):
+        """observe_run 的 agents 和 events 查询应并行，不串行。"""
+        from app.scenario.truman_world.coordinator import TrumanWorldCoordinator
+        from app.store.repositories import AgentRepository, EventRepository
+
+        call_log: list[tuple[str, float]] = []
+        real_agent_list = AgentRepository.list_for_run
+        real_event_list = EventRepository.list_for_run
+
+        async def slow_agent_list(self, run_id):
+            import time
+            call_log.append(("agent", time.monotonic()))
+            await asyncio.sleep(0.05)
+            return await real_agent_list(self, run_id)
+
+        async def slow_event_list(self, run_id, limit=None, **kwargs):
+            import time
+            call_log.append(("event", time.monotonic()))
+            await asyncio.sleep(0.05)
+            return await real_event_list(self, run_id, limit=limit, **kwargs)
+
+        run_id = "perf-observe-run-parallel"
+        run = _make_run(run_id)
+        loc = _make_location(f"{run_id}-loc", run_id)
+        agent = _make_agent(f"{run_id}-agent-0", run_id, loc.id)
+        db_session.add_all([run, loc, agent])
+        await db_session.commit()
+
+        import time
+
+        with (
+            patch.object(AgentRepository, "list_for_run", slow_agent_list),
+            patch.object(EventRepository, "list_for_run", slow_event_list),
+        ):
+            coordinator = TrumanWorldCoordinator(db_session)
+            t0 = time.monotonic()
+            await coordinator.observe_run(run_id)
+            elapsed = time.monotonic() - t0
+
+        assert elapsed < 0.08, (
+            f"observe_run agents+events 应并行查询，但耗时 {elapsed:.3f}s（预期 < 0.08s）"
+        )
+        call_types = {c[0] for c in call_log}
+        assert "agent" in call_types and "event" in call_types
+        if len(call_log) >= 2:
+            sorted_log = sorted(call_log, key=lambda x: x[1])
+            time_diff = sorted_log[1][1] - sorted_log[0][1]
+            assert time_diff < 0.03, (
+                f"两个查询应并行开始，但时间差为 {time_diff:.3f}s（预期 < 0.03s）"
+            )
+
+
+# ---------------------------------------------------------------------------
+# 8. persistence.py: persist_tick_relationships 双向 upsert 正确性
+# ---------------------------------------------------------------------------
+
+
+class TestPersistRelationshipsCorrectness:
+    """注： upsert_interaction 内部包含 session.commit()，
+    同一 session 并发 commit 会导致 SQLAlchemy IllegalStateChangeError。
+    因此该优化不适合并行，保d为串行。
+    此测试验证双向 upsert 均被执行且数据正确。
+    """
+
+    @pytest.mark.asyncio
+    async def test_bidirectional_upsert_both_executed(self, db_session):
+        """对话事件的 actor→target 和 target→actor 两次 upsert 均被执行。"""
+        from app.sim.persistence import PersistenceManager
+        from app.store.repositories import RelationshipRepository
+
+        upsert_calls: list[tuple[str, str]] = []
+        real_upsert = RelationshipRepository.upsert_interaction
+
+        async def tracking_upsert(self, run_id, agent_id, other_agent_id, **kwargs):
+            upsert_calls.append((agent_id, other_agent_id))
+            return await real_upsert(self, run_id, agent_id, other_agent_id, **kwargs)
+
+        run_id = "perf-rel-correct"
+        run = _make_run(run_id)
+        loc = _make_location(f"{run_id}-loc", run_id)
+        actor = _make_agent(f"{run_id}-actor", run_id, loc.id)
+        target = _make_agent(f"{run_id}-target", run_id, loc.id)
+        db_session.add_all([run, loc, actor, target])
+        await db_session.commit()
+
+        from app.store.models import Event as EventModel
+        from uuid import uuid4
+        from datetime import datetime, UTC
+
+        talk_event = EventModel(
+            id=str(uuid4()),
+            run_id=run_id,
+            tick_no=1,
+            event_type="talk",
+            actor_agent_id=actor.id,
+            target_agent_id=target.id,
+            world_time=datetime.now(UTC),
+            payload={},
+        )
+
+        with patch.object(RelationshipRepository, "upsert_interaction", tracking_upsert):
+            pm = PersistenceManager(db_session)
+            await pm.persist_tick_relationships(run_id, [talk_event])
+
+        assert len(upsert_calls) == 2, f"应执行两次 upsert，实际: {len(upsert_calls)}"
+        # actor→target 和 target→actor 均存在
+        assert (actor.id, target.id) in upsert_calls
+        assert (target.id, actor.id) in upsert_calls

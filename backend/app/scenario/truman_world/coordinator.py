@@ -56,8 +56,10 @@ class TrumanWorldCoordinator:
             msg = f"Run not found: {run_id}"
             raise ValueError(msg)
 
-        agents = await self.agent_repo.list_for_run(run_id)
-        events = await self.event_repo.list_for_run(run_id, limit=event_limit)
+        agents, events = await asyncio.gather(
+            self.agent_repo.list_for_run(run_id),
+            self.event_repo.list_for_run(run_id, limit=event_limit),
+        )
 
         # 获取上一次的怀疑度用于趋势计算
         previous_suspicion_score = 0.0

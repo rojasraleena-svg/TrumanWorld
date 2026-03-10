@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 import json
 from uuid import UUID, uuid4
@@ -427,12 +428,12 @@ async def get_timeline(
     location_repo = LocationRepository(session)
     event_repo = EventRepository(session)
 
-    agents = await agent_repo.list_for_run(str(run_id))
-    locations = await location_repo.list_for_run(str(run_id))
+    agents, locations = await asyncio.gather(
+        agent_repo.list_for_run(str(run_id)),
+        location_repo.list_for_run(str(run_id)),
+    )
     agent_name_map = {agent.id: agent.name for agent in agents}
     location_name_map = {location.id: location.name for location in locations}
-
-    # 计算世界时间基准信息
     metadata = run.metadata_json or {}
     raw_start = metadata.get("world_start_time")
     if isinstance(raw_start, str):
@@ -567,9 +568,11 @@ async def get_run_events(
     location_repo = LocationRepository(session)
     event_repo = EventRepository(session)
 
-    agents = await agent_repo.list_for_run(str(run_id))
-    locations = await location_repo.list_for_run(str(run_id))
-    events = await event_repo.list_for_run(str(run_id), limit=limit)
+    agents, locations, events = await asyncio.gather(
+        agent_repo.list_for_run(str(run_id)),
+        location_repo.list_for_run(str(run_id)),
+        event_repo.list_for_run(str(run_id), limit=limit),
+    )
 
     agent_name_map = {agent.id: agent.name for agent in agents}
     location_name_map = {location.id: location.name for location in locations}
