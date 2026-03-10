@@ -8,7 +8,7 @@ from app.agent.registry import AgentRegistry
 from app.infra.settings import get_settings
 from app.scenario.truman_world.rules import load_world_config
 from app.sim.context import DEFAULT_WORLD_START_TIME
-from app.scenario.truman_world.types import build_scenario_agent_profile
+from app.scenario.truman_world.types import build_agent_profile
 from app.store.models import Agent, Location, Relationship
 
 if TYPE_CHECKING:
@@ -141,7 +141,7 @@ class TrumanWorldSeedBuilder:
             if config.work_schedule and config.work_schedule.type:
                 schedule_type = config.work_schedule.type
 
-            profile = build_scenario_agent_profile(
+            profile = build_agent_profile(
                 bio=bio,
                 agent_config_id=config.id,
                 world_role=config.world_role,

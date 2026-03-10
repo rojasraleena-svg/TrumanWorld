@@ -211,7 +211,3 @@ def _parse_config(config_dict: dict[str, Any]) -> DirectorConfig:
         effectiveness=effectiveness_config,
         scene_goals=scene_goals,
     )
-
-
-# Backward compatibility alias
-get_director_config = load_director_config

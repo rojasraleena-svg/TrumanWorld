@@ -6,10 +6,6 @@ from typing import Any, TypedDict
 from app.scenario.types import AgentProfile, get_world_role, get_agent_config_id
 from app.scenario.truman_world.types import DirectorGuidance
 
-# Re-export for backward compatibility
-ScenarioAgentProfile = AgentProfile
-WorldRole = str
-
 
 @dataclass
 class AgentDecisionSnapshot:

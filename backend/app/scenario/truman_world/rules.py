@@ -45,9 +45,6 @@ def load_world_config() -> dict[str, Any]:
     return _WORLD_CONFIG_CACHE
 
 
-# Backward compatibility alias
-_load_world_config = load_world_config
-
 
 def build_perception_context(
     viewer_id: str,
@@ -143,7 +140,7 @@ def build_world_common_knowledge() -> dict[str, Any]:
     
     Configuration is loaded from world_config.yml for easy management.
     """
-    config = _load_world_config()
+    config = load_world_config()
     return {
         "daily_rhythm": config.get("daily_rhythm", {}),
         "location_purposes": config.get("location_purposes", {}),

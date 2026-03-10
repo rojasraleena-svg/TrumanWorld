@@ -2,32 +2,24 @@
 
 Generic types (AgentProfile, ScenarioGuidance, get_world_role, get_agent_config_id,
 build_agent_profile, merge_agent_profile) now live in app.scenario.types.
-This module keeps TrumanWorld-private extensions and re-exports the generics
-under their old names for backward compatibility within this package.
 """
 
 from __future__ import annotations
 
 from typing import Any, Literal, Mapping, TypedDict
 
-# ---------------------------------------------------------------------------
-# Re-export generic types under legacy names used inside truman_world/
-# ---------------------------------------------------------------------------
 from app.scenario.types import (
-    AgentProfile as ScenarioAgentProfile,
-    WorldRole,
-    get_world_role,
+    AgentProfile,
+    build_agent_profile,
     get_agent_config_id,
-    build_agent_profile as build_scenario_agent_profile,
+    get_world_role,
 )
 
 __all__ = [
     "DirectorGuidance",
-    "ScenarioAgentProfile",
-    "WorldRole",
     "get_world_role",
     "get_agent_config_id",
-    "build_scenario_agent_profile",
+    "build_agent_profile",
     "merge_scenario_agent_profile",
     "build_director_guidance",
     "get_director_guidance",

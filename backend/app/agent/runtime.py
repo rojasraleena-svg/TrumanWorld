@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -203,6 +204,109 @@ class AgentRuntime:
         if runtime_ctx and runtime_ctx.run_id and not invocation.run_id:
             invocation = invocation.model_copy(update={"run_id": runtime_ctx.run_id})
         return await self.decide_intent(invocation, runtime_ctx=runtime_ctx)
+
+    async def run_planner(
+        self,
+        agent_id: str,
+        agent_name: str,
+        world_context: dict[str, Any],
+        recent_memories: list[dict[str, Any]] | None = None,
+    ) -> dict | None:
+        """Run the daily planning LLM call and return parsed plan dict.
+
+        Returns a dict with keys {morning, daytime, evening, intention} or None on failure.
+        """
+        context: dict[str, Any] = {**world_context}
+        if recent_memories:
+            context["recent_memories"] = recent_memories
+        prompt = self.prompt_loader.render_planner_prompt(
+            agent_name=agent_name,
+            context=context,
+        )
+        return await self._run_free_text_llm(agent_id, "planner", prompt)
+
+    async def run_reflector(
+        self,
+        agent_id: str,
+        agent_name: str,
+        world_context: dict[str, Any],
+        daily_events: list[dict[str, Any]] | None = None,
+    ) -> dict | None:
+        """Run the daily reflection LLM call and return parsed reflection dict.
+
+        Returns a dict with keys {reflection, mood, key_person, tomorrow_intention} or None on failure.
+        """
+        context: dict[str, Any] = {**world_context}
+        prompt = self.prompt_loader.render_reflector_prompt(
+            agent_name=agent_name,
+            context=context,
+            daily_events=daily_events or [],
+        )
+        return await self._run_free_text_llm(agent_id, "reflector", prompt)
+
+    async def _run_free_text_llm(
+        self,
+        agent_id: str,
+        task: str,
+        prompt: str,
+    ) -> dict | None:
+        """Call the LLM with the given prompt and extract JSON from the response."""
+        settings = get_settings()
+        if settings.agent_provider != "claude":
+            logger.debug(f"Skipping {task} for {agent_id}: provider is not claude")
+            return None
+        if shutil.which("claude") is None:
+            logger.warning(f"Skipping {task} for {agent_id}: claude CLI not available")
+            return None
+
+        from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
+
+        env: dict[str, str] = {}
+        if settings.anthropic_api_key:
+            env["ANTHROPIC_API_KEY"] = settings.anthropic_api_key
+        if settings.anthropic_base_url:
+            env["ANTHROPIC_BASE_URL"] = settings.anthropic_base_url
+
+        from app.agent.system_prompt import build_system_prompt
+
+        options = ClaudeAgentOptions(
+            max_turns=4,
+            max_budget_usd=0.05,
+            model=settings.agent_model,
+            cwd=str(settings.project_root),
+            env=env,
+            system_prompt=build_system_prompt(),
+        )
+
+        full_prompt = f"{prompt}\n\n重要：只返回 JSON，不要有任何其他文字。"
+
+        result_text: str | None = None
+        gen = None
+        try:
+            gen = query(prompt=full_prompt, options=options)
+            async for message in gen:
+                if isinstance(message, ResultMessage):
+                    if message.is_error:
+                        logger.warning(f"{task} LLM error for {agent_id}: {message.result}")
+                        return None
+                    result_text = message.result
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"{task} LLM call failed for {agent_id}: {exc}")
+            return None
+        finally:
+            if gen is not None:
+                try:
+                    await gen.aclose()
+                except RuntimeError:
+                    pass
+
+        if not result_text:
+            return None
+
+        parsed = PromptLoader.extract_json_from_text(result_text)
+        if parsed is None:
+            logger.warning(f"{task} could not parse JSON for {agent_id}: {result_text[:200]}")
+        return parsed
 
     def derive_intent(self, invocation: RuntimeInvocation) -> ActionIntent:
         world = invocation.context.get("world", {})

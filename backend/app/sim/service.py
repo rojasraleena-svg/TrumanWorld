@@ -36,12 +36,18 @@ from app.sim.action_resolver import ActionIntent
 from app.sim.agent_snapshot_builder import build_agent_recent_events
 from app.sim.context import ContextBuilder, get_run_world_time
 from app.sim.event_utils import build_event
-from app.sim.persistence import PersistenceManager
+from app.sim.day_boundary import (
+    run_evening_reflection,
+    run_morning_planning,
+    should_run_planner,
+    should_run_reflector,
+)
 from app.sim.runtime_context_utils import (
     build_agent_world_context,
     extract_truman_suspicion_from_agent_data,
     inject_profile_fields_into_context,
 )
+from app.sim.persistence import PersistenceManager
 from app.sim.runner import SimulationRunner, TickResult
 from app.sim.types import AgentDecisionSnapshot
 from app.sim.world import WorldState
@@ -229,6 +235,29 @@ class SimulationService:
                     await llm_session.commit()
             except Exception as exc:
                 _logger.warning(f"Failed to persist llm_calls for run {run_id}: {exc}")
+
+        # Phase 4: Day boundary tasks (planner / reflector) – non-blocking, errors are logged
+        if engine is not None:
+            try:
+                if should_run_planner(world):
+                    await run_morning_planning(
+                        run_id=run_id,
+                        tick_no=result.tick_no,
+                        world=world,
+                        engine=engine,
+                        agent_runtime=self.agent_runtime,
+                    )
+                elif should_run_reflector(world):
+                    await run_evening_reflection(
+                        run_id=run_id,
+                        tick_no=result.tick_no,
+                        world=world,
+                        engine=engine,
+                        agent_runtime=self.agent_runtime,
+                    )
+            except Exception as _exc:  # noqa: BLE001
+                from app.infra.logging import get_logger as _get_logger
+                _get_logger(__name__).warning(f"Day boundary task failed: {_exc}")
 
         return result
 

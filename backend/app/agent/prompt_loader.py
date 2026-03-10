@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
+
+
+PLANNER_PROMPT_PATH = Path(__file__).with_name("prompts") / "planner.md"
+REFLECTOR_PROMPT_PATH = Path(__file__).with_name("prompts") / "reflector.md"
 
 
 class PromptLoader:
@@ -128,6 +133,65 @@ class PromptLoader:
             return f"[Tick {tick_no}] {actor_name} 正在休息"
         else:
             return f"[Tick {tick_no}] {actor_name} 执行了 {event_type}"
+
+    def render_planner_prompt(self, agent_name: str, context: dict[str, object]) -> str:
+        """Render the daily planning prompt for a given agent."""
+        base = PLANNER_PROMPT_PATH.read_text(encoding="utf-8").strip()
+        base = base.replace("{agent_name}", agent_name)
+        lines = [
+            base,
+            "",
+            "# 运行上下文",
+            "```json",
+            self._to_pretty_json(context),
+            "```",
+        ]
+        return "\n".join(lines)
+
+    def render_reflector_prompt(
+        self,
+        agent_name: str,
+        context: dict[str, object],
+        daily_events: list[dict[str, object]],
+    ) -> str:
+        """Render the daily reflection prompt for a given agent."""
+        base = REFLECTOR_PROMPT_PATH.read_text(encoding="utf-8").strip()
+        base = base.replace("{agent_name}", agent_name)
+        lines = [base, ""]
+        if daily_events:
+            lines.append("# 今日事件回顾")
+            lines.append("以下是今天发生的事情：")
+            lines.append("")
+            for evt in daily_events:
+                lines.append(self._format_event(evt))
+            lines.append("")
+        lines.extend([
+            "# 运行上下文",
+            "```json",
+            self._to_pretty_json(context),
+            "```",
+        ])
+        return "\n".join(lines)
+
+    @staticmethod
+    def extract_json_from_text(text: str) -> dict | None:
+        """Extract the first JSON object from LLM text output."""
+        text = text.strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```json?\n?", "", text)
+            text = re.sub(r"\n?```$", "", text)
+        text = text.strip()
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            start = text.find("{")
+            end = text.rfind("}")
+            if start != -1 and end > start:
+                try:
+                    return json.loads(text[start : end + 1])
+                except json.JSONDecodeError:
+                    return None
+        return None
 
     def _to_pretty_json(self, payload: dict[str, object]) -> str:
         return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True, default=str)

@@ -14,7 +14,6 @@ from app.scenario.truman_world.rules import (
 from app.scenario.truman_world.coordinator import TrumanWorldCoordinator
 from app.scenario.truman_world.seed import TrumanWorldSeedBuilder
 from app.scenario.truman_world.state import TrumanWorldStateUpdater
-from app.scenario.truman_world.types import DirectorGuidance, ScenarioAgentProfile
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,7 +69,7 @@ class TrumanWorldScenario(Scenario):
     async def build_director_plan(self, run_id: str, agents: list[Agent]):
         return await self.coordinator.build_director_plan(run_id, agents)
 
-    def merge_agent_profile(self, agent: Agent, plan) -> ScenarioAgentProfile:
+    def merge_agent_profile(self, agent: Agent, plan) -> AgentProfile:
         return self.coordinator.merge_agent_profile(agent, plan)
 
     def fallback_intent(
@@ -85,22 +84,6 @@ class TrumanWorldScenario(Scenario):
         scenario_state: dict | None = None,
         scenario_guidance: ScenarioGuidance | None = None,
     ):
-        # Extract truman-specific fields from scenario_state for backward compat
-        truman_suspicion_score = float(
-            (scenario_state or {}).get("truman_suspicion_score", 0.0) or 0.0
-        )
-        # scenario_guidance carries generic keys; DirectorGuidance uses director_ prefixed keys
-        director_guidance: DirectorGuidance | None = None
-        if scenario_guidance:
-            from app.scenario.truman_world.types import build_director_guidance
-            director_guidance = build_director_guidance(
-                scene_goal=scenario_guidance.get("scene_goal"),
-                priority=scenario_guidance.get("priority"),
-                message_hint=scenario_guidance.get("message_hint"),
-                target_agent_id=scenario_guidance.get("target_agent_id"),
-                location_hint=scenario_guidance.get("location_hint"),
-                reason=scenario_guidance.get("reason"),
-            )
         return self.coordinator.fallback_intent(
             agent_id=agent_id,
             current_location_id=current_location_id,
@@ -108,8 +91,8 @@ class TrumanWorldScenario(Scenario):
             nearby_agent_id=nearby_agent_id,
             world_role=world_role,
             current_status=current_status,
-            truman_suspicion_score=truman_suspicion_score,
-            director_guidance=director_guidance,
+            scenario_state=scenario_state,
+            scenario_guidance=scenario_guidance,
         )
 
     async def seed_demo_run(self, run: SimulationRun) -> None:

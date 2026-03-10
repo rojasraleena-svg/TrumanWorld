@@ -10,10 +10,10 @@ from app.infra.logging import get_logger
 from app.scenario.truman_world.heuristics import build_truman_world_decision
 from app.scenario.truman_world.types import (
     DirectorGuidance,
-    ScenarioAgentProfile,
     build_director_guidance,
     merge_scenario_agent_profile,
 )
+from app.scenario.types import AgentProfile, get_world_role
 from app.sim.action_resolver import ActionIntent
 from app.sim.context import get_run_world_time
 from app.sim.types import RuntimeWorldContext
@@ -161,7 +161,7 @@ class TrumanWorldCoordinator:
             # 如果智能决策失败，回退到纯规则决策
             plan = self.planner._build_config_based_plan(
                 assessment=assessment,
-                cast_agents=[a for a in agents if self._get_world_role(a) == "cast"],
+                cast_agents=[a for a in agents if get_world_role(a.profile) == "cast"],
                 recent_goals=set(recent_goals),
             )
 
@@ -188,11 +188,6 @@ class TrumanWorldCoordinator:
                 )
 
         return plan
-
-    def _get_world_role(self, agent: Agent) -> str:
-        """Get world role from agent profile."""
-        from app.scenario.truman_world.types import get_world_role
-        return get_world_role(agent.profile)
 
     def _convert_memory_to_plan(self, memory) -> DirectorPlan:
         """将 DirectorMemory 转换为 DirectorPlan"""
@@ -236,7 +231,7 @@ class TrumanWorldCoordinator:
             previous_suspicion_score=previous_suspicion_score,
         )
 
-    def merge_agent_profile(self, agent: Agent, plan) -> ScenarioAgentProfile:
+    def merge_agent_profile(self, agent: Agent, plan) -> AgentProfile:
         guidance = {}
         if plan and agent.id in plan.target_cast_ids:
             guidance = build_director_guidance(
@@ -279,15 +274,27 @@ class TrumanWorldCoordinator:
         nearby_agent_id: str | None,
         world_role: str | None = None,
         current_status: dict | None = None,
-        truman_suspicion_score: float = 0.0,
-        director_guidance: DirectorGuidance | None = None,
+        scenario_state: dict | None = None,
+        scenario_guidance=None,
     ) -> ActionIntent | None:
-        guidance = director_guidance or {}
+        truman_suspicion_score = float(
+            (scenario_state or {}).get("truman_suspicion_score", 0.0) or 0.0
+        )
+        director_guidance: DirectorGuidance = {}
+        if scenario_guidance:
+            director_guidance = build_director_guidance(
+                scene_goal=scenario_guidance.get("scene_goal"),
+                priority=scenario_guidance.get("priority"),
+                message_hint=scenario_guidance.get("message_hint"),
+                target_agent_id=scenario_guidance.get("target_agent_id"),
+                location_hint=scenario_guidance.get("location_hint"),
+                reason=scenario_guidance.get("reason"),
+            )
         runtime_world: RuntimeWorldContext = {
             "world_role": world_role,
             "self_status": current_status or {},
             "truman_suspicion_score": truman_suspicion_score,
-            **guidance,
+            **director_guidance,
         }
         decision = build_truman_world_decision(
             world=runtime_world,
