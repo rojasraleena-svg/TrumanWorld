@@ -118,6 +118,36 @@ cd frontend && npm run lint && npm run build
 | **Agent 详情** | 查看任意 AI 的记忆、关系网络、历史行为 |
 | **导演观察** | Truman 的当前怀疑度、世界连续性风险评估 |
 
+### 世界视图
+
+小镇地图实时展示所有 AI 的位置与活跃度热力图，右侧面板显示世界健康度、导演干预状态与今日故事线。
+
+![世界视图](docs/images/world-view.jpg)
+
+### Agent 详情
+
+点击任意 AI 可查看其人格特质、内部记忆栈、关系网络与近期事件。
+
+![Agent 详情](docs/images/agent-detail.png)
+
+### 导演干预控制台
+
+注入事件、查看所有待执行干预计划及其执行状态。
+
+![导演干预控制台](docs/images/director-console.png)
+
+### 事件回放
+
+按 Tick 回放事件流，支持按角色、事件类型筛选，适合复盘剧情节点与角色行为链路。
+
+![事件回放](docs/images/event-timeline.png)
+
+### 地点详情
+
+点击地图上任意地点，查看当前居民、容量及该地点的历史事件流。
+
+![地点详情](docs/images/location-detail.png)
+
 ---
 
 ## 适合谁用
