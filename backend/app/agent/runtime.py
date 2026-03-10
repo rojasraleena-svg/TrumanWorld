@@ -212,6 +212,7 @@ class AgentRuntime:
         agent_name: str,
         world_context: dict[str, Any],
         recent_memories: list[dict[str, Any]] | None = None,
+        runtime_ctx: "RuntimeContext | None" = None,
     ) -> dict | None:
         """Run the daily planning LLM call and return parsed plan dict.
 
@@ -224,7 +225,7 @@ class AgentRuntime:
             agent_name=agent_name,
             context=context,
         )
-        return await self._run_free_text_llm(agent_id, "planner", prompt)
+        return await self._run_free_text_llm(agent_id, "planner", prompt, runtime_ctx=runtime_ctx)
 
     async def run_reflector(
         self,
@@ -232,6 +233,7 @@ class AgentRuntime:
         agent_name: str,
         world_context: dict[str, Any],
         daily_events: list[dict[str, Any]] | None = None,
+        runtime_ctx: "RuntimeContext | None" = None,
     ) -> dict | None:
         """Run the daily reflection LLM call and return parsed reflection dict.
 
@@ -243,13 +245,14 @@ class AgentRuntime:
             context=context,
             daily_events=daily_events or [],
         )
-        return await self._run_free_text_llm(agent_id, "reflector", prompt)
+        return await self._run_free_text_llm(agent_id, "reflector", prompt, runtime_ctx=runtime_ctx)
 
     async def _run_free_text_llm(
         self,
         agent_id: str,
         task: str,
         prompt: str,
+        runtime_ctx: "RuntimeContext | None" = None,
     ) -> dict | None:
         """Call the LLM with the given prompt and extract JSON from the response."""
         settings = get_settings()
@@ -290,6 +293,15 @@ class AgentRuntime:
                     if message.is_error:
                         logger.warning(f"{task} LLM error for {agent_id}: {message.result}")
                         return None
+                    # Record token usage if callback is provided
+                    if runtime_ctx and runtime_ctx.on_llm_call:
+                        runtime_ctx.on_llm_call(
+                            agent_id=agent_id,
+                            task_type=task,
+                            usage=message.usage,
+                            total_cost_usd=message.total_cost_usd,
+                            duration_ms=message.duration_ms,
+                        )
                     result_text = message.result
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"{task} LLM call failed for {agent_id}: {exc}")

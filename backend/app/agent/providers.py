@@ -238,12 +238,58 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
         invocation: RuntimeInvocation,
         runtime_ctx: "RuntimeContext | None" = None,
     ) -> RuntimeDecision:
-        """使用连接池的客户端进行决策"""
+        """使用连接池的客户端进行决策，支持重试（与 _decide_with_query 保持一致）。"""
+        max_attempts = self.max_retries + 1
+        last_exc: Exception | None = None
+
+        for attempt in range(max_attempts):
+            try:
+                return await self._decide_with_pool_once(invocation, runtime_ctx=runtime_ctx)
+            except asyncio.CancelledError:
+                logger.debug(f"Claude SDK pool decision cancelled for agent {invocation.agent_id}")
+                return RuntimeDecision(action_type="rest")
+            except RuntimeError as e:
+                if "cancel scope" in str(e).lower() or "different task" in str(e).lower():
+                    logger.debug(f"Claude SDK pool cancel scope error for agent {invocation.agent_id}: {e}")
+                    return RuntimeDecision(action_type="rest")
+                last_exc = e
+                if attempt < max_attempts - 1:
+                    logger.warning(
+                        f"Claude SDK pool decision failed for agent {invocation.agent_id} "
+                        f"(attempt {attempt + 1}/{max_attempts}): {e}. Retrying..."
+                    )
+                else:
+                    logger.warning(
+                        f"Claude SDK pool decision exhausted all {max_attempts} attempts "
+                        f"for agent {invocation.agent_id}: {e}"
+                    )
+            except ValueError as e:
+                last_exc = e
+                if attempt < max_attempts - 1:
+                    logger.warning(
+                        f"Claude SDK pool JSON parse failed for agent {invocation.agent_id} "
+                        f"(attempt {attempt + 1}/{max_attempts}): {e}. Retrying..."
+                    )
+                else:
+                    logger.warning(
+                        f"Claude SDK pool JSON parse exhausted all {max_attempts} attempts "
+                        f"for agent {invocation.agent_id}: {e}"
+                    )
+
+        raise last_exc  # type: ignore[misc]
+
+    async def _decide_with_pool_once(
+        self,
+        invocation: RuntimeInvocation,
+        runtime_ctx: "RuntimeContext | None" = None,
+    ) -> RuntimeDecision:
+        """使用连接池的客户端进行单次决策，失败时正确标记 had_error。"""
         from claude_agent_sdk import AssistantMessage
 
         result_decision: RuntimeDecision | None = None
         captured_session_id: str | None = None
         pool_key = self._get_pool_key(invocation)
+        had_error = False
 
         # Acquire client from pool
         client = await self._pool.acquire(pool_key)
@@ -289,6 +335,21 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
                     if message.is_error:
                         msg = message.result or "Claude SDK decision failed"
                         raise RuntimeError(msg)
+                    # 如果 AssistantMessage 未能解析出决策，尝试从 ResultMessage.result 解析
+                    if result_decision is None and message.result:
+                        text = message.result.strip()
+                        if text.startswith("```"):
+                            text = re.sub(r"^```json?\n?", "", text)
+                            text = re.sub(r"\n?```$", "", text)
+                        text = text.strip()
+                        try:
+                            result_decision = RuntimeDecision.model_validate_json(text)
+                        except Exception:
+                            start = text.find("{")
+                            end = text.rfind("}")
+                            if start != -1 and end != -1 and end > start:
+                                json_str = text[start : end + 1]
+                                result_decision = RuntimeDecision.model_validate_json(json_str)
                     # 记录 token 消耗
                     if runtime_ctx and runtime_ctx.on_llm_call:
                         runtime_ctx.on_llm_call(
@@ -300,15 +361,20 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
                         )
 
             if result_decision is None:
+                had_error = True
                 msg = "Claude SDK returned no decision"
                 raise RuntimeError(msg)
 
             return result_decision
 
+        except Exception:
+            had_error = True
+            raise
         finally:
-            # 释放连接并保存 session_id
+            # 释放连接并正确传递错误状态，确保 error_count 正确累计
             await self._pool.release(
                 pool_key,
+                had_error=had_error,
                 session_id=captured_session_id,
             )
 
