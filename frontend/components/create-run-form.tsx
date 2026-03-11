@@ -4,10 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, useRef, useCallback } from "react";
 
 import { createRunResult } from "@/lib/api";
+import { useRuns } from "@/components/runs-provider";
 import { WorldOpeningAnimation } from "@/components/world-opening-animation";
 
 export function CreateRunForm() {
   const router = useRouter();
+  const { refreshRuns } = useRuns();
   const [name, setName] = useState("demo-run");
   const [scenarioType, setScenarioType] = useState<"truman_world" | "open_world">("truman_world");
   const [tickMinutes, setTickMinutes] = useState(5);
@@ -23,7 +25,6 @@ export function CreateRunForm() {
   const doNavigate = useCallback(() => {
     if (pendingRunId.current) {
       router.push(`/runs/${pendingRunId.current}/world`);
-      router.refresh();
     }
   }, [router]);
 
@@ -54,6 +55,7 @@ export function CreateRunForm() {
         startTransition(async () => {
           const result = await createRunResult(name, scenarioType, true, tickMinutes);
           if (result.data) {
+            await refreshRuns();
             pendingRunId.current = result.data.id;
             // 如果动画已经先播完，立即跳转
             if (animationDone.current) {

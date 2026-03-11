@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { pauseRunResult, resumeRunResult, restoreAllRunsResult } from "@/lib/api";
+import { useRuns } from "@/components/runs-provider";
 
 type Run = { id: string; status: string; was_running_before_restart?: boolean };
 
@@ -11,7 +11,7 @@ type RunControlsProps = {
 };
 
 export function RunControls({ runs }: RunControlsProps) {
-  const router = useRouter();
+  const { refreshRuns } = useRuns();
   const [isPending, startTransition] = useTransition();
   const [busy, setBusy] = useState<"pause" | "resume" | "restore" | null>(null);
   const [message, setMessage] = useState("");
@@ -31,7 +31,7 @@ export function RunControls({ runs }: RunControlsProps) {
         return;
       }
       setMessage("");
-      router.refresh();
+      await refreshRuns();
     });
   };
 
@@ -57,7 +57,7 @@ export function RunControls({ runs }: RunControlsProps) {
       }
       setBusy(null);
       setMessage("");
-      router.refresh();
+      await refreshRuns();
     });
   };
 

@@ -1,13 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { deleteRun } from "@/lib/api";
+import { useRuns } from "@/components/runs-provider";
 
 type Run = { id: string };
 
 export function DeleteAllButton({ runs }: { runs: Run[] }) {
-  const router = useRouter();
+  const { refreshRuns } = useRuns();
   const [isPending, startTransition] = useTransition();
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
@@ -17,7 +17,7 @@ export function DeleteAllButton({ runs }: { runs: Run[] }) {
     startTransition(async () => {
       await Promise.all(runs.map((run) => deleteRun(run.id)));
       setIsDeletingAll(false);
-      router.refresh();
+      await refreshRuns();
     });
   };
 

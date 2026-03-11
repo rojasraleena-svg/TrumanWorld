@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition, useRef, useCallback } from "react";
 import { deleteRunResult } from "@/lib/api";
+import { useRuns } from "@/components/runs-provider";
 import { WorldOpeningAnimation } from "@/components/world-opening-animation";
 
 type Run = {
@@ -22,6 +23,7 @@ type RunListProps = {
 
 export function RunList({ runs }: RunListProps) {
   const router = useRouter();
+  const { refreshRuns } = useRuns();
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [animationVisible, setAnimationVisible] = useState(false);
@@ -49,7 +51,7 @@ export function RunList({ runs }: RunListProps) {
     startTransition(async () => {
       const result = await deleteRunResult(runId);
       if (result.data) {
-        router.refresh();
+        await refreshRuns();
       } else {
         alert(result.error === "network_error" ? "删除失败，后端当前不可达。" : "删除失败，请重试。");
       }
