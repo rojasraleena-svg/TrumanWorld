@@ -1,0 +1,99 @@
+name: Sync Fork with Upstream
+
+on:
+  # 定时每天检查一次（UTC 时间 00:00）
+  schedule:
+    - cron: '0 0 * * *'
+  # 允许手动触发
+  workflow_dispatch:
+    inputs:
+      sync_branch:
+        description: '要同步的分支'
+        required: false
+        default: 'main'
+        type: string
+
+# 可选配置 Secrets:
+# - PAT_TOKEN: 具有当前仓库写权限的 Personal Access Token (PAT)
+#   如果不设置，使用默认的 GITHUB_TOKEN
+
+env:
+  # 上游仓库配置
+  UPSTREAM_REPO: gqy20/TrumanWorld
+  UPSTREAM_BRANCH: main
+
+jobs:
+  sync-fork:
+    name: Sync Fork with Upstream
+    runs-on: ubuntu-latest
+    # 不在主仓库运行（避免在 gqy20/TrumanWorld 自身执行）
+    if: ${{ github.repository != env.UPSTREAM_REPO }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          UPSTREAM_URL="https://github.com/${{ env.UPSTREAM_REPO }}.git"
+          echo "Adding upstream: $UPSTREAM_URL"
+          git remote add upstream $UPSTREAM_URL || git remote set-url upstream $UPSTREAM_URL
+          git fetch upstream
+
+      - name: Sync branch
+        run: |
+          BRANCH="${{ github.event.inputs.sync_branch || env.UPSTREAM_BRANCH }}"
+          echo "Syncing branch: $BRANCH"
+
+          # 确保本地分支存在
+          git checkout $BRANCH
+
+          # 获取 upstream 的最新更新
+          git fetch upstream $BRANCH
+
+          # 检查是否有更新
+          LOCAL_COMMIT=$(git rev-parse HEAD)
+          UPSTREAM_COMMIT=$(git rev-parse upstream/$BRANCH)
+
+          if [ "$LOCAL_COMMIT" = "$UPSTREAM_COMMIT" ]; then
+            echo "✅ Fork is already up to date with upstream"
+            exit 0
+          fi
+
+          echo "🔄 Syncing fork with upstream..."
+          echo "Local commit: $LOCAL_COMMIT"
+          echo "Upstream commit: $UPSTREAM_COMMIT"
+
+          # 合并 upstream 的更新（使用 merge 策略保留 fork 的自定义更改）
+          git merge upstream/$BRANCH --no-edit
+
+          # 推送到当前仓库
+          git push origin $BRANCH
+
+          echo "✅ Successfully synced fork with upstream"
+
+      - name: Create sync summary
+        if: always()
+        run: |
+          echo "## Fork Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ **Sync completed successfully**" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ job.status }}" = "cancelled" ]; then
+            echo "⚠️ **Sync was cancelled**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Sync failed**" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Current Repo**: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Upstream**: ${{ env.UPSTREAM_REPO }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.event.inputs.sync_branch || env.UPSTREAM_BRANCH }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
