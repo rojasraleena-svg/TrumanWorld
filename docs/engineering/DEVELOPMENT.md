@@ -2,6 +2,11 @@
 
 > 快速上手 TrumanWorld 开发环境
 
+- 类型：`guide`
+- 状态：`active`
+- 负责人：`repo`
+- 最后更新：`2026-03-11`
+
 ---
 
 ## 📋 环境要求
@@ -460,8 +465,9 @@ make kill-ports
 
 | 文档 | 说明 |
 |------|------|
-| [PRD](PRD.md) | 产品需求文档 |
-| [架构设计](ARCHITECTURE.md) | 技术架构说明 |
-| [任务拆解](TASK_BREAKDOWN.md) | 开发任务分解 |
-| [Build vs Buy](BUILD_VS_BUY.md) | 复用/自研分析 |
-| [代码估算](ESTIMATE.md) | 代码量预估 |
+| [PRD](../product/PRD.md) | 产品需求文档 |
+| [当前架构](../engineering/CURRENT_ARCHITECTURE.md) | 当前技术架构说明 |
+| [MVP 架构历史稿](../references/MVP_ARCHITECTURE.md) | 历史架构基线 |
+| [任务拆解](../references/TASK_BREAKDOWN.md) | 开发任务分解 |
+| [Build vs Buy](../references/BUILD_VS_BUY.md) | 复用/自研分析 |
+| [代码估算](../references/ESTIMATE.md) | 代码量预估 |

@@ -1,5 +1,10 @@
 # Railway 部署说明
 
+- 类型：`runbook`
+- 状态：`active`
+- 负责人：`infra`
+- 最后更新：`2026-03-11`
+
 本项目适合在 Railway 上拆成 3 个服务：
 
 - `backend`：FastAPI + Alembic

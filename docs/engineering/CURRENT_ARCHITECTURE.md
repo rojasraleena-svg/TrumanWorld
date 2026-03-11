@@ -1,6 +1,8 @@
 # AI Truman World 当前架构设计
 
-- 状态：`Current Implementation`
+- 类型：`engineering`
+- 状态：`active`
+- 负责人：`repo`
 - 基线日期：`2026-03-10`
 
 ## 1. 文档定位
@@ -9,9 +11,9 @@
 
 如果你想了解最初为什么要收缩范围、MVP 当时刻意不做什么，请看：
 
-- [ARCHITECTURE.md](ARCHITECTURE.md)
-- [PRD.md](PRD.md)
-- [TASK_BREAKDOWN.md](TASK_BREAKDOWN.md)
+- [../references/MVP_ARCHITECTURE.md](../references/MVP_ARCHITECTURE.md)
+- [../product/PRD.md](../product/PRD.md)
+- [../references/TASK_BREAKDOWN.md](../references/TASK_BREAKDOWN.md)
 
 ## 2. 当前系统定位
 
@@ -101,7 +103,7 @@ backend/app/
 
 如果你是第一次进入项目，建议按这个顺序看：
 
-1. [DEVELOPMENT.md](DEVELOPMENT.md)
+1. [../engineering/DEVELOPMENT.md](../engineering/DEVELOPMENT.md)
 2. [CURRENT_ARCHITECTURE.md](CURRENT_ARCHITECTURE.md)
-3. [SCENARIOS.md](SCENARIOS.md)
-4. [PRD.md](PRD.md) 与 [ARCHITECTURE.md](ARCHITECTURE.md) 作为历史基线参考
+3. [../references/SCENARIOS.md](../references/SCENARIOS.md)
+4. [../product/PRD.md](../product/PRD.md) 与 [../references/MVP_ARCHITECTURE.md](../references/MVP_ARCHITECTURE.md) 作为历史基线参考

@@ -28,3 +28,6 @@ Recent history follows Conventional Commit prefixes such as `feat:`, `fix:`, `te
 
 ## Security & Configuration Tips
 Start from `.env.example` and keep secrets in a local `.env` only. Do not commit generated files from `.venv/`, caches, or local database state. Run `make pre-commit` before opening a PR to catch formatting, YAML/TOML, and merge-conflict issues early.
+
+## Documentation Guidelines
+Use the lightweight `docs/` hierarchy instead of the old flat layout. New feature designs should go under `docs/product/` as `FEATURE_<TOPIC>.md` and be linked from `docs/README.md`. Current implementation and developer-facing notes belong in `docs/engineering/`, operational guides in `docs/operations/`, and scenario/reference material in `docs/references/`.

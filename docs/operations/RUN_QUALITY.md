@@ -1,6 +1,8 @@
 # TrumanWorld 运行质量评估
 
-- 状态：`Draft`
+- 类型：`guide`
+- 状态：`draft`
+- 负责人：`director`
 - 最后更新：`2026-03-08`
 
 ## 1. 目标

@@ -16,7 +16,7 @@
 
 你的任务：观察、记录、创造条件——让 Truman 能真实地生活。
 
-当前仓库已经不再只是最初的 MVP 样机，而是一个持续演进中的实验系统。最初的 MVP 设计基线请看 [docs/PRD.md](docs/PRD.md) 与 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，当前实现请看 [docs/CURRENT_ARCHITECTURE.md](docs/CURRENT_ARCHITECTURE.md)。
+当前仓库已经不再只是最初的 MVP 样机，而是一个持续演进中的实验系统。最初的 MVP 设计基线请看 [docs/product/PRD.md](docs/product/PRD.md) 与 [docs/references/MVP_ARCHITECTURE.md](docs/references/MVP_ARCHITECTURE.md)，当前实现请看 [docs/engineering/CURRENT_ARCHITECTURE.md](docs/engineering/CURRENT_ARCHITECTURE.md)。完整文档导航见 [docs/README.md](docs/README.md)。
 
 ---
 
