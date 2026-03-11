@@ -12,11 +12,56 @@ type DirectorEventFormProps = {
 };
 
 const EVENT_OPTIONS = [
-  { value: "broadcast", label: "广播", needsLocation: false, placeholder: "输入要广播给居民的消息..." },
-  { value: "activity", label: "活动", needsLocation: true, placeholder: "输入活动内容..." },
-  { value: "shutdown", label: "地点关闭", needsLocation: true, placeholder: "输入关闭说明..." },
-  { value: "weather_change", label: "天气变化", needsLocation: false, placeholder: "输入天气变化说明..." },
-  { value: "power_outage", label: "停电", needsLocation: true, placeholder: "输入停电影响说明..." },
+  {
+    value: "broadcast",
+    label: "广播",
+    needsLocation: false,
+    placeholder: "输入要广播给居民的消息...",
+    hint: "向全局投递一个导演提示",
+    badge: "全局",
+    accent: "from-slate-700 via-slate-700 to-slate-600",
+    glow: "shadow-slate-200/60",
+  },
+  {
+    value: "activity",
+    label: "活动",
+    needsLocation: true,
+    placeholder: "输入活动内容...",
+    hint: "推动某个地点形成事件或聚集",
+    badge: "地点",
+    accent: "from-amber-600 via-amber-500 to-orange-500",
+    glow: "shadow-amber-200/60",
+  },
+  {
+    value: "shutdown",
+    label: "地点关闭",
+    needsLocation: true,
+    placeholder: "输入关闭说明...",
+    hint: "让角色围绕关闭状态自然反应",
+    badge: "限制",
+    accent: "from-stone-600 via-stone-500 to-amber-600",
+    glow: "shadow-stone-200/60",
+  },
+  {
+    value: "weather_change",
+    label: "天气变化",
+    needsLocation: false,
+    placeholder: "输入天气变化说明...",
+    hint: "注入环境变化，影响后续判断",
+    badge: "环境",
+    accent: "from-sky-600 via-sky-500 to-cyan-500",
+    glow: "shadow-sky-200/60",
+  },
+  {
+    value: "power_outage",
+    label: "停电",
+    needsLocation: true,
+    placeholder: "输入停电影响说明...",
+    hint: "制造公共异常，测试群体反应链路",
+    badge: "异常",
+    accent: "from-moss via-emerald-600 to-teal-600",
+    glow: "shadow-emerald-200/60",
+  },
 ] as const;
 
 const PRESET_MESSAGES: Record<string, string[]> = {
@@ -94,45 +139,132 @@ export function DirectorEventForm({
 
       {/* 表单字段 */}
       <div className="space-y-3">
-        <label className="block">
-          <span className="text-sm font-medium text-slate-600">事件类型</span>
-        </label>
-        <select
-          value={eventType}
-          onChange={(event) => {
-            const nextType = event.target.value as (typeof EVENT_OPTIONS)[number]["value"];
-            setEventType(nextType);
-            setMessage(PRESET_MESSAGES[nextType]?.[0] ?? "");
-            if (nextType === "broadcast" || nextType === "weather_change") {
-              setLocationId("");
-            }
-          }}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-hidden transition hover:border-slate-300 focus:border-moss focus:ring-2 focus:ring-moss/10"
-        >
-          {EVENT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <div className="space-y-2">
+          <label className="block">
+            <span className="text-sm font-medium text-slate-600">事件类型</span>
+          </label>
+          {compact ? (
+            <div className="flex flex-wrap gap-1.5">
+              {EVENT_OPTIONS.map((option) => {
+                const isActive = option.value === eventType;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      setEventType(option.value);
+                      setMessage(PRESET_MESSAGES[option.value]?.[0] ?? "");
+                      if (!option.needsLocation) {
+                        setLocationId("");
+                      }
+                    }}
+                    className={`rounded-full border px-2.5 py-1.5 text-xs font-medium transition ${
+                      isActive
+                        ? `border-transparent bg-gradient-to-r ${option.accent} text-white shadow-sm`
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
+              {EVENT_OPTIONS.map((option) => {
+                const isActive = option.value === eventType;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      setEventType(option.value);
+                      setMessage(PRESET_MESSAGES[option.value]?.[0] ?? "");
+                      if (!option.needsLocation) {
+                        setLocationId("");
+                      }
+                    }}
+                    className={`group relative overflow-hidden rounded-[20px] border px-4 py-3 text-left transition ${
+                      isActive
+                        ? "border-transparent bg-white shadow-md"
+                        : "border-slate-200/90 bg-white/85 hover:border-slate-300 hover:bg-white"
+                    }`}
+                  >
+                    <div
+                      className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${option.accent} transition-opacity ${
+                        isActive ? "opacity-100" : "opacity-40 group-hover:opacity-70"
+                      }`}
+                    />
+                    <div className="relative flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-slate-800">{option.label}</span>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                            {option.badge}
+                          </span>
+                        </div>
+                        <p className="text-xs leading-5 text-slate-500">{option.hint}</p>
+                      </div>
+                      <span
+                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] transition ${
+                          isActive
+                            ? `border-white/70 bg-gradient-to-br ${option.accent} text-white shadow-sm ${option.glow}`
+                            : "border-slate-200 bg-white text-transparent group-hover:text-slate-300"
+                        }`}
+                      >
+                        ●
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div className="rounded-[20px] border border-slate-200/80 bg-slate-50/80 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`inline-flex h-8 items-center rounded-full bg-gradient-to-r px-3 text-xs font-semibold text-white shadow-sm ${eventOption.accent}`}>
+                {eventOption.label}
+              </span>
+              <span className="text-xs text-slate-500">
+                {eventOption.needsLocation ? "需要指定地点后才可注入" : "无需地点，可直接作为全局提示注入"}
+              </span>
+            </div>
+            <p className={`mt-2 text-xs leading-5 text-slate-500 ${compact ? "line-clamp-2" : ""}`}>
+              {eventOption.hint}
+            </p>
+          </div>
+        </div>
         {eventOption.needsLocation && (
-          <>
+          <div className="space-y-2">
             <label className="block">
               <span className="text-sm font-medium text-slate-600">影响地点</span>
             </label>
-            <select
-              value={locationId}
-              onChange={(event) => setLocationId(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-hidden transition hover:border-slate-300 focus:border-moss focus:ring-2 focus:ring-moss/10"
-            >
-              <option value="">选择地点</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
-            </select>
-          </>
+            <div className="relative">
+              <select
+                value={locationId}
+                onChange={(event) => setLocationId(event.target.value)}
+                className="w-full appearance-none rounded-[20px] border border-slate-200/90 bg-white px-4 py-3 pr-12 text-sm text-slate-700 outline-hidden transition hover:border-slate-300 focus:border-moss focus:ring-4 focus:ring-moss/10"
+              >
+                <option value="">选择地点</option>
+                {locations.map((location) => (
+                  <option key={location.id} value={location.id}>
+                    {location.name}
+                  </option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
+                <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5">
+                  <path
+                    d="M5 7.5L10 12.5L15 7.5"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+            </div>
+          </div>
         )}
         {!compact && (
           <label className="block">
