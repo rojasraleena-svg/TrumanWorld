@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import { Modal } from "@/components/modal";
 import { AgentAvatar } from "@/components/agent-avatar";
-import { formatAgentScore, inferAgentStatus, relationshipTone } from "@/lib/agent-utils";
+import {
+  formatAgentScore,
+  formatMemoryCategory,
+  inferAgentStatus,
+  memoryCategoryBadgeClass,
+  relationshipTone,
+} from "@/lib/agent-utils";
 import { getAgentResult, getWorldResult } from "@/lib/api";
 import { describeAgentEvent } from "@/lib/event-utils";
 import { tickToSimDayTime } from "@/lib/world-utils";
@@ -284,11 +290,20 @@ export function AgentDetailModal({ isOpen, onClose, runId, agentId }: AgentDetai
                     key={memory.id}
                     className="rounded-xl border border-slate-100 bg-slate-50/50 p-3"
                   >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] ${memoryCategoryBadgeClass(memory.memory_category)}`}
+                      >
+                        {formatMemoryCategory(memory.memory_category)}
+                      </span>
+                      {(memory.streak_count ?? 1) > 1 && (
+                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-500">
+                          连续 {memory.streak_count} 次
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-slate-700">{memory.content}</p>
                     <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-400">
-                      {(memory.streak_count ?? 1) > 1 && (
-                        <span>连续 {memory.streak_count} 次</span>
-                      )}
                       <span>重要度: {formatAgentScore(memory.importance)}</span>
                       <span>事件显著性: {formatAgentScore(memory.event_importance)}</span>
                       <span>主体相关性: {formatAgentScore(memory.self_relevance)}</span>

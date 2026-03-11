@@ -1,7 +1,13 @@
 import Link from "next/link";
 
 import { AgentAvatar } from "@/components/agent-avatar";
-import { formatAgentScore, inferAgentStatus, relationshipTone } from "@/lib/agent-utils";
+import {
+  formatAgentScore,
+  formatMemoryCategory,
+  inferAgentStatus,
+  memoryCategoryBadgeClass,
+  relationshipTone,
+} from "@/lib/agent-utils";
 import { MetricChip } from "@/components/metric-chip";
 import { getAgentResult, getWorldResult } from "@/lib/api";
 import { describeAgentEvent } from "@/lib/event-utils";
@@ -351,8 +357,10 @@ export default async function AgentPage({ params }: AgentPageProps) {
                                   ★ {formatAgentScore(memory.importance)}
                                 </span>
                               )}
-                              <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-500">
-                                {memory.memory_category}
+                              <span
+                                className={`rounded-full border px-2 py-0.5 text-[10px] ${memoryCategoryBadgeClass(memory.memory_category)}`}
+                              >
+                                {formatMemoryCategory(memory.memory_category)}
                               </span>
                               {memory.related_agent_name ? (
                                 <span className="rounded-full border border-rose-100 bg-rose-50 px-2 py-0.5 text-[10px] text-rose-600">

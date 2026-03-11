@@ -37,3 +37,29 @@ export function formatAgentScore(value?: number | null): string {
   if (value == null || Number.isNaN(value)) return "0.00";
   return value.toFixed(2);
 }
+
+export function formatMemoryCategory(category?: string | null): string {
+  switch (category) {
+    case "long_term":
+      return "长期";
+    case "medium_term":
+      return "中期";
+    case "short_term":
+      return "短期";
+    default:
+      return category || "未知";
+  }
+}
+
+export function memoryCategoryBadgeClass(category?: string | null): string {
+  switch (category) {
+    case "long_term":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "medium_term":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "short_term":
+      return "border-slate-200 bg-white text-slate-500";
+    default:
+      return "border-slate-200 bg-white text-slate-500";
+  }
+}
