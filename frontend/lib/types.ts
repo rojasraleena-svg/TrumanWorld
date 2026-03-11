@@ -57,10 +57,13 @@ export type TimelineResponse = {
 export type TimelineFilter = {
   tick_from?: number;
   tick_to?: number;
+  world_datetime_from?: string;
+  world_datetime_to?: string;
   event_type?: string;
   agent_id?: string;
   limit?: number;
   offset?: number;
+  order_desc?: boolean;
 };
 
 export type WorldClock = {

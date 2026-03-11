@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { getApiBaseUrl } from "@/lib/api";
-import type { AgentSummary, TimelineEvent, TimelineResponse } from "@/lib/types";
+import { getTimelineResult, listAgentsResult } from "@/lib/api";
+import type { AgentSummary, TimelineEvent, TimelineFilter, TimelineResponse } from "@/lib/types";
 import { describeTimelineEvent, getEventMeta } from "@/lib/event-utils";
 import { simDayLabelFromIso } from "@/lib/world-utils";
 
@@ -43,29 +43,24 @@ const EMPTY_FILTERS: Filters = {
   agentId: "",
 };
 
-function buildTimelineUrl(
-  baseUrl: string,
-  runId: string,
-  f: Filters,
-  limit: number,
-  offset: number,
-  orderDesc: boolean = true,  // 默认倒序，最新事件在前
-): string {
-  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-  if (f.tickFrom) params.set("tick_from", f.tickFrom);
-  if (f.tickTo) params.set("tick_to", f.tickTo);
-  if (f.worldDatetimeFrom) params.set("world_datetime_from", f.worldDatetimeFrom);
-  if (f.worldDatetimeTo) params.set("world_datetime_to", f.worldDatetimeTo);
-  if (f.eventType) params.set("event_type", f.eventType);
-  if (f.agentId) params.set("agent_id", f.agentId);
-  if (orderDesc) params.set("order_desc", "true");
-  return `${baseUrl}/runs/${runId}/timeline?${params.toString()}`;
-}
-
 /** 将 ISO 字符串截取为 datetime-local input 所需的 YYYY-MM-DDTHH:MM 格式 */
 function isoToDatetimeLocal(iso: string): string {
   // ISO 如 2026-03-02T07:00:00+00:00，取前 16 位即可
   return iso.substring(0, 16);
+}
+
+function toTimelineFilter(filters: Filters, offset: number, orderDesc = true): TimelineFilter {
+  return {
+    tick_from: filters.tickFrom ? Number(filters.tickFrom) : undefined,
+    tick_to: filters.tickTo ? Number(filters.tickTo) : undefined,
+    world_datetime_from: filters.worldDatetimeFrom || undefined,
+    world_datetime_to: filters.worldDatetimeTo || undefined,
+    event_type: filters.eventType || undefined,
+    agent_id: filters.agentId || undefined,
+    limit: PAGE_SIZE,
+    offset,
+    order_desc: orderDesc,
+  };
 }
 
 const PAGE_SIZE = 500;
@@ -84,9 +79,8 @@ export default function TimelinePage() {
 
   // 加载角色列表
   useEffect(() => {
-    fetch(`${getApiBaseUrl()}/runs/${runId}/agents`, { headers: { Accept: "application/json" } })
-      .then((r) => r.json())
-      .then((data: { agents?: AgentSummary[] }) => setAgents(data.agents ?? []))
+    void listAgentsResult(runId)
+      .then((result) => setAgents(result.data?.agents ?? []))
       .catch(() => setAgents([]));
   }, [runId]);
 
@@ -94,18 +88,14 @@ export default function TimelinePage() {
     async (appliedFilters: Filters, currentOffset: number, orderDesc: boolean = true) => {
       setLoading(true);
       setError(null);
-      try {
-        const url = buildTimelineUrl(getApiBaseUrl(), runId, appliedFilters, PAGE_SIZE, currentOffset, orderDesc);
-        const res = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
-        if (!res.ok) throw new Error(`请求失败: ${res.status}`);
-        const data = (await res.json()) as TimelineResponse;
-        setTimeline(data);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "加载失败");
+      const result = await getTimelineResult(runId, toTimelineFilter(appliedFilters, currentOffset, orderDesc));
+      if (result.data) {
+        setTimeline(result.data);
+      } else {
+        setError(result.error === "network_error" ? "网络错误" : "加载失败");
         setTimeline(null);
-      } finally {
-        setLoading(false);
       }
+      setLoading(false);
     },
     [runId],
   );

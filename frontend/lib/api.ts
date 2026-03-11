@@ -242,10 +242,13 @@ function buildTimelineParams(filter?: TimelineFilter): URLSearchParams {
   if (!filter) return params;
   if (filter.tick_from != null) params.set("tick_from", String(filter.tick_from));
   if (filter.tick_to != null) params.set("tick_to", String(filter.tick_to));
+  if (filter.world_datetime_from) params.set("world_datetime_from", filter.world_datetime_from);
+  if (filter.world_datetime_to) params.set("world_datetime_to", filter.world_datetime_to);
   if (filter.event_type) params.set("event_type", filter.event_type);
   if (filter.agent_id) params.set("agent_id", filter.agent_id);
   if (filter.limit != null) params.set("limit", String(filter.limit));
   if (filter.offset != null) params.set("offset", String(filter.offset));
+  if (filter.order_desc != null) params.set("order_desc", String(filter.order_desc));
   return params;
 }
 
@@ -263,10 +266,6 @@ export async function getRunEventsResult(
   );
 }
 
-export async function getWorld(runId: string): Promise<WorldSnapshot | null> {
-  return safeFetch<WorldSnapshot | null>(`/runs/${runId}/world`, null);
-}
-
 export async function getWorldResult(runId: string): Promise<ApiResult<WorldSnapshot>> {
   return fetchResult<WorldSnapshot>(`/runs/${runId}/world`);
 }
@@ -280,19 +279,11 @@ export async function getDirectorMemoriesResult(
   );
 }
 
-export async function getAgent(runId: string, agentId: string): Promise<AgentDetails | null> {
-  return safeFetch<AgentDetails | null>(`/runs/${runId}/agents/${agentId}`, null);
-}
-
 export async function getAgentResult(
   runId: string,
   agentId: string,
 ): Promise<ApiResult<AgentDetails>> {
   return fetchResult<AgentDetails>(`/runs/${runId}/agents/${agentId}`);
-}
-
-export async function listAgents(runId: string): Promise<{ run_id: string; agents: AgentSummary[] }> {
-  return safeFetch(`/runs/${runId}/agents`, { run_id: runId, agents: [] });
 }
 
 export async function listAgentsResult(
@@ -355,10 +346,6 @@ export async function resumeRun(runId: string): Promise<RunSummary | null> {
 
 export async function resumeRunResult(runId: string): Promise<ApiResult<RunSummary>> {
   return postResult<RunSummary>(`/runs/${runId}/resume`, {});
-}
-
-export async function advanceRunTick(runId: string): Promise<TickResponse | null> {
-  return safePost<TickResponse | null>(`/runs/${runId}/tick`, {}, null);
 }
 
 export async function advanceRunTickResult(runId: string): Promise<ApiResult<TickResponse>> {
@@ -461,44 +448,8 @@ export async function deleteRunResult(
   return deleteResult<{ run_id: string; status: string }>(`/runs/${runId}`);
 }
 
-export async function restoreAllRuns(): Promise<RunSummary[]> {
-  return safePost<RunSummary[]>('/runs/restore-all', {}, []);
-}
-
 export async function restoreAllRunsResult(): Promise<ApiResult<RunSummary[]>> {
   return postResult<RunSummary[]>("/runs/restore-all", {});
-}
-
-export async function fetchApiOrThrow<T>(url: string): Promise<T> {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
-}
-
-export async function fetchApiOrFallback<T>(url: string, fallback: T): Promise<T> {
-  try {
-    const response = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      return fallback;
-    }
-
-    return response.json() as Promise<T>;
-  } catch {
-    return fallback;
-  }
 }
 
 export async function fetchApiResult<T>(url: string): Promise<ApiResult<T>> {
