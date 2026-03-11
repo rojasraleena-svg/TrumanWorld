@@ -102,7 +102,9 @@ async def test_system_overview_endpoint_returns_project_components(
 
     assert response.status_code == 200
     body = response.json()
+    assert body["collected_at"] == 1234567890
     assert body["components"]["backend"]["cpu_percent"] == 25.0
+    assert body["components"]["backend"]["rss_bytes"] == 100
     assert body["components"]["frontend"]["process_count"] == 2
     assert body["components"]["postgres"]["status"] == "unavailable"
     assert body["components"]["total"]["rss_bytes"] == 400

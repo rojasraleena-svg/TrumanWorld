@@ -41,6 +41,33 @@ class HealthResponse(BaseModel):
     status: str = Field(..., description="服务状态", examples=["ok"])
 
 
+class SystemOverviewComponentResponse(BaseModel):
+    """单个系统组件资源概览"""
+
+    status: str = Field(..., description="组件状态", examples=["available", "unavailable"])
+    rss_bytes: int = Field(..., description="常驻内存字节数", ge=0)
+    vms_bytes: int = Field(..., description="虚拟内存字节数", ge=0)
+    cpu_seconds: float = Field(..., description="累计 CPU 秒数", ge=0)
+    cpu_percent: float = Field(..., description="CPU 占用百分比", ge=0)
+    process_count: int = Field(..., description="进程数", ge=0)
+
+
+class SystemOverviewComponentsResponse(BaseModel):
+    """系统组件聚合视图"""
+
+    backend: SystemOverviewComponentResponse
+    frontend: SystemOverviewComponentResponse
+    postgres: SystemOverviewComponentResponse
+    total: SystemOverviewComponentResponse
+
+
+class SystemOverviewResponse(BaseModel):
+    """系统运行总览响应"""
+
+    collected_at: int = Field(..., description="采集时间戳（毫秒）", ge=0)
+    components: SystemOverviewComponentsResponse
+
+
 # Common response definitions for reuse in route decorators
 COMMON_RESPONSES = {
     400: {
