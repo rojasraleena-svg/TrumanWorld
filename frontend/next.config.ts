@@ -3,7 +3,7 @@ import path from "path";
 
 const defaultBackendUrl =
   process.env.NODE_ENV === "production"
-    ? "http://backend.railway.internal"
+    ? "https://backend-production-6460.up.railway.app"
     : "http://127.0.0.1:18080";
 
 const backendUrl =

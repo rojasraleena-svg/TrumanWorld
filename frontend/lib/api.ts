@@ -43,7 +43,7 @@ const DEFAULT_API_BASE_URL = "/api";
 // SSR 场景下相对路径无效，需要绝对地址
 const DEFAULT_INTERNAL_API_BASE_URL =
   process.env.NODE_ENV === "production"
-    ? "http://backend.railway.internal/api"
+    ? "https://backend-production-6460.up.railway.app/api"
     : "http://127.0.0.1:18080/api";
 
 function resolveApiBaseUrl() {
@@ -56,7 +56,7 @@ function resolveApiBaseUrl() {
   }
 
   // 浏览器端：优先用配置，fallback 相对路径（走 Next.js rewrites 代理）
-  return publicBaseUrl ?? DEFAULT_API_BASE_URL;
+  return publicBaseUrl ?? DEFAULT_INTERNAL_API_BASE_URL ?? DEFAULT_API_BASE_URL;
 }
 
 export function getApiBaseUrl() {
