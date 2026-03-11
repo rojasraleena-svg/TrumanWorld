@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     app_env: str = "development"
     api_prefix: str = "/api"
-    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/trumanworld"
+    database_url: str = "postgresql+psycopg://truman:truman123@localhost:5432/trumanworld"
     redis_url: str = "redis://localhost:6379/0"
     anthropic_api_key: str | None = None
     anthropic_base_url: str | None = None
