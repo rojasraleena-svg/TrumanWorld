@@ -2,24 +2,26 @@ import asyncio
 from datetime import datetime
 import json
 from uuid import UUID, uuid4
-from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.simulation import (
+    AgentSummaryResponse,
     COMMON_RESPONSES,
+    DirectorEventRequest,
     DirectorObservationResponse,
     DirectorMemoriesResponse,
     DirectorMemoryResponse,
+    RunCreateRequest,
     RunDetailResponse,
+    RunResponse,
     StatusResponse,
+    TickResponse,
     TimelineEventResponse,
     TimelineResponse,
     TimelineRunInfo,
-    WorldClockResponse,
     WorldDailyStatsResponse,
     WorldDirectorStatsResponse,
     WorldEventResponse,
@@ -28,7 +30,7 @@ from app.api.schemas.simulation import (
     WorldLocationResponse,
     WorldSnapshotResponse,
     WorldSnapshotRunResponse,
-    AgentSummaryResponse,
+    WorldClockResponse,
 )
 from app.director.service import DirectorEventService
 from app.infra.db import get_db_session
@@ -54,102 +56,26 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-class RunCreateRequest(BaseModel):
-    """创建新的模拟运行请求"""
-
-    name: str = Field(
-        ...,
-        min_length=1,
-        max_length=100,
-        description="运行名称",
-        examples=["My First World", "Alice Town"],
-    )
-    scenario_type: Literal["truman_world", "open_world"] = Field(
-        default="truman_world",
-        description="运行场景类型",
-        examples=["truman_world", "open_world"],
-    )
-    seed_demo: bool = Field(
-        default=True,
-        description="是否自动填充演示数据（agent、地点等）",
-        examples=[True],
-    )
-    tick_minutes: int = Field(
-        default=5,
-        ge=1,
-        le=60,
-        description="每个 tick 代表的分钟数",
-        examples=[5],
-    )
+def build_run_payload(run: SimulationRun) -> dict[str, str | int | bool | datetime | None]:
+    return {
+        "id": run.id,
+        "name": run.name,
+        "status": run.status,
+        "scenario_type": run.scenario_type,
+        "current_tick": run.current_tick,
+        "tick_minutes": run.tick_minutes,
+        "was_running_before_restart": run.was_running_before_restart,
+        "started_at": run.started_at,
+        "elapsed_seconds": run.elapsed_seconds or 0,
+    }
 
 
-class RunResponse(BaseModel):
-    """模拟运行响应"""
-
-    id: UUID = Field(..., description="运行 ID")
-    name: str = Field(..., description="运行名称")
-    status: str = Field(..., description="运行状态", examples=["running", "paused", "stopped"])
-    scenario_type: str = Field(..., description="运行场景类型", examples=["truman_world"])
-    current_tick: int | None = Field(None, description="当前 tick 数")
-    tick_minutes: int | None = Field(None, description="每个 tick 代表的分钟数")
-    was_running_before_restart: bool = Field(
-        False, description="服务重启前是否在运行中（用于一键恢复）"
-    )
-    agent_count: int = Field(0, description="本次运行的 agent 数量")
-    location_count: int = Field(0, description="本次运行的地点数量")
-    event_count: int = Field(0, description="本次运行产生的事件总数")
-    started_at: datetime | None = Field(None, description="最近一次启动时间（UTC ISO8601）")
-    elapsed_seconds: int = Field(0, description="每次暂停前累计运行秒数")
+def build_run_response(run: SimulationRun, **counts: int) -> RunResponse:
+    return RunResponse(**build_run_payload(run), **counts)
 
 
-class DirectorEventRequest(BaseModel):
-    """导演事件注入请求"""
-
-    event_type: Literal["activity", "shutdown", "broadcast", "weather_change"] = Field(
-        ...,
-        description="事件类型",
-        examples=["activity", "shutdown", "broadcast", "weather_change"],
-    )
-    payload: dict = Field(
-        default_factory=dict,
-        description="事件负载数据",
-        examples=[{"message": "咖啡馆举办周末派对", "duration_hours": 2}],
-    )
-    location_id: str | None = Field(
-        None,
-        description="事件发生地点 ID",
-        examples=["downtown_cafe"],
-    )
-    importance: float = Field(
-        default=0.5,
-        ge=0.0,
-        le=1.0,
-        description="事件重要性（0-1）",
-        examples=[0.8],
-    )
-
-
-class TickResponse(BaseModel):
-    """Tick 推进响应"""
-
-    run_id: UUID = Field(..., description="运行 ID")
-    tick_no: int = Field(..., description="tick 编号")
-    accepted_count: int = Field(..., description="接受的动作数量")
-    rejected_count: int = Field(..., description="拒绝的动作数量")
-
-
-def build_run_response(run: SimulationRun) -> RunResponse:
-    return RunResponse(
-        id=UUID(run.id),
-        name=run.name,
-        status=run.status,
-        scenario_type=run.scenario_type,
-        current_tick=run.current_tick,
-        tick_minutes=run.tick_minutes,
-        was_running_before_restart=run.was_running_before_restart,
-        started_at=run.started_at,
-        elapsed_seconds=run.elapsed_seconds or 0,
-    )
+def build_run_detail_response(run: SimulationRun) -> RunDetailResponse:
+    return RunDetailResponse(**build_run_payload(run))
 
 
 @router.post(
@@ -237,14 +163,8 @@ async def list_runs(
     event_counts: dict[str, int] = {row.run_id: row.cnt for row in event_counts_result}
 
     return [
-        RunResponse(
-            id=UUID(run.id),
-            name=run.name,
-            status=run.status,
-            scenario_type=run.scenario_type,
-            current_tick=run.current_tick,
-            tick_minutes=run.tick_minutes,
-            was_running_before_restart=run.was_running_before_restart,
+        build_run_response(
+            run,
             agent_count=agent_counts.get(run.id, 0),
             location_count=location_counts.get(run.id, 0),
             event_count=event_counts.get(run.id, 0),
@@ -374,7 +294,7 @@ async def advance_run_tick(
         f"accepted={len(result.accepted)}, rejected={len(result.rejected)}"
     )
     return TickResponse(
-        run_id=run_id,
+        run_id=str(run_id),
         tick_no=result.tick_no,
         accepted_count=len(result.accepted),
         rejected_count=len(result.rejected),
@@ -395,14 +315,7 @@ async def get_run(
     run = await repo.get(str(run_id))
     if run is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
-    return RunDetailResponse(
-        id=run.id,
-        name=run.name,
-        status=run.status,
-        scenario_type=run.scenario_type,
-        current_tick=run.current_tick,
-        tick_minutes=run.tick_minutes,
-    )
+    return build_run_detail_response(run)
 
 
 @router.get(

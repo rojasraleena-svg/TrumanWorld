@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -61,18 +61,96 @@ COMMON_RESPONSES = {
 # ============================================================================
 
 
-class StatusResponse(BaseModel):
-    run_id: str = Field(..., description="运行 ID", examples=["550e8400-e29b-41d4-a716-446655440000"])
-    status: str = Field(..., description="操作状态", examples=["success", "error"])
+class RunCreateRequest(BaseModel):
+    """创建新的模拟运行请求"""
+
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="运行名称",
+        examples=["My First World", "Alice Town"],
+    )
+    scenario_type: Literal["truman_world", "open_world"] = Field(
+        default="truman_world",
+        description="运行场景类型",
+        examples=["truman_world", "open_world"],
+    )
+    seed_demo: bool = Field(
+        default=True,
+        description="是否自动填充演示数据（agent、地点等）",
+        examples=[True],
+    )
+    tick_minutes: int = Field(
+        default=5,
+        ge=1,
+        le=60,
+        description="每个 tick 代表的分钟数",
+        examples=[5],
+    )
 
 
-class RunDetailResponse(BaseModel):
+class RunBaseResponse(BaseModel):
     id: str = Field(..., description="运行 ID", examples=["550e8400-e29b-41d4-a716-446655440000"])
     name: str = Field(..., description="运行名称", examples=["Truman Town"])
     status: str = Field(..., description="运行状态", examples=["running", "paused", "stopped"])
     scenario_type: str = Field(..., description="场景类型", examples=["truman_world", "open_world"])
     current_tick: int = Field(..., description="当前 tick", examples=[42])
     tick_minutes: int = Field(..., description="每 tick 分钟数", examples=[5])
+    was_running_before_restart: bool = Field(False, description="服务重启前是否在运行中")
+    started_at: datetime | None = Field(None, description="最近一次启动时间（UTC ISO8601）")
+    elapsed_seconds: int = Field(0, description="累计运行秒数", ge=0)
+
+
+class RunResponse(RunBaseResponse):
+    agent_count: int = Field(0, description="本次运行的 agent 数量", ge=0)
+    location_count: int = Field(0, description="本次运行的地点数量", ge=0)
+    event_count: int = Field(0, description="本次运行产生的事件总数", ge=0)
+
+
+class StatusResponse(BaseModel):
+    run_id: str = Field(..., description="运行 ID", examples=["550e8400-e29b-41d4-a716-446655440000"])
+    status: str = Field(..., description="操作状态", examples=["success", "error"])
+
+
+class RunDetailResponse(RunBaseResponse):
+    pass
+
+
+class DirectorEventRequest(BaseModel):
+    """导演事件注入请求"""
+
+    event_type: Literal["activity", "shutdown", "broadcast", "weather_change"] = Field(
+        ...,
+        description="事件类型",
+        examples=["activity", "shutdown", "broadcast", "weather_change"],
+    )
+    payload: dict = Field(
+        default_factory=dict,
+        description="事件负载数据",
+        examples=[{"message": "咖啡馆举办周末派对", "duration_hours": 2}],
+    )
+    location_id: str | None = Field(
+        None,
+        description="事件发生地点 ID",
+        examples=["downtown_cafe"],
+    )
+    importance: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="事件重要性（0-1）",
+        examples=[0.8],
+    )
+
+
+class TickResponse(BaseModel):
+    """Tick 推进响应"""
+
+    run_id: str = Field(..., description="运行 ID")
+    tick_no: int = Field(..., description="tick 编号")
+    accepted_count: int = Field(..., description="接受的动作数量")
+    rejected_count: int = Field(..., description="拒绝的动作数量")
 
 
 class TimelineEventResponse(BaseModel):
@@ -219,15 +297,8 @@ class WorldEventResponse(BaseModel):
     payload: dict = Field(default_factory=dict, description="事件负载数据")
 
 
-class WorldSnapshotRunResponse(BaseModel):
-    id: str = Field(..., description="运行 ID")
-    name: str = Field(..., description="运行名称")
-    status: str = Field(..., description="运行状态")
-    scenario_type: str = Field(..., description="场景类型")
-    current_tick: int = Field(..., description="当前 tick")
-    tick_minutes: int = Field(..., description="每 tick 分钟数")
-    started_at: datetime | None = Field(None, description="启动时间")
-    elapsed_seconds: int = Field(0, description="已运行秒数", ge=0)
+class WorldSnapshotRunResponse(RunBaseResponse):
+    pass
 
 
 class WorldDirectorStatsResponse(BaseModel):

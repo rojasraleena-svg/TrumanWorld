@@ -14,6 +14,22 @@ from app.store.models import (
 )
 from app.sim.scheduler import get_scheduler
 
+RUN_COMMON_FIELDS = {
+    "id",
+    "name",
+    "status",
+    "scenario_type",
+    "current_tick",
+    "tick_minutes",
+    "was_running_before_restart",
+    "started_at",
+    "elapsed_seconds",
+}
+
+
+def assert_run_common_fields(payload: dict) -> None:
+    assert RUN_COMMON_FIELDS <= payload.keys()
+
 
 @pytest.mark.asyncio
 async def test_health_check(client):
@@ -259,6 +275,47 @@ async def test_restore_all_runs_restarts_scheduler_and_clears_flag(
     assert restored[0]["status"] == "running"
     assert restored[0]["was_running_before_restart"] is False
     assert get_scheduler().is_running(run_id)
+
+
+@pytest.mark.asyncio
+async def test_run_endpoints_return_consistent_common_fields(client, db_session: AsyncSession):
+    create_response = await client.post("/api/runs", json={"name": "shape-run"})
+    run_id = create_response.json()["id"]
+
+    list_response = await client.get("/api/runs")
+    detail_response = await client.get(f"/api/runs/{run_id}")
+    pause_response = await client.post(f"/api/runs/{run_id}/pause")
+    resume_response = await client.post(f"/api/runs/{run_id}/resume")
+
+    run = await db_session.get(SimulationRun, run_id)
+    assert run is not None
+    run.status = "paused"
+    run.was_running_before_restart = True
+    await db_session.commit()
+
+    restore_response = await client.post("/api/runs/restore-all")
+
+    assert create_response.status_code == 200
+    assert list_response.status_code == 200
+    assert detail_response.status_code == 200
+    assert pause_response.status_code == 200
+    assert resume_response.status_code == 200
+    assert restore_response.status_code == 200
+
+    list_item = next(item for item in list_response.json() if item["id"] == run_id)
+    restore_item = next(item for item in restore_response.json() if item["id"] == run_id)
+
+    for payload in (
+        create_response.json(),
+        list_item,
+        detail_response.json(),
+        pause_response.json(),
+        resume_response.json(),
+        restore_item,
+    ):
+        assert_run_common_fields(payload)
+
+    assert {"agent_count", "location_count", "event_count"} <= list_item.keys()
 
 
 @pytest.mark.asyncio
