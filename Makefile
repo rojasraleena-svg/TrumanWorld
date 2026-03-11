@@ -1,4 +1,4 @@
-PYTHON ?= python3
+PYTHON ?= python3.13
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
 LOGS_DIR := logs
@@ -33,7 +33,7 @@ backend-dev:
 	cd $(BACKEND_DIR) && uv run uvicorn app.main:app --reload --host 127.0.0.1 --port $(BACKEND_PORT)
 
 frontend-dev: sync-agent-logos
-	cd $(FRONTEND_DIR) && npm run dev -- --port $(FRONTEND_PORT) --hostname 0.0.0.0
+	cd $(FRONTEND_DIR) && INTERNAL_API_BASE_URL=http://127.0.0.1:$(BACKEND_PORT)/api NEXT_PUBLIC_API_BASE_URL=/api npm run dev -- --port $(FRONTEND_PORT) --hostname 0.0.0.0
 
 lint:
 	cd $(BACKEND_DIR) && uv run ruff check app tests
@@ -120,7 +120,7 @@ db-start:
 			-e POSTGRES_PASSWORD=$(DB_PASSWORD) \
 			-e POSTGRES_DB=$(DB_NAME) \
 			-p $(DB_PORT):5432 \
-			postgres:17.7; \
+				postgres:17.3; \
 		echo "等待数据库启动..."; \
 		sleep 3; \
 	fi
@@ -186,7 +186,7 @@ dev: check-ports db-start db-migrate sync-agent-logos
 	echo ""; \
 	(cd $(BACKEND_DIR) && uv run uvicorn app.main:app --host 127.0.0.1 --port $(BACKEND_PORT) 2>&1 | tee "$${LOG_FILE_BACKEND}") & \
 	BACKEND_PID=$$!; \
-	(cd $(FRONTEND_DIR) && npm run dev -- --port $(FRONTEND_PORT) --hostname 0.0.0.0 2>&1 | tee "$${LOG_FILE_FRONTEND}") & \
+	(cd $(FRONTEND_DIR) && INTERNAL_API_BASE_URL=http://127.0.0.1:$(BACKEND_PORT)/api NEXT_PUBLIC_API_BASE_URL=/api npm run dev -- --port $(FRONTEND_PORT) --hostname 0.0.0.0 2>&1 | tee "$${LOG_FILE_FRONTEND}") & \
 	FRONTEND_PID=$$!; \
 	trap 'echo ""; echo "🛑 停止服务..."; kill $$BACKEND_PID $$FRONTEND_PID 2>/dev/null; wait $$BACKEND_PID $$FRONTEND_PID 2>/dev/null; echo "✅ 已停止"' INT TERM; \
 	wait $$BACKEND_PID $$FRONTEND_PID

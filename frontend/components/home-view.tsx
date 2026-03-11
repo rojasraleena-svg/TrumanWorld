@@ -5,14 +5,10 @@ import { CreateRunForm } from "@/components/create-run-form";
 import { RunList } from "@/components/run-list";
 import { DeleteAllButton } from "@/components/delete-all-button";
 import { RunControls } from "@/components/run-controls";
-import type { RunSummary } from "@/lib/types";
+import { useRuns } from "@/components/runs-provider";
 
-type HomeViewProps = {
-  runs: RunSummary[];
-  error: string | null;
-};
-
-export function HomeView({ runs, error }: HomeViewProps) {
+export function HomeView() {
+  const { runs, error } = useRuns();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {

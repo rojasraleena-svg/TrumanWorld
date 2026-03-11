@@ -4,8 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useState, useEffect } from "react";
-import useSWR from "swr";
-import { buildApiUrl, fetchApiResult, type ApiResult, deleteRunResult } from "@/lib/api";
+import { deleteRunResult } from "@/lib/api";
+import { useRuns } from "@/components/runs-provider";
 import type { RunSummary } from "@/lib/types";
 
 type AppShellProps = {
@@ -27,6 +27,7 @@ const NAV_ITEMS = [
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const { runs, error, refreshRuns } = useRuns();
   // 在世界页面或主控制台页面默认折叠左侧栏
   const shouldCollapseByDefault = pathname.includes("/world") || pathname === "/" || pathname === "";
   const [isCollapsed, setIsCollapsed] = useState(shouldCollapseByDefault);
@@ -37,23 +38,9 @@ export function AppShell({ children }: AppShellProps) {
       setIsCollapsed(true);
     }
   }, [pathname]);
-  
-  const { data: runsResult, mutate: mutateRuns } = useSWR<ApiResult<RunSummary[]>>(
-    buildApiUrl("/runs"),
-    fetchApiResult,
-    {
-      refreshInterval: 10000,
-      fallbackData: {
-        data: [],
-        error: null,
-        status: null,
-      },
-    },
-  );
-  const runs = runsResult?.data ?? [];
 
   const handleRunDeleted = () => {
-    void mutateRuns();
+    void refreshRuns();
   };
 
   return (
@@ -103,10 +90,10 @@ export function AppShell({ children }: AppShellProps) {
             ))}
           </div>
 
-          {runsResult?.error ? (
+          {error ? (
             <div className="mt-4 px-3">
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-                {runsResult.error === "network_error" ? "运行列表暂时不可达" : "运行列表加载失败"}
+                {error === "network_error" ? "运行列表暂时不可达" : "运行列表加载失败"}
               </div>
             </div>
           ) : null}

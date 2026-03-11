@@ -47,6 +47,7 @@ declare global {
 }
 
 const DEFAULT_API_BASE_URL = "/api";
+const DEFAULT_INTERNAL_API_BASE_URL = "http://127.0.0.1:18080/api";
 
 function resolveApiBaseUrl() {
   const runtimeBaseUrl =
@@ -60,6 +61,10 @@ function resolveApiBaseUrl() {
 
 export function getApiBaseUrl() {
   return resolveApiBaseUrl();
+}
+
+export function getInternalApiBaseUrl() {
+  return process.env.INTERNAL_API_BASE_URL?.replace(/\/$/, "") ?? DEFAULT_INTERNAL_API_BASE_URL;
 }
 
 export function buildApiUrl(path: string) {

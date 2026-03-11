@@ -2,8 +2,8 @@
 
 > 你就是楚门世界的导演
 
-![Python](https://img.shields.io/badge/Python-3.12+-blue?logo=python)
-![Node.js](https://img.shields.io/badge/Node.js-20+-green?logo=node.js)
+![Python](https://img.shields.io/badge/Python-3.13-blue?logo=python)
+![Node.js](https://img.shields.io/badge/Node.js-20.9%2B%20%3C21-green?logo=node.js)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 ![Status](https://img.shields.io/badge/Status-Experimental-orange)
 [![CI](https://github.com/gqy20/TrumanWorld/actions/workflows/ci.yml/badge.svg)](https://github.com/gqy20/TrumanWorld/actions/workflows/ci.yml)

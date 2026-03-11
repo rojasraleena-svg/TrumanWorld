@@ -18,7 +18,7 @@ Use the top-level `Makefile` for common workflows:
 For frontend-only checks, run `cd frontend && npm run lint` or `npm run build`.
 
 ## Coding Style & Naming Conventions
-Python targets 3.12+, uses 4-space indentation, and is formatted by Ruff with a 100-character line limit. Keep backend modules `snake_case`, classes `PascalCase`, and constants `UPPER_SNAKE_CASE`. TypeScript/React code in `frontend/` uses 2-space indentation, component names in `PascalCase`, and route files following Next.js App Router conventions such as `app/page.tsx` and `app/layout.tsx`.
+Python targets 3.13+, uses 4-space indentation, and is formatted by Ruff with a 100-character line limit. Keep backend modules `snake_case`, classes `PascalCase`, and constants `UPPER_SNAKE_CASE`. TypeScript/React code in `frontend/` uses 2-space indentation, component names in `PascalCase`, and route files following Next.js App Router conventions such as `app/page.tsx` and `app/layout.tsx`.
 
 ## Testing Guidelines
 Backend tests use `pytest` with `pytest-asyncio`; name files `test_*.py` and keep test names behavior-focused, for example `test_get_agent_returns_404_when_agent_missing`. Add tests alongside backend changes, especially for API endpoints, repositories, and simulation behavior. The frontend currently has no test suite, so at minimum run `npm run lint` and `npm run build` after UI changes.

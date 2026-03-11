@@ -2,7 +2,7 @@
 name = "trumanworld-backend"
 version = "0.1.0"
 description = "楚门的世界 AI 版后端服务 | 你是导演，只能观察和创造条件——不能操控 AI 居民的想法"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
@@ -44,7 +44,7 @@ markers = [
 ]
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py313"
 line-length = 100
 
 [dependency-groups]

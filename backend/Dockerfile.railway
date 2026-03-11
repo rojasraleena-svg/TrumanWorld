@@ -1,5 +1,7 @@
 FROM python:3.13-slim
 
+ARG UV_VERSION=0.9.18
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy
@@ -8,7 +10,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends bash curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir uv
+RUN pip install --no-cache-dir uv==${UV_VERSION}
 
 RUN useradd --create-home --shell /bin/bash appuser
 

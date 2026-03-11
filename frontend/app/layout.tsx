@@ -2,6 +2,9 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
+import { RunsProvider } from "@/components/runs-provider";
+import { fetchApiResult, getInternalApiBaseUrl, type ApiResult } from "@/lib/api";
+import type { RunSummary } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Truman World",
@@ -11,10 +14,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
   const runtimeConfig = {
-    apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "",
+    apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "/api",
   };
+  const initialRunsResult: ApiResult<RunSummary[]> = await fetchApiResult<RunSummary[]>(
+    `${getInternalApiBaseUrl()}/runs`,
+  );
 
   return (
     <html lang="zh-CN">
@@ -24,7 +30,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             __html: `window.__TRUMANWORLD_CONFIG__ = ${JSON.stringify(runtimeConfig)};`,
           }}
         />
-        <AppShell>{children}</AppShell>
+        <RunsProvider initialResult={initialRunsResult}>
+          <AppShell>{children}</AppShell>
+        </RunsProvider>
       </body>
     </html>
   );
