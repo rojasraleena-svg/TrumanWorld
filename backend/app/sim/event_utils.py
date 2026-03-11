@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.protocol.simulation import ActionType, build_rejected_event_type
+from app.sim.memory_constants import calculate_event_importance
 from app.store.models import Event
 
 
@@ -13,9 +14,18 @@ def build_event(
     action_type: ActionType,
     payload: dict,
     accepted: bool,
+    importance: float | None = None,
 ) -> Event:
     visibility = "public" if accepted else "system"
     event_type = action_type if accepted else build_rejected_event_type(action_type)
+
+    # Calculate importance if not provided
+    if importance is None:
+        importance = calculate_event_importance(
+            event_type=event_type,
+            payload=payload,
+        )
+
     return Event(
         id=str(uuid4()),
         run_id=run_id,
@@ -26,6 +36,7 @@ def build_event(
         location_id=payload.get("location_id") or payload.get("to_location_id"),
         visibility=visibility,
         payload=payload,
+        importance=importance,
     )
 
 

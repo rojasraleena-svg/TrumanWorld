@@ -13,6 +13,7 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.sim.event_utils import build_event
+from app.sim.memory_constants import determine_memory_category
 from app.sim.runner import TickResult
 from app.sim.world import WorldState
 from app.store.repositories import (
@@ -133,6 +134,13 @@ class PersistenceManager:
             for agent_id, content, summary, related_agent_id in self._build_memory_records(
                 event, agent_name_map, location_name_map
             ):
+                # Determine memory category based on importance and event type
+                memory_category = determine_memory_category(
+                    event_type=event.event_type,
+                    importance=event.importance,
+                    tick_age=0,  # New memory, age is 0
+                )
+
                 memories.append(
                     Memory(
                         id=str(uuid4()),
@@ -140,7 +148,7 @@ class PersistenceManager:
                         agent_id=agent_id,
                         tick_no=event.tick_no,
                         memory_type="episodic_short",
-                        memory_category="short_term",
+                        memory_category=memory_category,
                         content=content,
                         summary=summary,
                         importance=event.importance,
@@ -178,6 +186,13 @@ class PersistenceManager:
             for agent_id, content, summary, related_agent_id in self._build_memory_records(
                 event, agent_name_map, location_name_map
             ):
+                # Determine memory category based on importance and event type
+                memory_category = determine_memory_category(
+                    event_type=event.event_type,
+                    importance=event.importance,
+                    tick_age=0,  # New memory, age is 0
+                )
+
                 memories.append(
                     Memory(
                         id=str(uuid4()),
@@ -185,7 +200,7 @@ class PersistenceManager:
                         agent_id=agent_id,
                         tick_no=event.tick_no,
                         memory_type="episodic_short",
-                        memory_category="short_term",
+                        memory_category=memory_category,
                         content=content,
                         summary=summary,
                         importance=event.importance,

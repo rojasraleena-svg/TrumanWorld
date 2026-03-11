@@ -38,7 +38,7 @@ class MemoryCache:
         category: str = "long_term",
         limit: int = 5,
     ) -> list[dict[str, Any]]:
-        """Search memories by keyword.
+        """Search memories by keyword with importance ranking.
 
         Args:
             query: Search keyword (case-insensitive substring match)
@@ -46,10 +46,9 @@ class MemoryCache:
             limit: Maximum number of results
 
         Returns:
-            List of matching memory records
+            List of matching memory records, sorted by importance (descending)
         """
         query_lower = query.lower()
-        results = []
 
         # Determine which memories to search
         if category == "all":
@@ -57,15 +56,23 @@ class MemoryCache:
         else:
             memories = self._cache.get(category, [])
 
+        # Collect matching memories with their importance scores
+        matching = []
         for mem in memories:
             content = (mem.get("content") or "").lower()
             summary = (mem.get("summary") or "").lower()
             if query_lower in content or query_lower in summary:
-                results.append(mem)
-                if len(results) >= limit:
-                    break
+                matching.append(mem)
 
-        return results
+        # Sort by importance (descending), then by tick_no (most recent first)
+        matching.sort(
+            key=lambda m: (
+                -(m.get("importance") or 0),  # Higher importance first
+                -(m.get("tick_no") or 0),  # More recent first (as secondary sort)
+            )
+        )
+
+        return matching[:limit]
 
     def get_recent_memories(
         self,
