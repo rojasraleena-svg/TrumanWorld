@@ -10,6 +10,7 @@ import type {
   TimelineFilter,
   TimelineResponse,
   WorldEvent,
+  WorldPulse,
   WorldSnapshot,
 } from "@/lib/types";
 
@@ -28,6 +29,7 @@ export type {
   TimelineRunInfo,
   WorldClock,
   WorldEvent,
+  WorldPulse,
   WorldLocation,
   WorldSnapshot,
 } from "@/lib/types";
@@ -195,6 +197,10 @@ export async function getRunEventsResult(
 
 export async function getWorldResult(runId: string): Promise<ApiResult<WorldSnapshot>> {
   return fetchResult<WorldSnapshot>(`/runs/${runId}/world`);
+}
+
+export async function getWorldPulseResult(runId: string): Promise<ApiResult<WorldPulse>> {
+  return fetchResult<WorldPulse>(`/runs/${runId}/world/pulse`);
 }
 
 export async function getDirectorMemoriesResult(

@@ -18,6 +18,7 @@ from app.api.schemas.simulation import (
     WorldEventsResponse,
     WorldHealthMetricsConfig,
     WorldLocationResponse,
+    WorldPulseResponse,
     WorldSnapshotResponse,
     WorldSnapshotRunResponse,
 )
@@ -372,6 +373,73 @@ async def get_run_events(
         events=result_events,
         total=len(result_events),
         latest_tick=latest_tick,
+    )
+
+
+@router.get(
+    "/{run_id}/world/pulse",
+    response_model=WorldPulseResponse,
+    summary="获取世界脉冲",
+    description="获取世界的高频增量信息，包括运行状态、时钟、最近事件和统计，适合高频轮询。",
+    responses={
+        **COMMON_RESPONSES,
+        200: {"description": "世界脉冲", "model": WorldPulseResponse},
+    },
+)
+async def get_world_pulse(
+    run_id: UUID,
+    session: AsyncSession = Depends(get_db_session),
+) -> WorldPulseResponse:
+    logger.debug(f"Getting world pulse for run {run_id}")
+    run = await get_required_run(session, run_id)
+
+    agent_repo = AgentRepository(session)
+    location_repo = LocationRepository(session)
+    event_repo = EventRepository(session)
+    director_memory_repo = DirectorMemoryRepository(session)
+    llm_call_repo = LlmCallRepository(session)
+
+    agents, locations, events, director_total, director_executed, all_time_event_counts, token_totals = await asyncio.gather(
+        agent_repo.list_for_run(str(run_id)),
+        location_repo.list_for_run(str(run_id)),
+        event_repo.list_for_run(str(run_id), limit=120),
+        director_memory_repo.count_for_run(str(run_id)),
+        director_memory_repo.count_executed_for_run(str(run_id)),
+        event_repo.count_events_by_type(
+            str(run_id),
+            tick_from=None,
+            tick_to=None,
+            event_types=["talk", "move", "move_rejected", "talk_rejected"],
+        ),
+        llm_call_repo.get_token_totals(str(run_id)),
+    )
+
+    world_time = get_run_world_time(run)
+    agent_name_map, location_name_map = build_name_maps(agents, locations)
+
+    return WorldPulseResponse(
+        run=build_run_snapshot(run),
+        world_clock=build_world_clock(world_time),
+        recent_events=[
+            build_world_event_response(event, agent_name_map, location_name_map)
+            for event in events
+            if event.visibility == "public"
+        ],
+        director_stats=WorldDirectorStatsResponse(
+            total=director_total,
+            executed=director_executed,
+            execution_rate=round((director_executed / director_total) * 100) if director_total > 0 else 0,
+        ),
+        daily_stats=WorldDailyStatsResponse(
+            talk_count=all_time_event_counts.get("talk", 0),
+            move_count=all_time_event_counts.get("move", 0),
+            rejection_count=all_time_event_counts.get("move_rejected", 0)
+            + all_time_event_counts.get("talk_rejected", 0),
+            total_input_tokens=token_totals.get("input_tokens", 0),
+            total_output_tokens=token_totals.get("output_tokens", 0),
+            total_cache_read_tokens=token_totals.get("cache_read_tokens", 0),
+            total_cache_creation_tokens=token_totals.get("cache_creation_tokens", 0),
+        ),
     )
 
 

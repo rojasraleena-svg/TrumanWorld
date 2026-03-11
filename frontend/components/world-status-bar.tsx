@@ -17,9 +17,12 @@ function formatElapsed(seconds: number): string {
 }
 
 export function WorldStatusBar() {
-  const { runId, world, error, isValidating, refresh } = useWorld();
+  const { runId, world, pulse, error, isValidating, refresh } = useWorld();
   const [isToggling, setIsToggling] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const activeRun = pulse?.run ?? world?.run;
+  const activeWorldClock = pulse?.world_clock ?? world?.world_clock;
+  const activeDailyStats = pulse?.daily_stats ?? world?.daily_stats;
 
   // 总时长 = elapsed_seconds(历史累计) + (now - started_at)(本次运行)
   // 暂停时仅展示 elapsed_seconds，不再递增
@@ -30,17 +33,17 @@ export function WorldStatusBar() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const localStartRef = useRef<number | null>(null);
 
-  const isRunning = world?.run.status === "running";
-  const startedAt = world?.run.started_at;
-  const elapsedBase = world?.run.elapsed_seconds ?? 0;
+  const isRunning = activeRun?.status === "running";
+  const startedAt = activeRun?.started_at;
+  const elapsedBase = activeRun?.elapsed_seconds ?? 0;
   const simDay =
-    world == null
+    activeRun == null
       ? 1
-      : Math.floor(((world.run.current_tick ?? 0) * (world.run.tick_minutes ?? 5)) / 1440) + 1;
+      : Math.floor(((activeRun.current_tick ?? 0) * (activeRun.tick_minutes ?? 5)) / 1440) + 1;
 
   useEffect(() => {
     // world 尚未加载，跳过
-    if (!world) return;
+    if (!activeRun) return;
 
     if (isRunning) {
       if (startedAt) {
@@ -87,9 +90,9 @@ export function WorldStatusBar() {
         intervalRef.current = null;
       }
     };
-  }, [world, isRunning, startedAt, elapsedBase]);
+  }, [activeRun, isRunning, startedAt, elapsedBase]);
 
-  if (!world) {
+  if (!world && !pulse) {
     return (
       <div className="flex items-center gap-3">
         <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-400">
@@ -121,9 +124,11 @@ export function WorldStatusBar() {
     <div className="flex items-center gap-3">
       {/* 模拟时间 - 移到暂停按钮左侧 */}
       <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600">
-        {world.world_clock
-          ? `第${simDay}天 ${world.world_clock.weekday_name_cn} ${world.world_clock.time}`
-          : `模拟时间 ${formatSimTime(world)}`}
+        {activeWorldClock
+          ? `第${simDay}天 ${activeWorldClock.weekday_name_cn} ${activeWorldClock.time}`
+          : world
+            ? `模拟时间 ${formatSimTime(world)}`
+            : "模拟时间"}
       </span>
 
       <button
@@ -158,7 +163,7 @@ export function WorldStatusBar() {
         <span
           className={`h-2 w-2 rounded-full ${isValidating ? "animate-pulse bg-emerald-300" : isRunning ? "bg-emerald-400" : "bg-slate-300"}`}
         />
-        Tick {world.run.current_tick ?? 0}
+        Tick {activeRun?.current_tick ?? 0}
       </span>
 
       {/* Wall-clock elapsed time — only shown while running or just paused */}
@@ -179,7 +184,7 @@ export function WorldStatusBar() {
 
       {/* Token 消耗统计 */}
       {(() => {
-        const stats = world.daily_stats;
+        const stats = activeDailyStats;
         if (!stats) return null;
         const totalTokens =
           (stats.total_input_tokens ?? 0) +

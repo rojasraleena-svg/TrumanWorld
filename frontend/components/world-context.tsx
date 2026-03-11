@@ -2,13 +2,14 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import useSWR from "swr";
-import { buildApiUrl, fetchApiResult, type ApiResult } from "@/lib/api";
-import type { WorldSnapshot } from "@/lib/types";
+import { buildApiUrl, fetchApiResult, getWorldPulseResult, type ApiResult } from "@/lib/api";
+import type { WorldPulse, WorldSnapshot } from "@/lib/types";
 import { useUiSearchParams } from "@/lib/ui-url-state";
 
 type WorldContextValue = {
   runId: string;
   world: WorldSnapshot | null;
+  pulse: WorldPulse | null;
   error: string | null;
   isValidating: boolean;
   refresh: () => void;
@@ -73,7 +74,7 @@ export function WorldProvider({ runId, initialData, children }: Props) {
         status: initialData ? 200 : null,
       },
       refreshInterval: (snapshot) =>
-        pausePolling ? 0 : snapshot?.data?.run.status === "running" ? 5000 : 0,
+        pausePolling ? 0 : snapshot?.data?.run.status === "running" ? 15000 : 0,
       revalidateOnFocus: false,
       revalidateOnMount: true,
       // Keep previous data during revalidation to prevent full-screen flash
@@ -86,15 +87,28 @@ export function WorldProvider({ runId, initialData, children }: Props) {
     },
   );
 
+  const { data: pulseResult } = useSWR<ApiResult<WorldPulse>>(
+    isClient && !pausePolling ? `/runs/${runId}/world/pulse` : null,
+    () => getWorldPulseResult(runId),
+    {
+      refreshInterval: (snapshot) =>
+        snapshot?.data?.run.status === "running" ? 5000 : 0,
+      revalidateOnFocus: false,
+      revalidateOnMount: false,
+      keepPreviousData: true,
+    },
+  );
+
   const refresh = useCallback(() => {
     void mutate();
   }, [mutate]);
 
   const error = result?.error ?? null;
   const world = result?.data ?? initialData ?? null;
+  const pulse = pulseResult?.data ?? null;
 
   return (
-    <WorldContext.Provider value={{ runId, world: world ?? null, error, isValidating, refresh }}>
+    <WorldContext.Provider value={{ runId, world: world ?? null, pulse, error, isValidating, refresh }}>
       {children}
     </WorldContext.Provider>
   );

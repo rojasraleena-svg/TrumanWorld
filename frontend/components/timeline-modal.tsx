@@ -41,7 +41,9 @@ const EMPTY_FILTERS: Filters = {
   agentId: "",
 };
 
-const PAGE_SIZE = 5000; // 直接加载大量数据，避免分页
+const PAGE_SIZE = 240;
+const INITIAL_VISIBLE_GROUPS = 8;
+const LOAD_MORE_GROUPS = 8;
 
 interface TimelineModalProps {
   isOpen: boolean;
@@ -75,8 +77,12 @@ export function TimelineModal({ isOpen, onClose, runId }: TimelineModalProps) {
   const [agents, setAgents] = useState<AgentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [visibleGroupCount, setVisibleGroupCount] = useState(INITIAL_VISIBLE_GROUPS);
   const timelineRef = useRef<TimelineResponse | null>(null);
+  const listContainerRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     timelineRef.current = timeline;
@@ -92,20 +98,55 @@ export function TimelineModal({ isOpen, onClose, runId }: TimelineModalProps) {
   }, [runId, isOpen]);
 
   const fetchTimeline = useCallback(
-    async (appliedFilters: Filters, orderDesc: boolean = true) => {
+    async (
+      appliedFilters: Filters,
+      {
+        orderDesc = true,
+        append = false,
+      }: {
+        orderDesc?: boolean;
+        append?: boolean;
+      } = {},
+    ) => {
       const hasExistingData = timelineRef.current !== null;
-      if (hasExistingData) {
+      const nextOffset = append ? timelineRef.current?.events.length ?? 0 : 0;
+
+      if (append) {
+        setIsLoadingMore(true);
+      } else if (hasExistingData) {
         setIsRefreshing(true);
       } else {
         setLoading(true);
       }
       setError(null);
       try {
-        const url = buildTimelineUrl(getApiBaseUrl(), runId, appliedFilters, PAGE_SIZE, 0, orderDesc);
+        const url = buildTimelineUrl(
+          getApiBaseUrl(),
+          runId,
+          appliedFilters,
+          PAGE_SIZE,
+          nextOffset,
+          orderDesc,
+        );
         const res = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
         if (!res.ok) throw new Error(`请求失败: ${res.status}`);
         const data = (await res.json()) as TimelineResponse;
-        setTimeline(data);
+        if (append && timelineRef.current) {
+          const existingEvents = timelineRef.current.events;
+          const mergedEvents = [...existingEvents];
+          const knownIds = new Set(existingEvents.map((event) => event.id));
+          for (const event of data.events) {
+            if (!knownIds.has(event.id)) {
+              mergedEvents.push(event);
+            }
+          }
+          setTimeline({
+            ...data,
+            events: mergedEvents,
+          });
+        } else {
+          setTimeline(data);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "加载失败");
         if (!hasExistingData) {
@@ -114,6 +155,7 @@ export function TimelineModal({ isOpen, onClose, runId }: TimelineModalProps) {
       } finally {
         setLoading(false);
         setIsRefreshing(false);
+        setIsLoadingMore(false);
       }
     },
     [runId],
@@ -122,18 +164,21 @@ export function TimelineModal({ isOpen, onClose, runId }: TimelineModalProps) {
   // 打开时加载数据
   useEffect(() => {
     if (isOpen) {
+      setVisibleGroupCount(INITIAL_VISIBLE_GROUPS);
       void fetchTimeline(EMPTY_FILTERS);
     }
   }, [isOpen, fetchTimeline]);
 
   const handleSearch = () => {
     setFilters(pendingFilters);
+    setVisibleGroupCount(INITIAL_VISIBLE_GROUPS);
     void fetchTimeline(pendingFilters);
   };
 
   const handleReset = () => {
     setPendingFilters(EMPTY_FILTERS);
     setFilters(EMPTY_FILTERS);
+    setVisibleGroupCount(INITIAL_VISIBLE_GROUPS);
     void fetchTimeline(EMPTY_FILTERS);
   };
 
@@ -154,6 +199,53 @@ export function TimelineModal({ isOpen, onClose, runId }: TimelineModalProps) {
   const total = timeline?.total ?? 0;
   const filtered = timeline?.filtered ?? 0;
   const hasFilter = Object.values(filters).some(Boolean);
+  const visibleGroups = useMemo(
+    () => groups.slice(0, visibleGroupCount),
+    [groups, visibleGroupCount],
+  );
+  const hasMoreGroups = groups.length > visibleGroupCount;
+  const hasMoreEvents = timeline != null && timeline.events.length < (timeline.filtered || timeline.total);
+
+  useEffect(() => {
+    const root = listContainerRef.current;
+    const target = loadMoreRef.current;
+    if (!root || !target) return;
+    if (loading || isRefreshing || isLoadingMore) return;
+    if (!hasMoreGroups && !hasMoreEvents) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) return;
+
+        if (hasMoreGroups) {
+          setVisibleGroupCount((current) => Math.min(current + LOAD_MORE_GROUPS, groups.length));
+          return;
+        }
+
+        if (hasMoreEvents) {
+          void fetchTimeline(filters, { append: true });
+        }
+      },
+      {
+        root,
+        rootMargin: "0px 0px 240px 0px",
+        threshold: 0.1,
+      },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [
+    fetchTimeline,
+    filters,
+    groups.length,
+    hasMoreEvents,
+    hasMoreGroups,
+    isLoadingMore,
+    isRefreshing,
+    loading,
+  ]);
 
   const updatePending = (key: keyof Filters, value: string) =>
     setPendingFilters((prev) => ({ ...prev, [key]: value }));
@@ -337,7 +429,7 @@ export function TimelineModal({ isOpen, onClose, runId }: TimelineModalProps) {
           )}
 
           {/* 事件列表 */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div ref={listContainerRef} className="flex-1 overflow-y-auto p-4">
             {loading ? (
               <div className="space-y-4">
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -372,7 +464,7 @@ export function TimelineModal({ isOpen, onClose, runId }: TimelineModalProps) {
               </div>
             ) : (
               <div className="space-y-4">
-                {groups.map(([tick, events]) => (
+                {visibleGroups.map(([tick, events]) => (
                   <TickGroup
                     key={tick}
                     tick={Number(tick)}
@@ -382,6 +474,21 @@ export function TimelineModal({ isOpen, onClose, runId }: TimelineModalProps) {
                     currentWorldTimeIso={timeline?.run_info?.current_world_time_iso}
                   />
                 ))}
+                {hasMoreGroups ? (
+                  <div className="flex justify-center pt-2">
+                    <div className="rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-500">
+                      继续下滑以加载更多时间段
+                    </div>
+                  </div>
+                ) : null}
+                {!hasMoreGroups && hasMoreEvents ? (
+                  <div className="flex justify-center pt-2">
+                    <div className="rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-500">
+                      {isLoadingMore ? "正在获取更早事件..." : "继续下滑以获取更早事件"}
+                    </div>
+                  </div>
+                ) : null}
+                {(hasMoreGroups || hasMoreEvents) ? <div ref={loadMoreRef} className="h-1 w-full" /> : null}
               </div>
             )}
           </div>
