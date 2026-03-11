@@ -10,6 +10,7 @@ from app.api.schemas.simulation import (
     AgentRelationshipResponse,
     AgentsListResponse,
     AgentSummaryResponse,
+    COMMON_RESPONSES,
 )
 from app.infra.db import get_db_session
 from app.infra.logging import get_logger
@@ -29,6 +30,7 @@ logger = get_logger(__name__)
     response_model=AgentsListResponse,
     summary="列出所有 Agent",
     description="获取指定运行中所有 agent 的基本信息列表",
+    responses=COMMON_RESPONSES,
 )
 async def list_agents(
     run_id: UUID,
@@ -71,6 +73,13 @@ async def list_agents(
 - 记忆列表（短期、情景、反思）
 - 关系网络（熟悉度、信任度、亲和力）
     """,
+    responses={
+        **COMMON_RESPONSES,
+        200: {
+            "description": "Agent 详情",
+            "model": AgentDetailResponse,
+        },
+    },
 )
 async def get_agent(
     run_id: UUID,

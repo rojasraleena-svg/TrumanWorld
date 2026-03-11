@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.simulation import (
+    COMMON_RESPONSES,
     DirectorObservationResponse,
     DirectorMemoriesResponse,
     DirectorMemoryResponse,
@@ -156,6 +157,10 @@ def build_run_response(run: SimulationRun) -> RunResponse:
     response_model=RunResponse,
     summary="创建新运行",
     description="创建一个新的 AI 模拟运行，可选择自动填充演示数据",
+    responses={
+        **COMMON_RESPONSES,
+        201: {"description": "运行创建成功", "model": RunResponse},
+    },
 )
 async def create_run(
     payload: RunCreateRequest,
@@ -191,6 +196,10 @@ async def create_run(
     response_model=list[RunResponse],
     summary="列出所有运行",
     description="获取所有模拟运行的列表",
+    responses={
+        **COMMON_RESPONSES,
+        200: {"description": "运行列表", "model": list[RunResponse]},
+    },
 )
 async def list_runs(
     session: AsyncSession = Depends(get_db_session),
@@ -552,6 +561,10 @@ async def get_timeline(
     response_model=WorldEventsResponse,
     summary="获取全量事件",
     description="获取 run 的全量历史事件，包含富字段（actor_name, location_name 等），支持按事件类型过滤和增量查询（since_tick）",
+    responses={
+        **COMMON_RESPONSES,
+        200: {"description": "事件列表", "model": WorldEventsResponse},
+    },
 )
 async def get_run_events(
     run_id: UUID,
@@ -767,6 +780,10 @@ def _build_health_metrics_config() -> WorldHealthMetricsConfig:
     response_model=WorldSnapshotResponse,
     summary="获取世界快照",
     description="获取模拟世界的实时快照，包括地点、agent 分布和最近事件",
+    responses={
+        **COMMON_RESPONSES,
+        200: {"description": "世界快照", "model": WorldSnapshotResponse},
+    },
 )
 async def get_world_snapshot(
     run_id: UUID,
@@ -955,6 +972,10 @@ async def get_world_snapshot(
 
 注意：导演系统仅限于简单世界事件，不允许直接修改 agent 属性或关系。
     """,
+    responses={
+        **COMMON_RESPONSES,
+        200: {"description": "事件注入成功", "model": StatusResponse},
+    },
 )
 async def inject_director_event(
     run_id: UUID,
