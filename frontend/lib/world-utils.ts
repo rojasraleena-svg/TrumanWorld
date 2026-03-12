@@ -193,14 +193,10 @@ export function formatGoal(goal?: string) {
 }
 
 export function formatSimTime(world: WorldSnapshot) {
-  const tickMinutes = world.run.tick_minutes ?? 5;
-  const totalMinutes = (world.run.current_tick ?? 0) * tickMinutes;
-  const hours = Math.floor(totalMinutes / 60)
-    .toString()
-    .padStart(2, "0");
-  const minutes = (totalMinutes % 60).toString().padStart(2, "0");
-
-  return `${hours}:${minutes}`;
+  if (world.world_clock?.time) {
+    return world.world_clock.time;
+  }
+  return "时间加载中";
 }
 
 const WEEKDAY_NAMES_CN = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
@@ -239,8 +235,8 @@ export function simDayLabelFromIso(worldStartIso: string, currentWorldTimeIso: s
 }
 
 /**
- * 根据 tick 计算模拟时间，返回 "第N天 周X HH:MM" 格式。
- * 时间从模拟开始时刻（由 clockIso 或默认 00:00 决定）推算。
+ * 根据当前世界 ISO 时间推算指定 tick 的日历日期与时间。
+ * 当缺少 clockIso 时，仅返回 Tick 编号，避免伪造线性时间。
  */
 export function tickToSimDayTime(
   tickNo: number,
@@ -248,37 +244,17 @@ export function tickToSimDayTime(
   currentTick: number,
   clockIso?: string,
 ): string {
-  let totalMinutes: number;
   if (clockIso) {
-    const timePart = clockIso.substring(11, 16);
-    const [hhStr, mmStr] = timePart.split(":");
-    const currentTotalMinutes = parseInt(hhStr, 10) * 60 + parseInt(mmStr, 10);
     const offsetMinutes = (tickNo - currentTick) * tickMinutes;
-    totalMinutes = ((currentTotalMinutes + offsetMinutes) % (24 * 60) + 24 * 60) % (24 * 60);
-    // 计算当前tick对应的绝对分钟数（用于推算天数）
-    // 取 clockIso 的日期部分推算绝对分钟
-    const dateStr = clockIso.substring(0, 10); // YYYY-MM-DD
-    const [, , dayStr] = dateStr.split("-");
-    // 简单：直接基于 currentTick 对应的累计分钟数推算天数
-    const currentAbsoluteMinutes = currentTick * tickMinutes;
-    const absoluteMinutes = currentAbsoluteMinutes + (tickNo - currentTick) * tickMinutes;
-    const dayIndex = Math.floor(absoluteMinutes / 1440);
-    const dayNumber = dayIndex + 1;
-    const weekday = WEEKDAY_NAMES_CN[dayIndex % 7];
-    const hh = Math.floor(totalMinutes / 60).toString().padStart(2, "0");
-    const mm = (totalMinutes % 60).toString().padStart(2, "0");
-    void dayStr;
-    return `第${dayNumber}天 ${weekday} ${hh}:${mm}`;
+    const targetDate = new Date(new Date(clockIso).getTime() + offsetMinutes * 60 * 1000);
+    const month = (targetDate.getUTCMonth() + 1).toString().padStart(2, "0");
+    const day = targetDate.getUTCDate().toString().padStart(2, "0");
+    const weekday = WEEKDAY_NAMES_CN[(targetDate.getUTCDay() + 6) % 7];
+    const hh = targetDate.getUTCHours().toString().padStart(2, "0");
+    const mm = targetDate.getUTCMinutes().toString().padStart(2, "0");
+    return `${month}-${day} ${weekday} ${hh}:${mm}`;
   }
-  // Fallback: tick 0 = 第1天 周一 00:00
-  const absoluteMinutes = tickNo * tickMinutes;
-  const dayIndex = Math.floor(absoluteMinutes / 1440);
-  const dayNumber = dayIndex + 1;
-  const weekday = WEEKDAY_NAMES_CN[dayIndex % 7];
-  totalMinutes = absoluteMinutes % 1440;
-  const hh = Math.floor(totalMinutes / 60).toString().padStart(2, "0");
-  const mm = (totalMinutes % 60).toString().padStart(2, "0");
-  return `第${dayNumber}天 ${weekday} ${hh}:${mm}`;
+  return `Tick ${tickNo}`;
 }
 
 /**
@@ -298,23 +274,13 @@ export function tickToSimTime(
   clockIso?: string,
 ): string {
   if (clockIso) {
-    // Extract HH:MM directly from ISO string (avoids local timezone conversion)
-    // ISO format: 2026-03-02T09:30:00+00:00 → index 11..15 = "09:30"
-    const timePart = clockIso.substring(11, 16); // "HH:MM"
-    const [hhStr, mmStr] = timePart.split(":");
-    const currentTotalMinutes = parseInt(hhStr, 10) * 60 + parseInt(mmStr, 10);
     const offsetMinutes = (tickNo - currentTick) * tickMinutes;
-    // Keep result within [0, 24*60) wrapping around midnight
-    const totalMinutes = ((currentTotalMinutes + offsetMinutes) % (24 * 60) + 24 * 60) % (24 * 60);
-    const hh = Math.floor(totalMinutes / 60).toString().padStart(2, "0");
-    const mm = (totalMinutes % 60).toString().padStart(2, "0");
+    const targetDate = new Date(new Date(clockIso).getTime() + offsetMinutes * 60 * 1000);
+    const hh = targetDate.getUTCHours().toString().padStart(2, "0");
+    const mm = targetDate.getUTCMinutes().toString().padStart(2, "0");
     return `${hh}:${mm}`;
   }
-  // Fallback: treat tick 0 as 00:00
-  const totalMinutes = tickNo * tickMinutes;
-  const hh = Math.floor(totalMinutes / 60).toString().padStart(2, "0");
-  const mm = (totalMinutes % 60).toString().padStart(2, "0");
-  return `${hh}:${mm}`;
+  return `Tick ${tickNo}`;
 }
 
 /**

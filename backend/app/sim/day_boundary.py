@@ -44,12 +44,13 @@ def should_run_planner(world: "WorldState") -> bool:
 
 
 def should_run_reflector(world: "WorldState") -> bool:
-    """Return True when the world is at 21:55-21:59.
+    """Return True right after the 21:55 reflection tick completes.
 
-    Note: Triggered at 21:55 instead of 22:00 to ensure reflection runs
-    before the sleep jump at 23:00 (world.py advance_tick).
+    Reflector is executed after a tick finishes, so the world clock has already
+    advanced into the next slot. For the default 5-minute cadence, the "21:55"
+    reflection tick is observed here as 22:00.
     """
-    return world.current_time.hour == 21 and 55 <= world.current_time.minute < 55 + world.tick_minutes
+    return world.current_time.hour == 22 and world.current_time.minute < world.tick_minutes
 
 
 async def has_plan_for_today(

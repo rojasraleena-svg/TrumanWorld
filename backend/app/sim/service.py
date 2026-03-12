@@ -16,6 +16,7 @@ from app.scenario.base import Scenario
 from app.scenario.factory import create_scenario
 from app.sim.action_resolver import ActionIntent
 from app.sim.context import ContextBuilder
+from app.sim.day_boundary_coordinator import DayBoundaryCoordinator
 from app.sim.isolated_tick_runner import IsolatedTickRunner
 from app.sim.persistence import PersistenceManager
 from app.sim.runner import TickResult
@@ -62,6 +63,7 @@ class SimulationService:
         self.agent_runtime = agent_runtime or AgentRuntime(
             registry=AgentRegistry(agents_root or (settings.project_root / "agents"))
         )
+        self.day_boundary_coordinator = DayBoundaryCoordinator()
         self._scenario.configure_runtime(self.agent_runtime)
 
     def _configure_scenario(self, scenario_type: str | None) -> Scenario:
@@ -146,6 +148,15 @@ class SimulationService:
             self._configure_scenario_for_run(run)
 
             world = await self._load_world(run_id, tick_minutes=run.tick_minutes)
+            planner_ran = await self.day_boundary_coordinator.run_planner_if_needed(
+                run_id=run_id,
+                tick_no=run.current_tick,
+                world=world,
+                engine=self._require_session_bound().bind,
+                agent_runtime=self.agent_runtime,
+            )
+            if planner_ran:
+                world = await self._load_world(run_id, tick_minutes=run.tick_minutes)
             if not intents:
                 intents = await self.prepare_tick_intents(run_id, world)
             result = self._build_tick_orchestrator().execute_tick(
@@ -157,6 +168,13 @@ class SimulationService:
             await self._require_persistence().persist_agent_locations(run_id, world)
             await run_repo.update_tick(run, result.tick_no)
             await self._persist_tick_events(run_id, result)
+            await self.day_boundary_coordinator.run(
+                run_id=run_id,
+                result=result,
+                world=world,
+                engine=self._require_session_bound().bind,
+                agent_runtime=self.agent_runtime,
+            )
         except Exception as e:
             logger.error(f"Tick failed for run {run_id}: {e}")
             observe_tick(

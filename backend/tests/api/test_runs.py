@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.agent.connection_pool as connection_pool_module
 import app.api.routes.system as system_route
+import app.sim.day_boundary_coordinator as day_boundary_coordinator_module
 from app.store.models import (
     Agent,
     DirectorMemory,
@@ -339,6 +340,96 @@ async def test_advance_run_tick_updates_tick_counter(client):
 
 
 @pytest.mark.asyncio
+async def test_advance_run_tick_for_empty_run_skips_sleep_hours(client, db_session: AsyncSession):
+    run_id = "00000000-0000-0000-0000-000000000301"
+    db_session.add(
+        SimulationRun(
+            id=run_id,
+            name="clock-api-empty-run",
+            status="running",
+            current_tick=203,
+            tick_minutes=5,
+            metadata_json={"world_start_time": "2026-03-02T06:00:00+00:00"},
+        )
+    )
+    await db_session.commit()
+
+    tick_response = await client.post(f"/api/runs/{run_id}/tick")
+    world_response = await client.get(f"/api/runs/{run_id}/world")
+
+    assert tick_response.status_code == 200
+    assert tick_response.json()["tick_no"] == 288
+    assert tick_response.json()["accepted_count"] == 0
+    assert tick_response.json()["rejected_count"] == 0
+
+    assert world_response.status_code == 200
+    assert world_response.json()["run"]["current_tick"] == 288
+    assert world_response.json()["world_clock"]["iso"] == "2026-03-03T06:00:00+00:00"
+
+
+@pytest.mark.asyncio
+async def test_advance_run_tick_triggers_morning_planner(client, db_session: AsyncSession, monkeypatch):
+    run_id = "00000000-0000-0000-0000-000000000303"
+    db_session.add(
+        SimulationRun(
+            id=run_id,
+            name="clock-api-morning-planner",
+            status="running",
+            current_tick=0,
+            tick_minutes=5,
+            metadata_json={"world_start_time": "2026-03-02T06:00:00+00:00"},
+        )
+    )
+    await db_session.commit()
+
+    calls: list[tuple[str, int]] = []
+
+    async def fake_run_morning_planning(*, run_id: str, tick_no: int, world, engine, agent_runtime):
+        calls.append((run_id, tick_no))
+
+    monkeypatch.setattr(day_boundary_coordinator_module, "run_morning_planning", fake_run_morning_planning)
+
+    tick_response = await client.post(f"/api/runs/{run_id}/tick")
+
+    assert tick_response.status_code == 200
+    assert tick_response.json()["tick_no"] == 1
+    assert calls == [(run_id, 0)]
+
+
+@pytest.mark.asyncio
+async def test_advance_run_tick_triggers_evening_reflector(client, db_session: AsyncSession, monkeypatch):
+    run_id = "00000000-0000-0000-0000-000000000304"
+    db_session.add(
+        SimulationRun(
+            id=run_id,
+            name="clock-api-evening-reflector",
+            status="running",
+            current_tick=191,
+            tick_minutes=5,
+            metadata_json={"world_start_time": "2026-03-02T06:00:00+00:00"},
+        )
+    )
+    await db_session.commit()
+
+    calls: list[tuple[str, int]] = []
+
+    async def fake_run_evening_reflection(*, run_id: str, tick_no: int, world, engine, agent_runtime):
+        calls.append((run_id, tick_no))
+
+    monkeypatch.setattr(
+        day_boundary_coordinator_module,
+        "run_evening_reflection",
+        fake_run_evening_reflection,
+    )
+
+    tick_response = await client.post(f"/api/runs/{run_id}/tick")
+
+    assert tick_response.status_code == 200
+    assert tick_response.json()["tick_no"] == 192
+    assert calls == [(run_id, 192)]
+
+
+@pytest.mark.asyncio
 async def test_get_timeline_for_empty_run(client):
     create_response = await client.post(
         "/api/runs", json={"name": "timeline-run", "seed_demo": False}
@@ -354,6 +445,30 @@ async def test_get_timeline_for_empty_run(client):
     assert "total" in data
     assert "filtered" in data
     assert "run_info" in data
+
+
+@pytest.mark.asyncio
+async def test_get_timeline_for_empty_run_uses_skipped_world_time(client, db_session: AsyncSession):
+    run_id = "00000000-0000-0000-0000-000000000302"
+    db_session.add(
+        SimulationRun(
+            id=run_id,
+            name="timeline-empty-clock-run",
+            status="running",
+            current_tick=288,
+            tick_minutes=5,
+            metadata_json={"world_start_time": "2026-03-02T06:00:00+00:00"},
+        )
+    )
+    await db_session.commit()
+
+    timeline_response = await client.get(f"/api/runs/{run_id}/timeline")
+
+    assert timeline_response.status_code == 200
+    body = timeline_response.json()
+    assert body["events"] == []
+    assert body["run_info"]["current_tick"] == 288
+    assert body["run_info"]["current_world_time_iso"] == "2026-03-03T06:00:00+00:00"
 
 
 @pytest.mark.asyncio

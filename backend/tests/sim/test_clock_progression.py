@@ -1,0 +1,105 @@
+from __future__ import annotations
+
+import shutil
+import tempfile
+from pathlib import Path
+
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+
+from app.sim.context import get_run_world_time
+from app.sim.service import SimulationService
+from app.store.models import Base
+from app.store.repositories import EventRepository, RunRepository
+
+from .helpers import build_rest_runtime, create_clock_run
+
+
+@pytest.mark.asyncio
+async def test_empty_run_tick_advances_time_without_ai(db_session):
+    run_id = "clock-empty-inline"
+    await create_clock_run(
+        db_session,
+        run_id=run_id,
+        current_tick=0,
+        include_agent=False,
+    )
+
+    service = SimulationService(db_session)
+    result = await service.run_tick(run_id)
+
+    updated_run = await RunRepository(db_session).get(run_id)
+    assert result.tick_no == 1
+    assert result.tick_delta == 1
+    assert result.accepted == []
+    assert result.rejected == []
+    assert result.world_time == "2026-03-02T06:05:00+00:00"
+    assert updated_run is not None
+    assert updated_run.current_tick == 1
+    assert get_run_world_time(updated_run).isoformat() == "2026-03-02T06:05:00+00:00"
+
+
+@pytest.mark.asyncio
+async def test_empty_run_tick_skips_sleep_hours_without_ai(db_session):
+    run_id = "clock-empty-skip"
+    await create_clock_run(
+        db_session,
+        run_id=run_id,
+        current_tick=203,
+        include_agent=False,
+    )
+
+    service = SimulationService(db_session)
+    result = await service.run_tick(run_id)
+
+    updated_run = await RunRepository(db_session).get(run_id)
+    events = await EventRepository(db_session).list_for_run(run_id)
+    assert result.tick_no == 288
+    assert result.tick_delta == 85
+    assert result.accepted == []
+    assert result.rejected == []
+    assert result.world_time == "2026-03-03T06:00:00+00:00"
+    assert updated_run is not None
+    assert updated_run.current_tick == 288
+    assert get_run_world_time(updated_run).isoformat() == "2026-03-03T06:00:00+00:00"
+    assert list(events) == []
+
+
+@pytest.mark.asyncio
+async def test_rest_only_runtime_persists_event_and_time_consistently():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    run_id = "clock-rest-isolated"
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        await create_clock_run(
+            session,
+            run_id=run_id,
+            current_tick=203,
+            include_agent=True,
+        )
+
+    tmp_path = Path(tempfile.mkdtemp())
+    runtime = build_rest_runtime(tmp_path)
+    service = SimulationService.create_for_scheduler(runtime)
+
+    try:
+        result = await service.run_tick_isolated(run_id, engine)
+
+        async with AsyncSession(engine, expire_on_commit=False) as session:
+            run = await RunRepository(session).get(run_id)
+            events = await EventRepository(session).list_for_run(run_id)
+
+        assert result.tick_no == 288
+        assert result.tick_delta == 85
+        assert result.world_time == "2026-03-03T06:00:00+00:00"
+        assert run is not None
+        assert run.current_tick == 288
+        assert get_run_world_time(run).isoformat() == "2026-03-03T06:00:00+00:00"
+        assert len(events) == 1
+        assert events[0].event_type == "rest"
+        assert events[0].tick_no == 288
+    finally:
+        await engine.dispose()
+        shutil.rmtree(tmp_path)
