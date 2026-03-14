@@ -6,7 +6,7 @@ LOGS_DIR := logs
 # 生成带时间戳的日志文件名
 LOG_TIMESTAMP := $(shell date +%Y%m%d_%H%M%S)
 
-.PHONY: install backend-install frontend-install backend-dev frontend-dev lint format test migrate pre-commit dev docker-dev docker-down docker-clean db-start db-stop db-status db-wait db-migrate db-clean check-ports kill-ports sync-agent-logos
+.PHONY: install backend-install frontend-install backend-dev frontend-dev lint format test migrate pre-commit dev docker-dev docker-down docker-clean db-start db-stop db-status db-wait db-migrate db-clean check-ports kill-ports sync-agent-logos benchmark-reactor-pool
 
 # 同步 agent logo 到前端 public 目录
 sync-agent-logos:
@@ -24,13 +24,13 @@ sync-agent-logos:
 install: backend-install frontend-install sync-agent-logos
 
 backend-install:
-	cd $(BACKEND_DIR) && uv sync --extra dev
+	cd $(BACKEND_DIR) && uv sync --group dev
 
 frontend-install:
 	cd $(FRONTEND_DIR) && npm install
 
 backend-dev:
-	cd $(BACKEND_DIR) && uv run uvicorn app.main:app --reload --host 127.0.0.1 --port $(BACKEND_PORT)
+	cd $(BACKEND_DIR) && env -u ANTHROPIC_AUTH_TOKEN -u ANTHROPIC_API_KEY -u ANTHROPIC_BASE_URL uv run uvicorn app.main:app --reload --host 127.0.0.1 --port $(BACKEND_PORT)
 
 frontend-dev: sync-agent-logos
 	cd $(FRONTEND_DIR) && INTERNAL_API_BASE_URL=http://127.0.0.1:$(BACKEND_PORT)/api NEXT_PUBLIC_API_BASE_URL=/api npm run dev -- --port $(FRONTEND_PORT) --hostname 0.0.0.0
@@ -44,17 +44,21 @@ format:
 test:
 	cd $(BACKEND_DIR) && uv run pytest
 
+benchmark-reactor-pool:
+	cd $(BACKEND_DIR) && uv run python scripts/benchmark_reactor_pooling.py --base-url http://127.0.0.1:$(BACKEND_PORT)/api --ticks 10 --seed-demo
+
 migrate:
 	cd $(BACKEND_DIR) && uv run alembic upgrade head
 
 pre-commit:
 	$(PYTHON) -m pre_commit run --all-files
 
-# 数据库配置（测试环境）
+# 数据库配置（本地开发环境，从环境变量或使用默认值）
+# 生产环境请务必设置环境变量 TRUMANWORLD_DB_PASSWORD
 DB_CONTAINER_NAME := trumanworld-db-test
 DB_PORT := 5432
 DB_USER := truman
-DB_PASSWORD := truman123
+DB_PASSWORD ?= $(or $(TRUMANWORLD_DB_PASSWORD),truman)
 DB_NAME := trumanworld
 
 # 应用端口配置
@@ -184,7 +188,7 @@ dev: check-ports db-start db-migrate sync-agent-logos
 	echo "================================"; \
 	echo "按 Ctrl+C 停止前后端（数据库会继续运行）"; \
 	echo ""; \
-	(cd $(BACKEND_DIR) && uv run uvicorn app.main:app --host 127.0.0.1 --port $(BACKEND_PORT) 2>&1 | tee "$${LOG_FILE_BACKEND}") & \
+	(cd $(BACKEND_DIR) && env -u ANTHROPIC_AUTH_TOKEN -u ANTHROPIC_API_KEY -u ANTHROPIC_BASE_URL uv run uvicorn app.main:app --host 127.0.0.1 --port $(BACKEND_PORT) 2>&1 | tee "$${LOG_FILE_BACKEND}") & \
 	BACKEND_PID=$$!; \
 	(cd $(FRONTEND_DIR) && INTERNAL_API_BASE_URL=http://127.0.0.1:$(BACKEND_PORT)/api NEXT_PUBLIC_API_BASE_URL=/api npm run dev -- --port $(FRONTEND_PORT) --hostname 0.0.0.0 2>&1 | tee "$${LOG_FILE_FRONTEND}") & \
 	FRONTEND_PID=$$!; \

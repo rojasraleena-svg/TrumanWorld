@@ -3,12 +3,11 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from app.agent.providers import HeuristicDecisionProvider
 from app.director.observer import DirectorAssessment, DirectorObserver
 from app.director.planner import DirectorPlanner
 from app.director.types import DirectorPlan
-from app.infra.settings import get_settings
 from app.infra.logging import get_logger
+from app.infra.settings import get_settings
 from app.scenario.truman_world.heuristics import build_truman_world_decision
 from app.scenario.truman_world.types import (
     DirectorGuidance,
@@ -209,8 +208,8 @@ class TrumanWorldCoordinator:
     async def persist_director_plan(
         self,
         run_id: str,
-        plan: "DirectorPlan",
-        assessment: "DirectorAssessment | None" = None,
+        plan: DirectorPlan,
+        assessment: DirectorAssessment | None = None,
     ) -> None:
         """将自动干预计划持久化到记忆，应在 write_session 阶段调用。
 
@@ -303,9 +302,7 @@ class TrumanWorldCoordinator:
         return merge_scenario_agent_profile(agent.profile or {}, guidance)
 
     def configure_runtime(self, agent_runtime) -> None:
-        provider = getattr(agent_runtime, "decision_provider", None)
-        if isinstance(provider, HeuristicDecisionProvider):
-            provider.set_decision_hook(self.build_runtime_decision)
+        agent_runtime.configure_fallback_decision_hook(self.build_runtime_decision)
 
     def build_runtime_decision(
         self,

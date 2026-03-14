@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+from time import perf_counter
 from typing import TYPE_CHECKING
 
 from app.agent.runtime import RuntimeContext
+from app.infra.logging import get_logger
 from app.scenario.base import Scenario
 from app.scenario.types import get_agent_config_id, get_scenario_guidance, get_world_role
-from app.sim.llm_call_collector import LlmCallCollector
 from app.sim.agent_snapshot_builder import build_agent_recent_events
+from app.sim.llm_call_collector import LlmCallCollector
 from app.sim.runner import SimulationRunner, TickResult
 from app.sim.runtime_context_utils import (
     build_agent_world_context,
@@ -28,15 +30,18 @@ if TYPE_CHECKING:
     from app.store.repositories import AgentRepository
 
 
+logger = get_logger(__name__)
+
+
 class TickOrchestrator:
     def __init__(
         self,
         *,
-        agent_runtime: "AgentRuntime",
+        agent_runtime: AgentRuntime,
         scenario: Scenario,
-        session: "AsyncSession | None" = None,
-        context_builder: "ContextBuilder | None" = None,
-        agent_repo: "AgentRepository | None" = None,
+        session: AsyncSession | None = None,
+        context_builder: ContextBuilder | None = None,
+        agent_repo: AgentRepository | None = None,
     ) -> None:
         self.agent_runtime = agent_runtime
         self.scenario = scenario
@@ -44,11 +49,12 @@ class TickOrchestrator:
         self.context_builder = context_builder
         self.agent_repo = agent_repo
 
-    async def prepare_tick_intents(self, run_id: str, world: WorldState) -> list["ActionIntent"]:
+    async def prepare_tick_intents(self, run_id: str, world: WorldState) -> list[ActionIntent]:
         if self.session is None or self.context_builder is None or self.agent_repo is None:
             msg = "TickOrchestrator.prepare_tick_intents requires a bound session context"
             raise RuntimeError(msg)
 
+        started_at = perf_counter()
         agents = await self.agent_repo.list_for_run(run_id)
         intents: list[ActionIntent] = []
         truman_suspicion_score = self.context_builder.extract_truman_suspicion_from_agents(
@@ -85,19 +91,46 @@ class TickOrchestrator:
                 )
             )
 
+        logger.debug(
+            "tick_phase_completed run_id=%s tick_no=%s phase=prepare_tick_intents "
+            "duration_ms=%s agent_count=%s intent_count=%s",
+            run_id,
+            world.current_tick,
+            int((perf_counter() - started_at) * 1000),
+            len(agents),
+            len(intents),
+        )
         return intents
 
     async def prepare_intents_from_data(
         self,
         world: WorldState,
-        agent_data: list["AgentDecisionSnapshot"],
+        agent_data: list[AgentDecisionSnapshot],
         engine=None,
         run_id: str | None = None,
         tick_no: int = 0,
-    ) -> tuple[list["ActionIntent"], list[LlmCall]]:
+    ) -> tuple[list[ActionIntent], list[LlmCall]]:
+        phase_started_at = perf_counter()
         collector = LlmCallCollector()
+        concurrency_limit = self.agent_runtime.decision_concurrency_limit()
+        semaphore = (
+            asyncio.Semaphore(concurrency_limit)
+            if isinstance(concurrency_limit, int) and concurrency_limit > 0
+            else None
+        )
 
         async def decide_for_agent(agent_snapshot: AgentDecisionSnapshot) -> ActionIntent | None:
+            enqueued_at = perf_counter()
+            if semaphore is None:
+                return await _decide_for_agent_inner(agent_snapshot, enqueued_at=enqueued_at)
+            async with semaphore:
+                return await _decide_for_agent_inner(agent_snapshot, enqueued_at=enqueued_at)
+
+        async def _decide_for_agent_inner(
+            agent_snapshot: AgentDecisionSnapshot,
+            *,
+            enqueued_at: float,
+        ) -> ActionIntent | None:
             agent_id = agent_snapshot.id
             state = get_agent(world, agent_id)
             if state is None:
@@ -135,24 +168,76 @@ class TickOrchestrator:
             if isinstance(profile, dict):
                 workplace_location_id = profile.get("workplace_location_id")
 
-            return await self.decide_intent_for_agent(
-                agent_id=agent_id,
-                runtime_agent_id=runtime_agent_id,
-                world=world,
-                current_goal=agent_snapshot.current_goal,
-                current_location_id=agent_snapshot.current_location_id,
-                home_location_id=agent_snapshot.home_location_id,
-                current_status=state.status,
-                profile=profile if isinstance(profile, dict) else {},
-                recent_events=agent_snapshot.recent_events,
-                truman_suspicion_score=truman_suspicion_score,
-                runtime_ctx=runtime_ctx,
-                workplace_location_id=workplace_location_id,
-                current_plan=agent_snapshot.current_plan,
+            started_at = perf_counter()
+            queue_delay_ms = int((started_at - enqueued_at) * 1000)
+            logger.debug(
+                "agent_decision_started run_id=%s tick_no=%s agent_id=%s runtime_agent_id=%s "
+                "queue_delay_ms=%s current_location_id=%s",
+                run_id,
+                tick_no,
+                agent_id,
+                runtime_agent_id,
+                queue_delay_ms,
+                agent_snapshot.current_location_id,
             )
+
+            try:
+                intent = await self.decide_intent_for_agent(
+                    agent_id=agent_id,
+                    runtime_agent_id=runtime_agent_id,
+                    world=world,
+                    current_goal=agent_snapshot.current_goal,
+                    current_location_id=agent_snapshot.current_location_id,
+                    home_location_id=agent_snapshot.home_location_id,
+                    current_status=state.status,
+                    profile=profile if isinstance(profile, dict) else {},
+                    recent_events=agent_snapshot.recent_events,
+                    truman_suspicion_score=truman_suspicion_score,
+                    runtime_ctx=runtime_ctx,
+                    workplace_location_id=workplace_location_id,
+                    current_plan=agent_snapshot.current_plan,
+                )
+            except Exception:
+                logger.exception(
+                    "agent_decision_failed run_id=%s tick_no=%s agent_id=%s runtime_agent_id=%s "
+                    "queue_delay_ms=%s",
+                    run_id,
+                    tick_no,
+                    agent_id,
+                    runtime_agent_id,
+                    queue_delay_ms,
+                )
+                raise
+
+            logger.debug(
+                "agent_decision_completed run_id=%s tick_no=%s agent_id=%s runtime_agent_id=%s "
+                "queue_delay_ms=%s duration_ms=%s action_type=%s target_agent_id=%s "
+                "target_location_id=%s",
+                run_id,
+                tick_no,
+                agent_id,
+                runtime_agent_id,
+                queue_delay_ms,
+                int((perf_counter() - started_at) * 1000),
+                intent.action_type,
+                intent.target_agent_id,
+                intent.target_location_id,
+            )
+            return intent
 
         results = await asyncio.gather(*[decide_for_agent(snapshot) for snapshot in agent_data])
         intents = [result for result in results if result is not None]
+        logger.debug(
+            "tick_phase_completed run_id=%s tick_no=%s phase=decide_intents duration_ms=%s "
+            "agent_count=%s intent_count=%s llm_call_count=%s concurrency_limit=%s",
+            run_id,
+            tick_no,
+            int((perf_counter() - phase_started_at) * 1000),
+            len(agent_data),
+            len(intents),
+            len(collector.records),
+            concurrency_limit,
+        )
         return intents, collector.records
 
     async def decide_intent_for_agent(
@@ -171,7 +256,7 @@ class TickOrchestrator:
         runtime_ctx=None,
         workplace_location_id: str | None = None,
         current_plan: dict | None = None,
-    ) -> "ActionIntent":
+    ) -> ActionIntent:
         nearby_agent_id = (
             find_nearby_agent(world, agent_id, current_location_id)
             if current_location_id is not None
@@ -207,14 +292,26 @@ class TickOrchestrator:
     def execute_tick(
         self,
         *,
+        run_id: str | None,
         world: WorldState,
         current_tick: int,
-        intents: list["ActionIntent"],
+        intents: list[ActionIntent],
     ) -> TickResult:
+        started_at = perf_counter()
         runner = SimulationRunner(world)
         runner.tick_no = current_tick
-        return runner.tick(intents)
+        result = runner.tick(intents)
+        logger.debug(
+            "tick_phase_completed run_id=%s tick_no=%s phase=execute_tick duration_ms=%s "
+            "accepted_count=%s rejected_count=%s",
+            run_id,
+            current_tick,
+            int((perf_counter() - started_at) * 1000),
+            len(result.accepted),
+            len(result.rejected),
+        )
+        return result
 
     @staticmethod
-    def resolve_runtime_agent_id(agent: "Agent") -> str:
+    def resolve_runtime_agent_id(agent: Agent) -> str:
         return get_agent_config_id(agent.profile) or agent.id

@@ -2,8 +2,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import app.agent.connection_pool as connection_pool_module
 import app.api.routes.system as system_route
+import app.api.routes.runs as runs_route
 import app.sim.day_boundary_coordinator as day_boundary_coordinator_module
 from app.store.models import (
     Agent,
@@ -51,6 +51,9 @@ async def test_metrics_endpoint_exposes_runtime_metrics(client):
     assert "trumanworld_tick_total" in body
     assert "trumanworld_tick_duration_seconds" in body
     assert "trumanworld_active_runs" in body
+    assert "trumanworld_claude_reactor_pool_enabled" in body
+    assert "trumanworld_claude_reactor_pool_size" in body
+    assert "trumanworld_claude_reactor_pool_active" in body
     assert "process_resident_memory_bytes" in body
 
 
@@ -67,6 +70,7 @@ async def test_system_overview_endpoint_returns_project_components(
                 "backend": {
                     "status": "available",
                     "rss_bytes": 100,
+                    "unique_bytes": 90,
                     "vms_bytes": 200,
                     "cpu_seconds": 3.5,
                     "cpu_percent": 25.0,
@@ -75,6 +79,7 @@ async def test_system_overview_endpoint_returns_project_components(
                 "frontend": {
                     "status": "available",
                     "rss_bytes": 300,
+                    "unique_bytes": 280,
                     "vms_bytes": 400,
                     "cpu_seconds": 2.0,
                     "cpu_percent": 50.0,
@@ -83,6 +88,7 @@ async def test_system_overview_endpoint_returns_project_components(
                 "postgres": {
                     "status": "unavailable",
                     "rss_bytes": 0,
+                    "unique_bytes": None,
                     "vms_bytes": 0,
                     "cpu_seconds": 0.0,
                     "cpu_percent": 0.0,
@@ -91,6 +97,7 @@ async def test_system_overview_endpoint_returns_project_components(
                 "total": {
                     "status": "available",
                     "rss_bytes": 400,
+                    "unique_bytes": 370,
                     "vms_bytes": 600,
                     "cpu_seconds": 5.5,
                     "cpu_percent": 75.0,
@@ -107,6 +114,7 @@ async def test_system_overview_endpoint_returns_project_components(
     assert body["collected_at"] == 1234567890
     assert body["components"]["backend"]["cpu_percent"] == 25.0
     assert body["components"]["backend"]["rss_bytes"] == 100
+    assert body["components"]["backend"]["unique_bytes"] == 90
     assert body["components"]["frontend"]["process_count"] == 2
     assert body["components"]["postgres"]["status"] == "unavailable"
     assert body["components"]["total"]["rss_bytes"] == 400
@@ -592,7 +600,16 @@ async def test_get_run_events_supports_category_filters(client, db_session):
                 id="event-social",
                 run_id=run_id,
                 tick_no=1,
-                event_type="talk",
+                event_type="speech",
+                actor_agent_id="agent-event-a",
+                target_agent_id="agent-event-b",
+                payload={},
+            ),
+            Event(
+                id="event-conversation-started",
+                run_id=run_id,
+                tick_no=1,
+                event_type="conversation_started",
                 actor_agent_id="agent-event-a",
                 target_agent_id="agent-event-b",
                 payload={},
@@ -623,7 +640,10 @@ async def test_get_run_events_supports_category_filters(client, db_session):
     activity = await client.get(f"/api/runs/{run_id}/events", params={"event_type": "activity"})
 
     assert social.status_code == 200
-    assert [event["id"] for event in social.json()["events"]] == ["event-social"]
+    assert [event["id"] for event in social.json()["events"]] == [
+        "event-social",
+        "event-conversation-started",
+    ]
     assert movement.status_code == 200
     assert [event["id"] for event in movement.json()["events"]] == ["event-move"]
     assert activity.status_code == 200
@@ -759,6 +779,15 @@ async def test_events_incremental_query_empty_since_tick(client, db_session):
 
 
 class _FakePool:
+    def __init__(self) -> None:
+        self.cleaned_runs: list[str] = []
+
+    async def cleanup_run(self, run_id: str) -> int:
+        self.cleaned_runs.append(run_id)
+        return 1
+
+
+class _FakeCognitionRegistry:
     def __init__(self) -> None:
         self.cleaned_runs: list[str] = []
 
@@ -1084,9 +1113,11 @@ async def test_delete_run_removes_related_records_and_cleans_pool(
     client, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ):
     run_id = "00000000-0000-0000-0000-000000000204"
-    fake_pool = _FakePool()
+    fake_registry = _FakeCognitionRegistry()
     monkeypatch.setattr(
-        connection_pool_module, "get_connection_pool", lambda: _return_async(fake_pool)
+        runs_route,
+        "get_cognition_registry",
+        lambda: fake_registry,
     )
 
     db_session.add_all(
@@ -1171,7 +1202,7 @@ async def test_delete_run_removes_related_records_and_cleans_pool(
 
     assert response.status_code == 200
     assert response.json() == {"run_id": run_id, "status": "deleted"}
-    assert fake_pool.cleaned_runs == [run_id]
+    assert fake_registry.cleaned_runs == [run_id]
     assert await db_session.get(SimulationRun, run_id) is None
     assert await db_session.get(Agent, "agent-delete-a") is None
     assert await db_session.get(Location, "loc-delete") is None
@@ -1185,17 +1216,15 @@ async def test_delete_run_removes_related_records_and_cleans_pool(
 async def test_delete_run_returns_404_for_missing_run_and_still_cleans_runtime_resources(
     client, monkeypatch: pytest.MonkeyPatch
 ):
-    fake_pool = _FakePool()
+    fake_registry = _FakeCognitionRegistry()
     monkeypatch.setattr(
-        connection_pool_module, "get_connection_pool", lambda: _return_async(fake_pool)
+        runs_route,
+        "get_cognition_registry",
+        lambda: fake_registry,
     )
 
     response = await client.delete("/api/runs/00000000-0000-0000-0000-000000000208")
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Run not found"
-    assert fake_pool.cleaned_runs == ["00000000-0000-0000-0000-000000000208"]
-
-
-async def _return_async(value):
-    return value
+    assert fake_registry.cleaned_runs == ["00000000-0000-0000-0000-000000000208"]

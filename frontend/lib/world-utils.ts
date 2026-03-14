@@ -1,19 +1,44 @@
 import {
   DIRECTOR_EVENT_ACTIVITY,
   DIRECTOR_EVENT_BROADCAST,
+  EVENT_CONVERSATION_JOINED,
+  EVENT_CONVERSATION_STARTED,
   DIRECTOR_EVENT_INJECT,
   DIRECTOR_EVENT_SHUTDOWN,
   DIRECTOR_EVENT_WEATHER_CHANGE,
+  EVENT_LISTEN,
   EVENT_MOVE,
   EVENT_PLAN,
   EVENT_REFLECT,
   EVENT_REST,
+  EVENT_SPEECH,
   EVENT_TALK,
   EVENT_WORK,
 } from "@/lib/simulation-protocol";
 import type { WorldEvent, WorldSnapshot } from "@/lib/types";
 export type LocationBeat = "conversation" | "arrival" | "working" | "resting" | "quiet";
 export type EventFilter = "all" | "social" | "activity" | "movement";
+
+function isConversationStructureEvent(event: WorldEvent): boolean {
+  return (
+    event.event_type === EVENT_CONVERSATION_STARTED ||
+    event.event_type === EVENT_CONVERSATION_JOINED
+  );
+}
+
+function isConversationSpeechEvent(event: WorldEvent): boolean {
+  return event.event_type === EVENT_TALK || event.event_type === EVENT_SPEECH;
+}
+
+export function isSocialEvent(event: WorldEvent): boolean {
+  return (
+    event.event_type === EVENT_TALK ||
+    event.event_type === EVENT_SPEECH ||
+    event.event_type === EVENT_LISTEN ||
+    event.event_type === EVENT_CONVERSATION_STARTED ||
+    event.event_type === EVENT_CONVERSATION_JOINED
+  );
+}
 
 export function buildWorldNameMaps(world: WorldSnapshot) {
   const agentNameMap: Record<string, string> = {};
@@ -37,6 +62,61 @@ export function filterWorldEvents(
   return events
     .filter((event) => eventMatchesFilter(event, eventFilter))
     .filter((event) => locationFilter === null || event.location_id === locationFilter);
+}
+
+export function compressConversationDisplayEvents(events: WorldEvent[]): WorldEvent[] {
+  const conversationIdsWithSpeech = new Set<string>();
+
+  for (const event of events) {
+    const conversationId = String(event.payload.conversation_id ?? "");
+    if (!conversationId) continue;
+    if (isConversationSpeechEvent(event)) {
+      conversationIdsWithSpeech.add(conversationId);
+    }
+  }
+
+  return events.filter((event) => {
+    if (!isConversationStructureEvent(event)) return true;
+    const conversationId = String(event.payload.conversation_id ?? "");
+    if (!conversationId) return true;
+    return !conversationIdsWithSpeech.has(conversationId);
+  });
+}
+
+export function isAgentSociallyEngaged(
+  agentId: string,
+  currentGoal: string | undefined,
+  recentEvents: WorldEvent[],
+  currentTick?: number,
+): boolean {
+  if (currentGoal === "talk") {
+    return true;
+  }
+
+  return recentEvents.some((event) => {
+    if (!isSocialEvent(event)) return false;
+    if (currentTick !== undefined && event.tick_no < currentTick - 1) return false;
+    return event.actor_agent_id === agentId || event.target_agent_id === agentId;
+  });
+}
+
+export function getLocationHeadlineEvents(
+  locationId: string,
+  events: WorldEvent[],
+  limit: number = 2,
+): WorldEvent[] {
+  const locationEvents = compressConversationDisplayEvents(
+    events.filter((event) => event.location_id === locationId),
+  );
+
+  const ranked = [...locationEvents].sort((left, right) => {
+    if (right.tick_no !== left.tick_no) return right.tick_no - left.tick_no;
+    const leftSocial = isSocialEvent(left) ? 1 : 0;
+    const rightSocial = isSocialEvent(right) ? 1 : 0;
+    return rightSocial - leftSocial;
+  });
+
+  return ranked.slice(0, limit);
 }
 
 export function locationTone(locationType: string) {
@@ -145,7 +225,9 @@ export function getTimeOfDayStyle(timeOfDay: TimeOfDay): {
 
 export function eventMatchesFilter(event: WorldEvent, filter: EventFilter) {
   if (filter === "all") return true;
-  if (filter === "social") return event.event_type === EVENT_TALK;
+  if (filter === "social") {
+    return isSocialEvent(event);
+  }
   if (filter === "movement") return event.event_type === EVENT_MOVE;
   return event.event_type === EVENT_WORK || event.event_type === EVENT_REST;
 }
@@ -165,7 +247,15 @@ export function locationBeat(
   const latest = events.find((event) => event.location_id === locationId);
   if (!latest) return "quiet";
   if (currentTick !== undefined && latest.tick_no < currentTick - 1) return "quiet";
-  if (latest.event_type === EVENT_TALK) return "conversation";
+  if (
+    latest.event_type === EVENT_TALK ||
+    latest.event_type === EVENT_SPEECH ||
+    latest.event_type === EVENT_LISTEN ||
+    latest.event_type === EVENT_CONVERSATION_STARTED ||
+    latest.event_type === EVENT_CONVERSATION_JOINED
+  ) {
+    return "conversation";
+  }
   if (latest.event_type === EVENT_MOVE) return "arrival";
   if (latest.event_type === EVENT_WORK) return "working";
   if (latest.event_type === EVENT_REST) return "resting";
@@ -305,6 +395,10 @@ export function calculateLocationHeat(
 ): number {
   // 事件类型权重
   const eventWeights: Record<string, number> = {
+    [EVENT_SPEECH]: 1.5,
+    [EVENT_LISTEN]: 0.9,
+    [EVENT_CONVERSATION_STARTED]: 1.1,
+    [EVENT_CONVERSATION_JOINED]: 0.8,
     [EVENT_TALK]: 1.5,
     [EVENT_WORK]: 1.0,
     [EVENT_MOVE]: 0.6,

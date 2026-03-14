@@ -14,9 +14,12 @@ import asyncio
 import os
 
 from claude_agent_sdk import ResultMessage
-from app.agent.runtime import AgentRuntime, RuntimeContext
 from app.agent.registry import AgentRegistry
-from app.agent.providers import AgentDecisionProvider, RuntimeDecision
+from app.agent.runtime import AgentRuntime, RuntimeContext
+from app.cognition.claude.agent_backend import ClaudeSdkAgentBackend
+from app.cognition.claude.decision_provider import AgentDecisionProvider
+from app.cognition.claude.decision_utils import RuntimeDecision
+from app.cognition.heuristic.agent_backend import HeuristicAgentBackend
 
 
 class TokenCapturingProvider(AgentDecisionProvider):
@@ -52,16 +55,16 @@ def agent_runtime_with_mock_provider(tmp_path: Path):
 
     registry = AgentRegistry(tmp_path)
     provider = TokenCapturingProvider()
-    runtime = AgentRuntime(registry=registry, decision_provider=provider)
+    runtime = AgentRuntime(registry=registry, backend=HeuristicAgentBackend(provider))
     return runtime, provider
 
 
 @pytest.fixture
 def agent_runtime_claude_provider(tmp_path: Path):
     """Create an AgentRuntime with Claude provider for testing LLM calls."""
-    # Set up environment for Claude provider
-    original_env = os.environ.get("TRUMANWORLD_AGENT_PROVIDER")
-    os.environ["TRUMANWORLD_AGENT_PROVIDER"] = "claude"
+    # Set up environment for Claude backend
+    original_env = os.environ.get("TRUMANWORLD_AGENT_BACKEND")
+    os.environ["TRUMANWORLD_AGENT_BACKEND"] = "claude_sdk"
 
     # Clear settings cache
     from app.infra.settings import get_settings
@@ -83,9 +86,9 @@ def agent_runtime_claude_provider(tmp_path: Path):
 
     # Restore environment
     if original_env is None:
-        os.environ.pop("TRUMANWORLD_AGENT_PROVIDER", None)
+        os.environ.pop("TRUMANWORLD_AGENT_BACKEND", None)
     else:
-        os.environ["TRUMANWORLD_AGENT_PROVIDER"] = original_env
+        os.environ["TRUMANWORLD_AGENT_BACKEND"] = original_env
     get_settings.cache_clear()
 
 
@@ -145,7 +148,7 @@ class TestPlannerTokenTracking:
 
         # Create mock settings
         mock_settings = MagicMock(spec=Settings)
-        mock_settings.agent_provider = "claude"
+        mock_settings.agent_backend = "claude_sdk"
         mock_settings.agent_model = "claude-sonnet-4-20250514"
         mock_settings.anthropic_api_key = "test-key"
         mock_settings.anthropic_base_url = None
@@ -235,7 +238,7 @@ class TestReflectorTokenTracking:
 
         # Create mock settings
         mock_settings = MagicMock(spec=Settings)
-        mock_settings.agent_provider = "claude"
+        mock_settings.agent_backend = "claude_sdk"
         mock_settings.agent_model = "claude-sonnet-4-20250514"
         mock_settings.anthropic_api_key = "test-key"
         mock_settings.anthropic_base_url = None
@@ -309,3 +312,94 @@ class TestReflectorTokenTracking:
         assert captured_records[0]["task_type"] == "reflector"
         assert captured_records[0]["usage"]["input_tokens"] == 200
         print(f"✓ Reflector token tracking works: {captured_records}")
+
+
+class _PoolMustNotBeUsed:
+    async def acquire(self, *args, **kwargs):
+        raise AssertionError("planner/reflector should not use pooled ClaudeSDKClient")
+
+
+class TestFreeTextBypassesPool:
+    @pytest.mark.asyncio
+    async def test_plan_day_does_not_touch_reactor_pool(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        from app.infra.settings import Settings
+
+        settings = MagicMock(spec=Settings)
+        settings.agent_model = "claude-sonnet-4-20250514"
+        settings.project_root = tmp_path
+        settings.anthropic_api_key = "test-key"
+        settings.anthropic_base_url = None
+
+        monkeypatch.setattr(
+            "claude_agent_sdk.query",
+            _single_result_query('{"morning":"work","daytime":"work","evening":"rest"}'),
+        )
+        monkeypatch.setattr("shutil.which", lambda command: "/usr/bin/claude")
+
+        backend = ClaudeSdkAgentBackend(settings, connection_pool=_PoolMustNotBeUsed())
+        result = await backend.plan_day(
+            invocation=type(
+                "PlanningInvocation",
+                (),
+                {
+                    "agent_id": "test_agent",
+                    "agent_name": "Test Agent",
+                    "prompt": "Return a JSON plan",
+                    "context": {},
+                },
+            )()
+        )
+
+        assert result is not None
+        assert result["morning"] == "work"
+
+    @pytest.mark.asyncio
+    async def test_reflect_day_does_not_touch_reactor_pool(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        from app.infra.settings import Settings
+
+        settings = MagicMock(spec=Settings)
+        settings.agent_model = "claude-sonnet-4-20250514"
+        settings.project_root = tmp_path
+        settings.anthropic_api_key = "test-key"
+        settings.anthropic_base_url = None
+
+        monkeypatch.setattr(
+            "claude_agent_sdk.query",
+            _single_result_query('{"reflection":"Good day","mood":"happy"}'),
+        )
+        monkeypatch.setattr("shutil.which", lambda command: "/usr/bin/claude")
+
+        backend = ClaudeSdkAgentBackend(settings, connection_pool=_PoolMustNotBeUsed())
+        result = await backend.reflect_day(
+            invocation=type(
+                "ReflectionInvocation",
+                (),
+                {
+                    "agent_id": "test_agent",
+                    "agent_name": "Test Agent",
+                    "prompt": "Return a JSON reflection",
+                    "context": {},
+                },
+            )()
+        )
+
+        assert result is not None
+        assert result["mood"] == "happy"
+
+
+def _single_result_query(result: str):
+    async def _mock_query(*args, **kwargs):
+        yield MagicMock(
+            spec=ResultMessage,
+            is_error=False,
+            usage={"input_tokens": 1, "output_tokens": 1},
+            total_cost_usd=0.001,
+            duration_ms=10,
+            result=result,
+        )
+
+    return _mock_query

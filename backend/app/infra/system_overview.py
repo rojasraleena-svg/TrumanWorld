@@ -1,16 +1,15 @@
 from __future__ import annotations
 
+import os
+import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-import os
-import time
 from urllib.parse import urlparse
 
 import psutil
 
 from app.infra.settings import Settings, get_settings
-
 
 SnapshotDict = dict[str, int | float | str | None]
 _CPU_SAMPLE_CACHE: dict[str, tuple[float, float]] = {}
@@ -20,6 +19,7 @@ _CPU_SAMPLE_CACHE: dict[str, tuple[float, float]] = {}
 class ResourceSnapshot:
     status: str
     rss_bytes: int
+    unique_bytes: int | None
     vms_bytes: int
     cpu_seconds: float
     cpu_percent: float
@@ -29,6 +29,7 @@ class ResourceSnapshot:
         return {
             "status": self.status,
             "rss_bytes": self.rss_bytes,
+            "unique_bytes": self.unique_bytes,
             "vms_bytes": self.vms_bytes,
             "cpu_seconds": round(self.cpu_seconds, 3),
             "cpu_percent": round(self.cpu_percent, 1),
@@ -94,6 +95,8 @@ def _calculate_cpu_percent(cache_key: str, cpu_seconds: float) -> float:
 
 def _snapshot_from_pids(pids: Iterable[int], cache_key: str) -> ResourceSnapshot:
     rss_bytes = 0
+    unique_bytes = 0
+    unique_available = True
     vms_bytes = 0
     cpu_seconds = 0.0
     process_count = 0
@@ -102,11 +105,19 @@ def _snapshot_from_pids(pids: Iterable[int], cache_key: str) -> ResourceSnapshot
         try:
             process = psutil.Process(pid)
             memory_info = process.memory_info()
+            memory_full_info = process.memory_full_info()
             cpu_times = process.cpu_times()
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
 
         rss_bytes += int(memory_info.rss)
+        process_unique = getattr(memory_full_info, "uss", None) or getattr(
+            memory_full_info, "pss", None
+        )
+        if process_unique is None:
+            unique_available = False
+        else:
+            unique_bytes += int(process_unique)
         vms_bytes += int(memory_info.vms)
         cpu_seconds += float(cpu_times.user + cpu_times.system)
         process_count += 1
@@ -116,6 +127,7 @@ def _snapshot_from_pids(pids: Iterable[int], cache_key: str) -> ResourceSnapshot
     return ResourceSnapshot(
         status=status,
         rss_bytes=rss_bytes,
+        unique_bytes=unique_bytes if unique_available and process_count > 0 else None,
         vms_bytes=vms_bytes,
         cpu_seconds=cpu_seconds,
         cpu_percent=cpu_percent,

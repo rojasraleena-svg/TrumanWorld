@@ -8,18 +8,21 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel
 
 from app.agent.config_loader import AgentConfig
-from app.agent.connection_pool import AgentConnectionPool
 from app.agent.context_builder import ContextBuilder
-from app.agent.providers import (
-    AgentDecisionProvider,
-    ClaudeSDKDecisionProvider,
-    HeuristicDecisionProvider,
-)
 from app.agent.prompt_loader import PromptLoader
 from app.agent.registry import AgentRegistry
+from app.cognition.claude.connection_pool import AgentConnectionPool
+from app.cognition.interfaces import AgentCognitionBackend
+from app.cognition.registry import CognitionRegistry
+from app.cognition.types import (
+    AgentActionInvocation,
+    BackendExecutionContext,
+    PlanningInvocation,
+    ReflectionInvocation,
+)
 from app.infra.logging import get_logger
 from app.infra.settings import get_settings
-from app.sim.action_resolver import ActionIntent
+from app.sim.action_resolver import ActionIntent, PlanUpdate
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncEngine
@@ -27,6 +30,8 @@ if TYPE_CHECKING:
     from app.agent.memory_cache import MemoryCache
 
 logger = get_logger(__name__)
+
+__all__ = ["AgentRuntime", "RuntimeContext", "RuntimeInvocation", "shutil"]
 
 
 class RuntimeInvocation(BaseModel):
@@ -51,41 +56,58 @@ class RuntimeContext:
     and should be passed alongside RuntimeInvocation.
     """
 
-    db_engine: "AsyncEngine | None" = None
+    db_engine: AsyncEngine | None = None
     run_id: str | None = None
     enable_memory_tools: bool = True
     # LLM 调用回调：(agent_id, task_type, usage, total_cost_usd, duration_ms) -> None
     on_llm_call: Callable[..., None] | None = field(default=None)
     # 预加载的记忆缓存，用于 in-process MCP 工具（避免 greenlet 冲突）
-    memory_cache: "MemoryCache | None" = field(default=None)
+    memory_cache: MemoryCache | None = field(default=None)
 
 
 class AgentRuntime:
-    """Facade over Claude Agent SDK for TrumanWorld agents."""
+    """Runtime facade over framework-neutral cognition backends."""
 
     def __init__(
         self,
         registry: AgentRegistry,
         context_builder: ContextBuilder | None = None,
         prompt_loader: PromptLoader | None = None,
-        decision_provider: AgentDecisionProvider | None = None,
+        backend: AgentCognitionBackend | None = None,
         connection_pool: AgentConnectionPool | None = None,
+        cognition_registry: CognitionRegistry | None = None,
     ) -> None:
         self.registry = registry
         self.context_builder = context_builder or ContextBuilder()
         self.prompt_loader = prompt_loader or PromptLoader()
         self._connection_pool = connection_pool
+        self._cognition_registry = cognition_registry
         self._allowed_actions = ["move", "talk", "work", "rest"]
-        self.decision_provider = decision_provider or self._build_default_provider()
+        self.backend = backend or self._build_default_backend()
 
     def configure_allowed_actions(self, allowed_actions: list[str]) -> None:
         self._allowed_actions = list(allowed_actions)
 
-    def _build_default_provider(self) -> AgentDecisionProvider:
+    def configure_fallback_decision_hook(self, decision_hook: Any) -> bool:
+        if hasattr(self.backend, "set_decision_hook"):
+            self.backend.set_decision_hook(decision_hook)
+            return True
+        return False
+
+    def decision_concurrency_limit(self) -> int | None:
+        limit_getter = getattr(self.backend, "decision_concurrency_limit", None)
+        if callable(limit_getter):
+            limit = limit_getter()
+            if isinstance(limit, int) and limit > 0:
+                return limit
+        return None
+
+    def _build_default_backend(self) -> AgentCognitionBackend:
         settings = get_settings()
-        if settings.agent_provider == "claude":
-            return ClaudeSDKDecisionProvider(settings, connection_pool=self._connection_pool)
-        return HeuristicDecisionProvider()
+        cognition_registry = self._cognition_registry or CognitionRegistry(settings)
+        if self._connection_pool is not None:
+            cognition_registry._claude_pool = self._connection_pool
+        return cognition_registry.build_agent_backend()
 
     def _load_agent(self, agent_id: str) -> AgentConfig:
         config = self.registry.get_config(agent_id)
@@ -176,17 +198,51 @@ class AgentRuntime:
         invocation: RuntimeInvocation,
         runtime_ctx: RuntimeContext | None = None,
     ) -> ActionIntent:
-        decision = await self.decision_provider.decide(invocation, runtime_ctx=runtime_ctx)
+        backend_invocation = AgentActionInvocation(
+            agent_id=invocation.agent_id,
+            prompt=invocation.prompt,
+            context=invocation.context,
+            max_turns=invocation.max_turns,
+            max_budget_usd=invocation.max_budget_usd,
+            allowed_actions=list(invocation.allowed_actions),
+        )
+        backend_runtime_ctx = (
+            BackendExecutionContext(
+                run_id=runtime_ctx.run_id,
+                enable_memory_tools=runtime_ctx.enable_memory_tools,
+                on_llm_call=runtime_ctx.on_llm_call,
+                memory_cache=runtime_ctx.memory_cache,
+            )
+            if runtime_ctx is not None
+            else None
+        )
+        decision = await self.backend.decide_action(
+            backend_invocation, runtime_ctx=backend_runtime_ctx
+        )
         payload = dict(decision.payload)
         if decision.message:
             payload["message"] = decision.message
-        # No default message injection — LLM must provide message content for talk actions
+        # No default message injection — the model must provide message content
+        # for talk actions, which are later persisted as speech events.
+
+        # Parse plan_update if present
+        plan_update_obj = None
+        if decision.plan_update:
+            plan_update_dict = decision.plan_update
+            plan_update_obj = PlanUpdate(
+                reason=plan_update_dict.get("reason", ""),
+                new_morning=plan_update_dict.get("new_morning"),
+                new_daytime=plan_update_dict.get("new_daytime"),
+                new_evening=plan_update_dict.get("new_evening"),
+            )
+
         return ActionIntent(
             agent_id=invocation.agent_id,
             action_type=decision.action_type,
             target_location_id=decision.target_location_id,
             target_agent_id=decision.target_agent_id,
             payload=payload,
+            plan_update=plan_update_obj,
         )
 
     async def react(
@@ -212,7 +268,7 @@ class AgentRuntime:
         agent_name: str,
         world_context: dict[str, Any],
         recent_memories: list[dict[str, Any]] | None = None,
-        runtime_ctx: "RuntimeContext | None" = None,
+        runtime_ctx: RuntimeContext | None = None,
     ) -> dict | None:
         """Run the daily planning LLM call and return parsed plan dict.
 
@@ -225,7 +281,25 @@ class AgentRuntime:
             agent_name=agent_name,
             context=context,
         )
-        return await self._run_free_text_llm(agent_id, "planner", prompt, runtime_ctx=runtime_ctx)
+        backend_runtime_ctx = (
+            BackendExecutionContext(
+                run_id=runtime_ctx.run_id,
+                enable_memory_tools=runtime_ctx.enable_memory_tools,
+                on_llm_call=runtime_ctx.on_llm_call,
+                memory_cache=runtime_ctx.memory_cache,
+            )
+            if runtime_ctx is not None
+            else None
+        )
+        return await self.backend.plan_day(
+            PlanningInvocation(
+                agent_id=agent_id,
+                agent_name=agent_name,
+                prompt=prompt,
+                context=context,
+            ),
+            runtime_ctx=backend_runtime_ctx,
+        )
 
     async def run_reflector(
         self,
@@ -233,7 +307,7 @@ class AgentRuntime:
         agent_name: str,
         world_context: dict[str, Any],
         daily_events: list[dict[str, Any]] | None = None,
-        runtime_ctx: "RuntimeContext | None" = None,
+        runtime_ctx: RuntimeContext | None = None,
     ) -> dict | None:
         """Run the daily reflection LLM call and return parsed reflection dict.
 
@@ -245,73 +319,22 @@ class AgentRuntime:
             context=context,
             daily_events=daily_events or [],
         )
-        return await self._run_free_text_llm(agent_id, "reflector", prompt, runtime_ctx=runtime_ctx)
-
-    async def _run_free_text_llm(
-        self,
-        agent_id: str,
-        task: str,
-        prompt: str,
-        runtime_ctx: "RuntimeContext | None" = None,
-    ) -> dict | None:
-        """Call the LLM with the given prompt and extract JSON from the response."""
-        settings = get_settings()
-        if settings.agent_provider != "claude":
-            logger.debug(f"Skipping {task} for {agent_id}: provider is not claude")
-            return None
-        if shutil.which("claude") is None:
-            logger.warning(f"Skipping {task} for {agent_id}: claude CLI not available")
-            return None
-
-        from claude_agent_sdk import ResultMessage, query
-
-        from app.agent.sdk_options import build_sdk_options
-        from app.agent.system_prompt import build_system_prompt
-
-        options = build_sdk_options(
-            settings,
-            max_turns=4,
-            max_budget_usd=0.05,
-            model=settings.agent_model,
-            cwd=str(settings.project_root),
-            system_prompt=build_system_prompt(),
+        backend_runtime_ctx = (
+            BackendExecutionContext(
+                run_id=runtime_ctx.run_id,
+                enable_memory_tools=runtime_ctx.enable_memory_tools,
+                on_llm_call=runtime_ctx.on_llm_call,
+                memory_cache=runtime_ctx.memory_cache,
+            )
+            if runtime_ctx is not None
+            else None
         )
-
-        full_prompt = f"{prompt}\n\n重要：只返回 JSON，不要有任何其他文字。"
-
-        result_text: str | None = None
-        gen = None
-        try:
-            gen = query(prompt=full_prompt, options=options)
-            async for message in gen:
-                if isinstance(message, ResultMessage):
-                    if message.is_error:
-                        logger.warning(f"{task} LLM error for {agent_id}: {message.result}")
-                        return None
-                    # Record token usage if callback is provided
-                    if runtime_ctx and runtime_ctx.on_llm_call:
-                        runtime_ctx.on_llm_call(
-                            agent_id=agent_id,
-                            task_type=task,
-                            usage=message.usage,
-                            total_cost_usd=message.total_cost_usd,
-                            duration_ms=message.duration_ms,
-                        )
-                    result_text = message.result
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(f"{task} LLM call failed for {agent_id}: {exc}")
-            return None
-        finally:
-            if gen is not None:
-                try:
-                    await gen.aclose()
-                except RuntimeError:
-                    pass
-
-        if not result_text:
-            return None
-
-        parsed = PromptLoader.extract_json_from_text(result_text)
-        if parsed is None:
-            logger.warning(f"{task} could not parse JSON for {agent_id}: {result_text[:200]}")
-        return parsed
+        return await self.backend.reflect_day(
+            ReflectionInvocation(
+                agent_id=agent_id,
+                agent_name=agent_name,
+                prompt=prompt,
+                context=context,
+            ),
+            runtime_ctx=backend_runtime_ctx,
+        )

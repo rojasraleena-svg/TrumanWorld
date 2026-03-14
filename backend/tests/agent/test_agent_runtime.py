@@ -4,21 +4,19 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-import app.agent.providers as provider_module
 from app.agent.context_builder import ContextBuilder
-from app.agent.providers import (
-    AgentDecisionProvider,
-    ClaudeSDKDecisionProvider,
-    RuntimeDecision,
-)
 from app.agent.planner import Planner
 from app.agent.reactor import Reactor
 from app.agent.reflector import Reflector
 from app.agent.registry import AgentRegistry
 from app.agent.runtime import AgentRuntime, RuntimeInvocation
-from app.scenario.truman_world.scenario import TrumanWorldScenario
+from app.cognition.claude.agent_backend import ClaudeSdkAgentBackend
+from app.cognition.types import AgentDecisionResult
 from app.agent.system_prompt import build_system_prompt
+import app.cognition.claude.decision_provider as provider_module
+from app.cognition.claude.decision_provider import ClaudeSDKDecisionProvider
 from app.infra.settings import get_settings
+from app.scenario.truman_world.scenario import TrumanWorldScenario
 
 
 @pytest.fixture
@@ -52,13 +50,19 @@ def runtime(tmp_path: Path) -> AgentRuntime:
     return runtime
 
 
-class StubDecisionProvider(AgentDecisionProvider):
-    async def decide(self, invocation, runtime_ctx=None):
-        return RuntimeDecision(
+class StubDecisionBackend:
+    async def decide_action(self, invocation, runtime_ctx=None):
+        return AgentDecisionResult(
             action_type="talk",
             target_agent_id="bob",
-            payload={"intent_source": invocation.task},
+            payload={"intent_source": "reactor"},
         )
+
+    async def plan_day(self, invocation, runtime_ctx=None):
+        return None
+
+    async def reflect_day(self, invocation, runtime_ctx=None):
+        return None
 
 
 def test_runtime_prepare_planner(runtime: AgentRuntime):
@@ -173,7 +177,7 @@ def test_decision_prompt_requires_message_field_for_talk(runtime: AgentRuntime):
         in invocation.prompt
     )
     assert (
-        "当 `action_type=talk` 时，必须提供 `target_agent_id` 与 `message`（30-200 字的自然对话）"
+        "当 `action_type=talk` 时，必须提供 `target_agent_id` 与 `message`（30-200 字的自然发言；会在执行层映射为 speech 事件）"
         in invocation.prompt
     )
 
@@ -227,7 +231,7 @@ async def test_runtime_decide_intent_uses_provider(tmp_path: Path):
     runtime = AgentRuntime(
         registry=AgentRegistry(tmp_path),
         context_builder=ContextBuilder(),
-        decision_provider=StubDecisionProvider(),
+        backend=StubDecisionBackend(),
     )
 
     invocation = runtime.prepare_reactor("demo_agent", world={"current_goal": "talk"})
@@ -275,7 +279,7 @@ async def test_runtime_rest_when_work_goal_has_no_valid_work_context(runtime: Ag
 
 
 def test_runtime_selects_claude_provider_from_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("TRUMANWORLD_AGENT_PROVIDER", "claude")
+    monkeypatch.setenv("TRUMANWORLD_AGENT_BACKEND", "claude_sdk")
     get_settings.cache_clear()
 
     agent_dir = tmp_path / "demo_agent"
@@ -298,7 +302,41 @@ def test_runtime_selects_claude_provider_from_env(tmp_path: Path, monkeypatch: p
         context_builder=ContextBuilder(),
     )
 
-    assert isinstance(runtime.decision_provider, ClaudeSDKDecisionProvider)
+    assert isinstance(runtime.backend, ClaudeSdkAgentBackend)
+
+    get_settings.cache_clear()
+
+
+def test_runtime_selects_langgraph_backend_from_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("TRUMANWORLD_AGENT_BACKEND", "langgraph")
+    monkeypatch.setenv("TRUMANWORLD_AGENT_MODEL", "claude-test")
+    monkeypatch.setenv("TRUMANWORLD_ANTHROPIC_API_KEY", "test-key")
+    get_settings.cache_clear()
+
+    agent_dir = tmp_path / "demo_agent"
+    agent_dir.mkdir(parents=True)
+    (agent_dir / "agent.yml").write_text(
+        "\n".join(
+            [
+                "id: demo_agent",
+                "name: Demo Agent",
+                "occupation: resident",
+                "home: demo_home",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "prompt.md").write_text("# Demo Agent\nBase prompt", encoding="utf-8")
+
+    runtime = AgentRuntime(
+        registry=AgentRegistry(tmp_path),
+        context_builder=ContextBuilder(),
+    )
+
+    assert runtime.backend.__class__.__name__ == "LangGraphAgentBackend"
+    assert runtime.backend.__class__.__name__ == "LangGraphAgentBackend"
 
     get_settings.cache_clear()
 
@@ -322,7 +360,7 @@ def test_claude_provider_builds_options_with_system_prompt(tmp_path: Path):
 
 
 def test_runtime_rejects_legacy_anthropic_provider_value(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("TRUMANWORLD_AGENT_PROVIDER", "anthropic")
+    monkeypatch.setenv("TRUMANWORLD_AGENT_BACKEND", "anthropic")
     get_settings.cache_clear()
 
     with pytest.raises(ValidationError):
@@ -338,7 +376,7 @@ async def test_claude_provider_returns_fallback_on_cancelled_error(monkeypatch: 
     This behavior allows the simulation to continue gracefully when
     the SDK call is cancelled (e.g., scheduler shutdown).
     """
-    monkeypatch.setenv("TRUMANWORLD_AGENT_PROVIDER", "claude")
+    monkeypatch.setenv("TRUMANWORLD_AGENT_BACKEND", "claude_sdk")
     get_settings.cache_clear()
     monkeypatch.setattr(provider_module.shutil, "which", lambda _: "/usr/bin/claude")
 
@@ -370,7 +408,7 @@ async def test_runtime_decide_intent_accepts_empty_message_when_llm_omits_it(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     """When LLM omits message, decide_intent accepts the empty value without injecting a default."""
-    monkeypatch.setenv("TRUMANWORLD_AGENT_PROVIDER", "claude")
+    monkeypatch.setenv("TRUMANWORLD_AGENT_BACKEND", "claude_sdk")
     get_settings.cache_clear()
     monkeypatch.setattr(provider_module.shutil, "which", lambda _: "/usr/bin/claude")
 
@@ -405,7 +443,7 @@ async def test_runtime_decide_intent_accepts_empty_message_when_llm_omits_it(
     runtime = AgentRuntime(
         registry=AgentRegistry(tmp_path),
         context_builder=ContextBuilder(),
-        decision_provider=ClaudeSDKDecisionProvider(get_settings()),
+        backend=ClaudeSdkAgentBackend(get_settings()),
     )
 
     invocation = runtime.prepare_reactor(
@@ -430,7 +468,7 @@ async def test_runtime_decide_intent_accepts_empty_message_when_llm_omits_it(
 
 @pytest.mark.asyncio
 async def test_claude_provider_fails_fast_when_cli_missing(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("TRUMANWORLD_AGENT_PROVIDER", "claude")
+    monkeypatch.setenv("TRUMANWORLD_AGENT_BACKEND", "claude_sdk")
     monkeypatch.setattr(provider_module.shutil, "which", lambda _: None)
     get_settings.cache_clear()
 

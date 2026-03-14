@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from collections.abc import Sequence
-from uuid import uuid4
-
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from sqlalchemy import Select, and_, case, delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,8 +13,8 @@ from app.store.models import (
     Agent,
     DirectorMemory,
     Event,
-    Location,
     LlmCall,
+    Location,
     Memory,
     Relationship,
     SimulationRun,
@@ -139,6 +138,7 @@ class RunRepository:
         to 'paused'. Returns the list of affected runs.
         """
         from datetime import UTC, datetime
+
         from sqlalchemy import update
 
         now = datetime.now(UTC)
@@ -244,10 +244,22 @@ class EventRepository:
     async def list_for_run(
         self, run_id: str, limit: int = 50, since_tick: int | None = None
     ) -> Sequence[Event]:
-        # Priority ordering mirrors list_recent_events: talk/move surface before
+        # Priority ordering mirrors list_recent_events: social/move surface before
         # work/rest noise so the world snapshot always contains meaningful events.
         event_priority = case(
-            (Event.event_type.in_(["talk", "move"]), 0),
+            (
+                Event.event_type.in_(
+                    [
+                        "talk",
+                        "speech",
+                        "listen",
+                        "conversation_started",
+                        "conversation_joined",
+                        "move",
+                    ]
+                ),
+                0,
+            ),
             (Event.event_type.in_(["work", "rest"]), 2),
             else_=1,
         )
@@ -267,7 +279,19 @@ class EventRepository:
         self, run_id: str, limit: int = 50, since_tick: int | None = None
     ) -> Sequence[EventApiRow]:
         event_priority = case(
-            (Event.event_type.in_(["talk", "move"]), 0),
+            (
+                Event.event_type.in_(
+                    [
+                        "talk",
+                        "speech",
+                        "listen",
+                        "conversation_started",
+                        "conversation_joined",
+                        "move",
+                    ]
+                ),
+                0,
+            ),
             (Event.event_type.in_(["work", "rest"]), 2),
             else_=1,
         )
@@ -417,7 +441,7 @@ class EventRepository:
         from sqlalchemy import func as sql_func
 
         if event_types is None:
-            event_types = ["talk", "move", "move_rejected", "talk_rejected"]
+            event_types = ["speech", "listen", "move", "move_rejected", "talk_rejected"]
 
         conditions = [Event.run_id == run_id]
         if tick_from is not None:
@@ -523,7 +547,7 @@ class AgentRepository:
         - Events at agent's current location (for observer awareness)
         - Director system events (if enabled)
 
-        Results are ordered by event priority first (talk/move before work/rest),
+        Results are ordered by event priority first (social/move before work/rest),
         then by recency, so that meaningful interactions always surface within
         the limit window instead of being displaced by repetitive work/rest noise.
         """
@@ -547,10 +571,22 @@ class AgentRepository:
             )
             event_scope = or_(event_scope, director_events)
 
-        # Priority ordering: talk and move events surface before work/rest noise.
+        # Priority ordering: social and movement events surface before work/rest noise.
         # Within the same priority tier events are ordered by recency.
         event_priority = case(
-            (Event.event_type.in_(["talk", "move"]), 0),
+            (
+                Event.event_type.in_(
+                    [
+                        "talk",
+                        "speech",
+                        "listen",
+                        "conversation_started",
+                        "conversation_joined",
+                        "move",
+                    ]
+                ),
+                0,
+            ),
             (Event.event_type.in_(["work", "rest"]), 2),
             else_=1,
         )

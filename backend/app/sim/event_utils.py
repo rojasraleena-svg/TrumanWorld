@@ -18,6 +18,8 @@ def build_event(
 ) -> Event:
     visibility = "public" if accepted else "system"
     event_type = action_type if accepted else build_rejected_event_type(action_type)
+    if accepted and action_type == "talk" and payload.get("conversation_event_type") == "speech":
+        event_type = "speech"
 
     # Calculate importance if not provided
     if importance is None:
@@ -64,5 +66,18 @@ def format_event_for_context(
     payload = evt.payload or {}
     if "message" in payload:
         result["message"] = payload["message"]
+    if "conversation_id" in payload:
+        result["conversation_id"] = payload["conversation_id"]
+    if "conversation_role" in payload:
+        result["conversation_role"] = payload["conversation_role"]
+    if "conversation_event_type" in payload:
+        result["conversation_event_type"] = payload["conversation_event_type"]
+    if "speaker_agent_id" in payload:
+        result["speaker_agent_id"] = payload["speaker_agent_id"]
+        speaker_agent_id = payload["speaker_agent_id"]
+        if speaker_agent_id in agent_states:
+            result["speaker_name"] = agent_states[speaker_agent_id].name
+    if "participant_ids" in payload:
+        result["participant_ids"] = payload["participant_ids"]
 
     return result

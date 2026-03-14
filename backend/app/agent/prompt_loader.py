@@ -4,7 +4,6 @@ import json
 import re
 from pathlib import Path
 
-
 PLANNER_PROMPT_PATH = Path(__file__).with_name("prompts") / "planner.md"
 REFLECTOR_PROMPT_PATH = Path(__file__).with_name("prompts") / "reflector.md"
 
@@ -47,34 +46,24 @@ class PromptLoader:
             period_label = {
                 "dawn": "黎明",
                 "morning": "上午",
+                "daytime": "白天",
                 "noon": "中午",
                 "afternoon": "下午",
                 "evening": "傍晚",
                 "night": "夜间",
             }
-            plan_label = {
-                "work": "工作",
-                "talk": "社交",
-                "socialize": "社交",
-                "wander": "闲逛",
-                "rest": "休息",
-                "go_home": "回家",
-                "commute": "通勤",
-                "prepare_day": "准备一天",
-                "home": "在家",
-            }
             for key in ("morning", "daytime", "evening"):
                 val = daily_schedule.get(key)
                 if val:
                     period_zh = period_label.get(key, key)
-                    val_zh = plan_label.get(str(val), str(val))
+                    # 直接显示原始文本，不再查字典翻译
                     is_current = (
                         (key == "morning" and time_period in {"dawn", "morning"})
                         or (key == "daytime" and time_period in {"noon", "afternoon"})
                         or (key == "evening" and time_period == "evening")
                     )
                     marker = " (← 当前时段)" if is_current else ""
-                    lines.append(f"- {period_zh}: {val_zh}{marker}")
+                    lines.append(f"- {period_zh}: {val}{marker}")
             lines.append("")
 
         # 渲染对话历史（如果有）
@@ -97,14 +86,32 @@ class PromptLoader:
                 "",
                 "# 输出约束",
                 "- 只能返回一个 JSON 对象",
-                "- JSON 仅可包含字段：`action_type`、`target_location_id`、`target_agent_id`、`message`、`payload`",
+                "- JSON 仅可包含字段：`action_type`、`target_location_id`、`target_agent_id`、`message`、`payload`、`plan_update`（可选）",
                 "- `action_type` 必须来自允许动作集合",
                 "- 当 `action_type=move` 时，应尽量提供 `target_location_id`",
                 "- 当 `action_type=move` 时，只能使用运行上下文中真实存在的地点 ID，不要编造别名、英文变体或不存在的地点",
-                "- 当 `action_type=talk` 时，必须提供 `target_agent_id` 与 `message`（30-200 字的自然对话）",
+                "- 当 `action_type=talk` 时，必须提供 `target_agent_id` 与 `message`（30-200 字的自然发言；会在执行层映射为 speech 事件）",
                 "- 如果信息不足，优先保持当前情境一致，通常返回 `rest`，不要把普通停留、等待、整理或在家活动表述成 `work`",
                 "- 只有当你明确处在合理的工作场景中时，才返回 `work`；有固定工作地点的人在到达工作地点前应优先 `move` 或 `rest`",
                 "- **重要**：对话要延续之前的内容，不要重复已说过的话",
+                "",
+                "# 计划更新（可选）",
+                "如果遇到以下情况，可以考虑更新今日计划：",
+                "- 遇到了重要的人，想多交流",
+                "- 突发世界事件（如停电、活动、广播）",
+                "- 有意外的社交机会",
+                "如果需要更新计划，在 JSON 中添加 `plan_update` 字段：",
+                """```json
+{
+  "action_type": "talk",
+  "target_agent_id": "bob",
+  "message": "嗨 Bob!",
+  "plan_update": {
+    "reason": "遇到重要的人",
+    "new_daytime": "和 Bob 聊天"
+  }
+}
+```""",
                 "",
                 "# 运行上下文",
                 "```json",
@@ -121,11 +128,23 @@ class PromptLoader:
         target_name = evt.get("target_name", "")
         tick_no = evt.get("tick_no", "?")
 
-        if event_type == "talk":
+        if event_type in {"talk", "speech"}:
             message = evt.get("message", "...")
             if target_name:
                 return f'[Tick {tick_no}] {actor_name} → {target_name}: "{message}"'
             return f'[Tick {tick_no}] {actor_name}: "{message}"'
+        elif event_type == "listen":
+            if target_name:
+                return f"[Tick {tick_no}] {actor_name} 正在听 {target_name} 说话"
+            return f"[Tick {tick_no}] {actor_name} 正在倾听"
+        elif event_type == "conversation_started":
+            if target_name:
+                return f"[Tick {tick_no}] {actor_name} 与 {target_name} 开始了一段对话"
+            return f"[Tick {tick_no}] {actor_name} 开始了一段对话"
+        elif event_type == "conversation_joined":
+            if target_name:
+                return f"[Tick {tick_no}] {actor_name} 加入了 {target_name} 主导的对话"
+            return f"[Tick {tick_no}] {actor_name} 加入了一段对话"
         elif event_type == "move":
             location = evt.get("location_name", "某地")
             return f"[Tick {tick_no}] {actor_name} 移动到了 {location}"
@@ -140,14 +159,43 @@ class PromptLoader:
         """Render the daily planning prompt for a given agent."""
         base = PLANNER_PROMPT_PATH.read_text(encoding="utf-8").strip()
         base = base.replace("{agent_name}", agent_name)
-        lines = [
-            base,
-            "",
-            "# 运行上下文",
-            "```json",
-            self._to_pretty_json(context),
-            "```",
-        ]
+        lines = [base, ""]
+
+        # 如果有昨日计划执行情况，单独展示
+        yesterday_execution = context.get("yesterday_plan_execution")
+        if yesterday_execution:
+            lines.extend(
+                [
+                    "# 昨日计划执行情况",
+                    yesterday_execution,
+                    "",
+                ]
+            )
+
+        # 近期记忆
+        recent_memories = context.get("recent_memories", [])
+        if recent_memories:
+            lines.extend(
+                [
+                    "# 近期记忆",
+                    "以下是你近期记得的一些事情：",
+                    "",
+                ]
+            )
+            for mem in recent_memories[-3:]:  # 只显示最近3条
+                content = mem.get("content", "")[:100]
+                if content:
+                    lines.append(f"- {content}")
+            lines.append("")
+
+        lines.extend(
+            [
+                "# 运行上下文",
+                "```json",
+                self._to_pretty_json(context),
+                "```",
+            ]
+        )
         return "\n".join(lines)
 
     def render_reflector_prompt(

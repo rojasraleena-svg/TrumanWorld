@@ -38,12 +38,12 @@ MEMORY_TYPE_DAILY_REFLECTION = "daily_reflection"
 # ── 触发检测 ─────────────────────────────────────────────────────────────────
 
 
-def should_run_planner(world: "WorldState") -> bool:
+def should_run_planner(world: WorldState) -> bool:
     """Return True when the world just entered morning (06:00 hour)."""
     return world.current_time.hour == 6 and world.current_time.minute < world.tick_minutes
 
 
-def should_run_reflector(world: "WorldState") -> bool:
+def should_run_reflector(world: WorldState) -> bool:
     """Return True right after the 21:55 reflection tick completes.
 
     Reflector is executed after a tick finishes, so the world clock has already
@@ -54,7 +54,7 @@ def should_run_reflector(world: "WorldState") -> bool:
 
 
 async def has_plan_for_today(
-    session: "AsyncSession",
+    session: AsyncSession,
     run_id: str,
     agent_id: str,
     today: date,
@@ -75,7 +75,7 @@ async def has_plan_for_today(
 
 
 async def has_reflection_for_today(
-    session: "AsyncSession",
+    session: AsyncSession,
     run_id: str,
     agent_id: str,
     today: date,
@@ -98,7 +98,7 @@ async def has_reflection_for_today(
 # ── 上下文构建辅助 ────────────────────────────────────────────────────────────
 
 
-def _build_basic_world_context(world: "WorldState") -> dict:
+def _build_basic_world_context(world: WorldState) -> dict:
     """Build minimal world context dict for planner/reflector prompts."""
     weekday = world.current_time.weekday()
     return {
@@ -109,7 +109,7 @@ def _build_basic_world_context(world: "WorldState") -> dict:
 
 
 async def _load_recent_memories(
-    session: "AsyncSession",
+    session: AsyncSession,
     run_id: str,
     agent_id: str,
     limit: int = 5,
@@ -131,8 +131,78 @@ async def _load_recent_memories(
     ]
 
 
+async def _load_yesterday_plan_execution(
+    session: AsyncSession,
+    run_id: str,
+    agent_id: str,
+    yesterday: date,
+    current_tick: int,
+    ticks_per_day: int,
+) -> str:
+    """Load yesterday's plan and actual execution, generate comparison summary.
+
+    Returns a string describing:
+    - Yesterday's plan (what was planned)
+    - Yesterday's actual behavior (what actually happened)
+    """
+
+    # 1. Get yesterday's plan from daily_plan memory
+    yesterday_str = yesterday.isoformat()
+    result = await session.execute(
+        select(Memory).where(
+            Memory.run_id == run_id,
+            Memory.agent_id == agent_id,
+            Memory.memory_type == MEMORY_TYPE_DAILY_PLAN,
+        )
+    )
+    plan_text = None
+    for mem in result.scalars().all():
+        meta = mem.metadata_json or {}
+        if meta.get("day") == yesterday_str:
+            # Extract plan from content like "今日计划：早晨=X，白天=Y，傍晚=Z。"
+            plan_text = mem.content
+            break
+
+    if not plan_text:
+        return ""  # No yesterday plan found
+
+    # 2. Get yesterday's actual events relative to the current day boundary.
+    yesterday_start_tick = max(0, current_tick - ticks_per_day)
+    events_result = await session.execute(
+        select(Event)
+        .where(
+            Event.run_id == run_id,
+            Event.actor_agent_id == agent_id,
+            Event.tick_no > yesterday_start_tick,
+            Event.tick_no <= current_tick,
+        )
+        .order_by(Event.tick_no.asc())
+    )
+    yesterday_events = list(events_result.scalars().all())
+
+    # 3. Analyze actual behavior
+    action_counts: dict[str, int] = {}
+    for evt in yesterday_events:
+        action_type = evt.event_type
+        if action_type in ("talk", "speech"):
+            action_counts["socialize"] = action_counts.get("socialize", 0) + 1
+        elif action_type == "work":
+            action_counts["work"] = action_counts.get("work", 0) + 1
+        elif action_type == "rest":
+            action_counts["rest"] = action_counts.get("rest", 0) + 1
+        elif action_type == "move":
+            action_counts["move"] = action_counts.get("move", 0) + 1
+
+    # 4. Generate comparison text
+    if not yesterday_events:
+        return f"昨日计划：{plan_text}\n昨日实际：未找到行为记录"
+
+    actions_summary = "、".join([f"{k}{v}次" for k, v in action_counts.items()]) or "无"
+    return f"昨日计划：{plan_text}\n昨日实际：{actions_summary}"
+
+
 async def _load_today_events(
-    session: "AsyncSession",
+    session: AsyncSession,
     run_id: str,
     agent_id: str,
     tick_no: int,
@@ -174,14 +244,18 @@ async def run_morning_planning(
     *,
     run_id: str,
     tick_no: int,
-    world: "WorldState",
-    engine: "AsyncEngine",
-    agent_runtime: "AgentRuntime",
+    world: WorldState,
+    engine: AsyncEngine,
+    agent_runtime: AgentRuntime,
 ) -> None:
     """Run the Planner for all agents at morning boundary and persist results."""
+    from datetime import timedelta
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
     today = world.current_time.date()
+    yesterday = today - timedelta(days=1)
+    ticks_per_day = (24 * 60) // world.tick_minutes
     world_ctx = _build_basic_world_context(world)
 
     async with AsyncSession(engine, expire_on_commit=False) as read_session:
@@ -204,6 +278,24 @@ async def run_morning_planning(
             a.id: mems for a, mems in zip(pending, memories_list)
         }
 
+        # 并行预加载昨日计划执行情况
+        yesterday_execution_list = await asyncio.gather(
+            *[
+                _load_yesterday_plan_execution(
+                    read_session,
+                    run_id,
+                    a.id,
+                    yesterday,
+                    tick_no,
+                    ticks_per_day,
+                )
+                for a in pending
+            ]
+        )
+        yesterday_execution_by_agent: dict[str, str] = {
+            a.id: exec_text for a, exec_text in zip(pending, yesterday_execution_list)
+        }
+
     if not pending:
         return
 
@@ -211,10 +303,20 @@ async def run_morning_planning(
 
     async def plan_one(agent: Agent) -> tuple[str, str, dict | None]:
         config_id = (agent.profile or {}).get("agent_config_id") or agent.id
+        yesterday_execution = yesterday_execution_by_agent.get(agent.id, "")
+
+        # 构建扩展的 world_context，包含昨日计划执行情况
+        extended_ctx = {
+            **world_ctx,
+            "personality": agent.personality or {},
+        }
+        if yesterday_execution:
+            extended_ctx["yesterday_plan_execution"] = yesterday_execution
+
         result = await agent_runtime.run_planner(
             agent_id=config_id,
             agent_name=agent.name,
-            world_context={**world_ctx, "personality": agent.personality or {}},
+            world_context=extended_ctx,
             recent_memories=memories_by_agent.get(agent.id),
         )
         return agent.id, agent.name, result
@@ -282,9 +384,9 @@ async def run_evening_reflection(
     *,
     run_id: str,
     tick_no: int,
-    world: "WorldState",
-    engine: "AsyncEngine",
-    agent_runtime: "AgentRuntime",
+    world: WorldState,
+    engine: AsyncEngine,
+    agent_runtime: AgentRuntime,
 ) -> None:
     """Run the Reflector for all agents at night boundary and persist results."""
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -351,9 +453,21 @@ async def run_evening_reflection(
             reflection_text = reflection.get("reflection", "")
             mood = reflection.get("mood", "neutral")
             key_person = reflection.get("key_person")
+            happy_event = reflection.get("happy_event", "")
+            regret_event = reflection.get("regret_event", "")
+            self_evaluation = reflection.get("self_evaluation", "")
             tomorrow = reflection.get("tomorrow_intention", "")
 
-            content = reflection_text or f"今天已结束。（{today.isoformat()}）"
+            # 构建更丰富的 content
+            content_parts = [reflection_text]
+            if happy_event:
+                content_parts.append(f"\n最开心的事：{happy_event}")
+            if regret_event:
+                content_parts.append(f"\n最遗憾的事：{regret_event}")
+            if self_evaluation:
+                content_parts.append(f"\n自我评价：{self_evaluation}")
+            content = "\n".join(content_parts) or f"今天已结束。（{today.isoformat()}）"
+
             summary = tomorrow or f"今日总结（{today.isoformat()}）"
 
             memories_to_create.append(
@@ -374,6 +488,9 @@ async def run_evening_reflection(
                     metadata_json={
                         "mood": mood,
                         "key_person": key_person,
+                        "happy_event": happy_event,
+                        "regret_event": regret_event,
+                        "self_evaluation": self_evaluation,
                         "tomorrow_intention": tomorrow,
                         "day": today.isoformat(),
                     },
@@ -407,7 +524,7 @@ def _mood_to_valence(mood: str) -> float:
 
 
 async def _promote_memories_after_reflection(
-    session: "AsyncSession",
+    session: AsyncSession,
     *,
     run_id: str,
     tick_no: int,

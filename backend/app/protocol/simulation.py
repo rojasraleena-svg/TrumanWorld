@@ -4,11 +4,18 @@ from typing import Literal, TypeAlias
 
 ACTION_MOVE = "move"
 ACTION_TALK = "talk"
+ACTION_LISTEN = "listen"
+ACTION_CONVERSATION_STARTED = "conversation_started"
+ACTION_CONVERSATION_JOINED = "conversation_joined"
 ACTION_WORK = "work"
 ACTION_REST = "rest"
 
 EVENT_MOVE = ACTION_MOVE
 EVENT_TALK = ACTION_TALK
+EVENT_SPEECH = "speech"
+EVENT_LISTEN = ACTION_LISTEN
+EVENT_CONVERSATION_STARTED = ACTION_CONVERSATION_STARTED
+EVENT_CONVERSATION_JOINED = ACTION_CONVERSATION_JOINED
 EVENT_WORK = ACTION_WORK
 EVENT_REST = ACTION_REST
 EVENT_PLAN = "plan"
@@ -40,6 +47,9 @@ DIRECTOR_SCENE_POWER_OUTAGE = "power_outage"  # 停电场景
 ActionType: TypeAlias = Literal[
     "move",
     "talk",
+    "listen",
+    "conversation_started",
+    "conversation_joined",
     "work",
     "rest",
     "plan",
@@ -54,6 +64,9 @@ ActionType: TypeAlias = Literal[
 RejectedActionEventType: TypeAlias = Literal[
     "move_rejected",
     "talk_rejected",
+    "listen_rejected",
+    "conversation_started_rejected",
+    "conversation_joined_rejected",
     "work_rejected",
     "rest_rejected",
     "plan_rejected",
@@ -65,7 +78,7 @@ RejectedActionEventType: TypeAlias = Literal[
     "director_weather_change_rejected",
     "director_power_outage_rejected",
 ]
-EventType: TypeAlias = ActionType | RejectedActionEventType
+EventType: TypeAlias = ActionType | RejectedActionEventType | Literal["speech"]
 DirectorSceneGoal: TypeAlias = Literal[
     # 自动干预
     "soft_check_in",

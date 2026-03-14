@@ -3,7 +3,10 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from app.director.agent import DirectorAgent, DirectorContext
+from app.cognition.claude.director_agent import DirectorContext
+from app.cognition.interfaces import DirectorCognitionBackend
+from app.cognition.registry import get_cognition_registry
+from app.cognition.types import DirectorDecisionInvocation
 from app.director.observer import DirectorAssessment
 from app.director.strategy_engine import StrategyExecutor
 from app.director.types import DirectorPlan
@@ -27,15 +30,15 @@ class DirectorPlanner:
     - break_isolation: 打破 Truman 长时间独处
     - rejection_recovery: 处理连续被拒绝的场景
 
-    实验性功能：当 director_agent_enabled=true 时，优先使用LLM智能决策
+    实验性功能：当 director_backend != heuristic 时，优先使用 LLM 智能决策
 
     性能优化：
     - 导演决策与 tick 执行并行（非阻塞）
     - 可配置决策间隔（默认 5 tick）
     """
 
-    def __init__(self) -> None:
-        self._agent = DirectorAgent()
+    def __init__(self, backend: DirectorCognitionBackend | None = None) -> None:
+        self._backend = backend or get_cognition_registry().build_director_backend()
         self._strategy_executor = StrategyExecutor()
         self._pending_decision: asyncio.Task[DirectorPlan | None] | None = None
         self._last_decision_tick: int = 0
@@ -45,7 +48,7 @@ class DirectorPlanner:
         self,
         *,
         assessment: DirectorAssessment,
-        agents: list["Agent"],
+        agents: list[Agent],
         recent_intervention_goals: list[str] | None = None,
         current_tick: int = 0,
         recent_events: list[dict[str, Any]] | None = None,
@@ -98,7 +101,7 @@ class DirectorPlanner:
             # 如果决策还在进行中，继续执行规则决策（不阻塞）
 
         # 实验性功能：启动 LLM 智能决策（异步，不阻塞）
-        if self._agent.is_enabled() and self._agent.should_decide(current_tick):
+        if self._backend.is_enabled() and self._backend.should_decide(current_tick):
             if self._pending_decision is None and current_tick > self._last_decision_tick:
                 # 在 create_task 之前，将 ORM Agent 对象序列化为纯 dict
                 # 必须在这里（session 仍活着时）读取属性，避免后台 Task 在 session
@@ -124,7 +127,13 @@ class DirectorPlanner:
                     world_time=world_time,
                 )
                 self._pending_decision = asyncio.create_task(
-                    self._agent.decide(context, recent_goals)
+                    self._backend.propose_intervention(
+                        DirectorDecisionInvocation(
+                            prompt="",
+                            context=context,
+                            recent_goals=recent_goals,
+                        )
+                    )
                 )
                 logger.debug(f"DirectorAgent started async decision at tick {current_tick}")
 
@@ -135,7 +144,7 @@ class DirectorPlanner:
     def _build_config_based_plan(
         self,
         assessment: DirectorAssessment,
-        cast_agents: list["Agent"],
+        cast_agents: list[Agent],
         recent_goals: set[str],
     ) -> DirectorPlan | None:
         """基于配置的干预计划构建（回退方案）
@@ -174,7 +183,7 @@ class DirectorPlanner:
             cooldown_ticks=plan_data["cooldown_ticks"],
         )
 
-    def _pick_primary_cast(self, cast_agents: list["Agent"]) -> "Agent | None":
+    def _pick_primary_cast(self, cast_agents: list[Agent]) -> Agent | None:
         sorted_agents = sorted(
             cast_agents,
             key=lambda agent: (

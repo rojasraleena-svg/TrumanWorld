@@ -10,9 +10,9 @@
 from __future__ import annotations
 
 import pytest
-import app.agent.providers as provider_module
-from app.agent.providers import ClaudeSDKDecisionProvider
 from app.agent.runtime import RuntimeInvocation
+import app.cognition.claude.decision_provider as provider_module
+from app.cognition.claude.decision_provider import ClaudeSDKDecisionProvider
 from app.infra.settings import get_settings
 
 
@@ -45,7 +45,7 @@ def _make_result_message(result: str, is_error: bool = False):
 
 
 def _make_provider(monkeypatch) -> ClaudeSDKDecisionProvider:
-    monkeypatch.setenv("TRUMANWORLD_AGENT_PROVIDER", "claude")
+    monkeypatch.setenv("TRUMANWORLD_AGENT_BACKEND", "claude_sdk")
     get_settings.cache_clear()
     monkeypatch.setattr(provider_module.shutil, "which", lambda _: "/usr/bin/claude")
     return ClaudeSDKDecisionProvider(get_settings())
