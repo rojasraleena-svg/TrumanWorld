@@ -1,0 +1,594 @@
+import pytest
+
+from app.cognition.heuristic.agent_backend import HeuristicAgentBackend
+from app.director.service import DirectorEventService
+from app.scenario.truman_world.coordinator import TrumanWorldCoordinator
+from app.sim.action_resolver import ActionIntent
+from app.sim.service import SimulationService
+from app.store.models import Agent, Location, SimulationRun
+from app.store.repositories import AgentRepository, DirectorMemoryRepository, EventRepository
+
+from .test_service import (
+    ContextCapturingDecisionProvider,
+    FakeScenario,
+    RecordingDecisionProvider,
+)
+
+
+@pytest.mark.asyncio
+async def test_simulation_service_uses_world_role_and_clock_in_runtime_context(
+    db_session, tmp_path
+):
+    run = SimulationRun(
+        id="run-service-role-clock",
+        name="service",
+        status="running",
+        current_tick=2,
+        tick_minutes=15,
+        metadata_json={"world_start_time": "2026-03-02T07:00:00+00:00"},
+    )
+    home = Location(
+        id="loc-home-role-clock",
+        run_id="run-service-role-clock",
+        name="Home",
+        location_type="home",
+        capacity=2,
+    )
+    park = Location(
+        id="loc-park-role-clock",
+        run_id="run-service-role-clock",
+        name="Park",
+        location_type="park",
+        capacity=2,
+    )
+    agent_dir = tmp_path / "truman"
+    agent_dir.mkdir(parents=True)
+    (agent_dir / "agent.yml").write_text(
+        "\n".join(
+            [
+                "id: truman",
+                "name: Truman",
+                "world_role: truman",
+                "occupation: resident",
+                "home: loc-home-role-clock",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "prompt.md").write_text("# Truman\nBase prompt", encoding="utf-8")
+
+    truman = Agent(
+        id="run-service-role-clock-truman",
+        run_id="run-service-role-clock",
+        name="Truman",
+        occupation="resident",
+        home_location_id="loc-home-role-clock",
+        current_location_id="loc-home-role-clock",
+        current_goal="move:loc-park-role-clock",
+        personality={},
+        profile={"agent_config_id": "truman", "world_role": "truman"},
+        status={},
+        current_plan={},
+    )
+
+    db_session.add_all([run, home, park, truman])
+    await db_session.commit()
+
+    recording_provider = RecordingDecisionProvider()
+    runtime = SimulationService(db_session, agents_root=tmp_path).agent_runtime
+    runtime.backend = HeuristicAgentBackend(recording_provider)
+    service = SimulationService(db_session, agent_runtime=runtime, agents_root=tmp_path)
+
+    result = await service.run_tick("run-service-role-clock")
+
+    assert result.world_time == "2026-03-02T07:45:00+00:00"
+    assert recording_provider.agent_ids == ["truman"]
+
+
+@pytest.mark.asyncio
+async def test_simulation_service_includes_director_system_events_for_cast_recent_events(
+    db_session, tmp_path
+):
+    run = SimulationRun(
+        id="run-service-director-events",
+        name="service",
+        status="running",
+        current_tick=0,
+        tick_minutes=5,
+    )
+    square = Location(
+        id="loc-square-director-events",
+        run_id=run.id,
+        name="Square",
+        location_type="plaza",
+        capacity=4,
+    )
+    cast = Agent(
+        id="run-service-director-events-cast",
+        run_id=run.id,
+        name="Meryl",
+        occupation="resident",
+        home_location_id=square.id,
+        current_location_id=square.id,
+        current_goal="rest",
+        personality={},
+        profile={"agent_config_id": "spouse", "world_role": "cast"},
+        status={},
+        current_plan={},
+    )
+    truman = Agent(
+        id="run-service-director-events-truman",
+        run_id=run.id,
+        name="Truman",
+        occupation="resident",
+        home_location_id=square.id,
+        current_location_id=square.id,
+        current_goal="rest",
+        personality={},
+        profile={"agent_config_id": "truman", "world_role": "truman"},
+        status={},
+        current_plan={},
+    )
+
+    db_session.add_all([run, square, cast, truman])
+    await db_session.commit()
+
+    await DirectorEventService(db_session).inject_event(
+        run_id=run.id,
+        event_type="broadcast",
+        payload={"message": "Town hall at plaza"},
+        importance=0.8,
+    )
+
+    spouse_dir = tmp_path / "spouse"
+    spouse_dir.mkdir(parents=True)
+    (spouse_dir / "agent.yml").write_text(
+        "\n".join(
+            [
+                "id: spouse",
+                "name: Meryl",
+                "occupation: resident",
+                "home: loc-square-director-events",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (spouse_dir / "prompt.md").write_text("# Meryl\nBase prompt", encoding="utf-8")
+
+    truman_dir = tmp_path / "truman"
+    truman_dir.mkdir(parents=True)
+    (truman_dir / "agent.yml").write_text(
+        "\n".join(
+            [
+                "id: truman",
+                "name: Truman",
+                "occupation: resident",
+                "home: loc-square-director-events",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (truman_dir / "prompt.md").write_text("# Truman\nBase prompt", encoding="utf-8")
+
+    capturing_provider = ContextCapturingDecisionProvider()
+    runtime = SimulationService(db_session, agents_root=tmp_path).agent_runtime
+    runtime.backend = HeuristicAgentBackend(capturing_provider)
+    service = SimulationService(db_session, agent_runtime=runtime, agents_root=tmp_path)
+
+    await service.run_tick(run.id)
+
+    spouse_recent_events = capturing_provider.recent_events_by_agent["spouse"]
+    truman_recent_events = capturing_provider.recent_events_by_agent["truman"]
+
+    assert any(event["event_type"] == "director_broadcast" for event in spouse_recent_events)
+    assert all(event["event_type"] != "director_broadcast" for event in truman_recent_events)
+
+
+@pytest.mark.asyncio
+async def test_manual_director_intervention_is_not_consumed_in_read_phase(db_session):
+    run = SimulationRun(
+        id="run-service-manual-once",
+        name="service",
+        status="running",
+        current_tick=0,
+        tick_minutes=5,
+    )
+    square = Location(
+        id="loc-square-manual-once",
+        run_id=run.id,
+        name="Square",
+        location_type="plaza",
+        capacity=4,
+    )
+    cast = Agent(
+        id="run-service-manual-once-cast",
+        run_id=run.id,
+        name="Meryl",
+        occupation="resident",
+        home_location_id=square.id,
+        current_location_id=square.id,
+        current_goal="rest",
+        personality={},
+        profile={"agent_config_id": "spouse", "world_role": "cast"},
+        status={},
+        current_plan={},
+    )
+    truman = Agent(
+        id="run-service-manual-once-truman",
+        run_id=run.id,
+        name="Truman",
+        occupation="resident",
+        home_location_id=square.id,
+        current_location_id=square.id,
+        current_goal="rest",
+        personality={},
+        profile={"agent_config_id": "truman", "world_role": "truman"},
+        status={},
+        current_plan={},
+    )
+
+    db_session.add_all([run, square, cast, truman])
+    await db_session.commit()
+
+    await DirectorEventService(db_session).inject_event(
+        run_id=run.id,
+        event_type="broadcast",
+        payload={"message": "Town hall at plaza"},
+        location_id=square.id,
+        importance=0.8,
+    )
+
+    agents = list(await AgentRepository(db_session).list_for_run(run.id))
+    coordinator = TrumanWorldCoordinator(db_session)
+
+    first_plan = await coordinator.build_director_plan(run.id, agents)
+    pending = await DirectorMemoryRepository(db_session).get_pending_manual_interventions(
+        run_id=run.id,
+        current_tick=run.current_tick,
+        max_age_ticks=5,
+    )
+
+    assert first_plan is not None
+    assert first_plan.scene_goal == "gather"
+    assert first_plan.location_hint == square.id
+    assert len(pending) == 1
+    assert pending[0].was_executed is False
+
+
+@pytest.mark.asyncio
+async def test_seed_demo_run_creates_truman_world_agents(db_session):
+    run = SimulationRun(id="run-demo-seed", name="demo-seed", status="running")
+    db_session.add(run)
+    await db_session.commit()
+
+    service = SimulationService(db_session)
+    await service.seed_demo_run("run-demo-seed")
+
+    agents = await AgentRepository(db_session).list_for_run("run-demo-seed")
+
+    assert [agent.name for agent in agents] == [
+        "Alice",
+        "Bob",
+        "Lauren",
+        "Marlon",
+        "Meryl",
+        "Truman",
+    ]
+    profile_by_name = {agent.name: agent.profile for agent in agents}
+    assert profile_by_name["Truman"]["world_role"] == "truman"
+    assert profile_by_name["Meryl"]["world_role"] == "cast"
+    assert profile_by_name["Alice"]["world_role"] == "cast"
+
+
+@pytest.mark.asyncio
+async def test_simulation_service_updates_truman_suspicion_from_rejected_events(db_session):
+    run = SimulationRun(
+        id="run-truman-suspicion",
+        name="suspicion",
+        status="running",
+        current_tick=0,
+        tick_minutes=5,
+    )
+    home = Location(
+        id="loc-home-suspicion",
+        run_id="run-truman-suspicion",
+        name="Home",
+        location_type="home",
+        capacity=2,
+    )
+    truman = Agent(
+        id="truman-suspicion",
+        run_id="run-truman-suspicion",
+        name="Truman",
+        occupation="resident",
+        home_location_id="loc-home-suspicion",
+        current_location_id="loc-home-suspicion",
+        personality={},
+        profile={"world_role": "truman", "agent_config_id": "truman"},
+        status={"suspicion_score": 0.1},
+        current_plan={},
+    )
+
+    db_session.add_all([run, home, truman])
+    await db_session.commit()
+
+    service = SimulationService(db_session)
+    await service.run_tick(
+        "run-truman-suspicion",
+        [
+            ActionIntent(
+                agent_id="truman-suspicion",
+                action_type="move",
+                target_location_id="missing-location",
+            )
+        ],
+    )
+
+    await db_session.refresh(truman)
+    updated = await AgentRepository(db_session).get("truman-suspicion")
+
+    assert updated is not None
+    assert updated.status["suspicion_score"] > 0.1
+
+
+@pytest.mark.asyncio
+async def test_simulation_service_accepts_injected_scenario(db_session):
+    run = SimulationRun(
+        id="run-fake-scenario",
+        name="fake-scenario",
+        status="running",
+        current_tick=0,
+        tick_minutes=5,
+    )
+    home = Location(
+        id="loc-home-fake",
+        run_id="run-fake-scenario",
+        name="Home",
+        location_type="home",
+        capacity=2,
+    )
+    agent = Agent(
+        id="agent-fake",
+        run_id="run-fake-scenario",
+        name="Agent",
+        occupation="resident",
+        home_location_id="loc-home-fake",
+        current_location_id="loc-home-fake",
+        current_goal="rest",
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+
+    db_session.add_all([run, home, agent])
+    await db_session.commit()
+
+    scenario = FakeScenario()
+    service = SimulationService(db_session, scenario=scenario)
+    result = await service.run_tick(
+        "run-fake-scenario",
+        [ActionIntent(agent_id="agent-fake", action_type="rest")],
+    )
+
+    assert scenario.runtime_configured is True
+    assert scenario.state_update_calls == [("run-fake-scenario", 1)]
+    assert result.tick_no == 1
+
+
+@pytest.mark.asyncio
+async def test_simulation_service_updates_relationships_from_talk_events(db_session):
+    run = SimulationRun(
+        id="run-service-5", name="service", status="running", current_tick=0, tick_minutes=5
+    )
+    plaza = Location(
+        id="loc-plaza-5", run_id="run-service-5", name="Plaza", location_type="plaza", capacity=4
+    )
+    alice = Agent(
+        id="alice-5",
+        run_id="run-service-5",
+        name="Alice",
+        occupation="resident",
+        home_location_id="loc-plaza-5",
+        current_location_id="loc-plaza-5",
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+    bob = Agent(
+        id="bob-5",
+        run_id="run-service-5",
+        name="Bob",
+        occupation="resident",
+        home_location_id="loc-plaza-5",
+        current_location_id="loc-plaza-5",
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+
+    db_session.add_all([run, plaza, alice, bob])
+    await db_session.commit()
+
+    service = SimulationService(db_session)
+    result = await service.run_tick(
+        "run-service-5",
+        [ActionIntent(agent_id="alice-5", action_type="talk", target_agent_id="bob-5")],
+    )
+
+    alice_relationships = await AgentRepository(db_session).list_relationships(
+        "run-service-5", "alice-5"
+    )
+    bob_relationships = await AgentRepository(db_session).list_relationships(
+        "run-service-5", "bob-5"
+    )
+    events = await EventRepository(db_session).list_for_run("run-service-5", limit=10)
+    alice_memories = await AgentRepository(db_session).list_recent_memories("alice-5")
+    bob_memories = await AgentRepository(db_session).list_recent_memories("bob-5")
+
+    assert result.tick_no == 1
+    assert len(result.accepted) == 3
+    assert {item.action_type for item in result.accepted} == {
+        "conversation_started",
+        "talk",
+        "listen",
+    }
+    assert (
+        next(item for item in result.accepted if item.action_type == "talk").event_payload[
+            "conversation_event_type"
+        ]
+        == "speech"
+    )
+    assert (
+        next(item for item in result.accepted if item.action_type == "listen").event_payload[
+            "conversation_event_type"
+        ]
+        == "listen"
+    )
+    assert {event.event_type for event in events} == {"conversation_started", "speech", "listen"}
+    assert len(alice_relationships) == 1
+    assert len(bob_relationships) == 1
+    assert alice_relationships[0].other_agent_id == "bob-5"
+    assert bob_relationships[0].other_agent_id == "alice-5"
+    assert alice_relationships[0].familiarity == 0.1
+    assert bob_relationships[0].trust == 0.05
+    assert alice_memories[0].summary.startswith("Said to Bob")
+    assert bob_memories[0].summary.startswith("Talked with Alice")
+
+
+@pytest.mark.asyncio
+async def test_simulation_service_persists_rejected_talk_with_requested_target_only(db_session):
+    run = SimulationRun(
+        id="run-invalid-target",
+        name="invalid-target",
+        status="running",
+        current_tick=0,
+        tick_minutes=5,
+    )
+    plaza = Location(
+        id="loc-plaza-invalid-target",
+        run_id=run.id,
+        name="Plaza",
+        location_type="plaza",
+        capacity=4,
+    )
+    alice = Agent(
+        id="alice-invalid-target",
+        run_id=run.id,
+        name="Alice",
+        occupation="resident",
+        home_location_id=plaza.id,
+        current_location_id=plaza.id,
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+    bob = Agent(
+        id="bob-invalid-target",
+        run_id=run.id,
+        name="Bob",
+        occupation="resident",
+        home_location_id=plaza.id,
+        current_location_id=plaza.id,
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+
+    db_session.add_all([run, plaza, alice, bob])
+    await db_session.commit()
+
+    service = SimulationService(db_session)
+    result = await service.run_tick(
+        run.id,
+        [
+            ActionIntent(
+                agent_id=alice.id,
+                action_type="talk",
+                target_agent_id="marlon",
+                payload={"message": "Hi Marlon."},
+            )
+        ],
+    )
+
+    events = await EventRepository(db_session).list_for_run(run.id, limit=10)
+
+    assert len(result.rejected) == 1
+    assert events[0].event_type == "talk_rejected"
+    assert events[0].target_agent_id is None
+    assert events[0].payload["requested_target_agent_id"] == "marlon"
+
+
+@pytest.mark.asyncio
+async def test_talk_memories_use_subjective_importance_per_agent(db_session):
+    run = SimulationRun(
+        id="run-memory-subjective",
+        name="subjective",
+        status="running",
+        current_tick=0,
+        tick_minutes=5,
+    )
+    plaza = Location(
+        id="loc-plaza-subjective",
+        run_id="run-memory-subjective",
+        name="Plaza",
+        location_type="plaza",
+        capacity=4,
+    )
+    alice = Agent(
+        id="alice-subjective",
+        run_id="run-memory-subjective",
+        name="Alice",
+        occupation="resident",
+        home_location_id=plaza.id,
+        current_location_id=plaza.id,
+        current_goal="talk",
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+    bob = Agent(
+        id="bob-subjective",
+        run_id="run-memory-subjective",
+        name="Bob",
+        occupation="resident",
+        home_location_id=plaza.id,
+        current_location_id=plaza.id,
+        current_goal="rest",
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+
+    db_session.add_all([run, plaza, alice, bob])
+    await db_session.commit()
+
+    service = SimulationService(db_session)
+    await service.run_tick(
+        "run-memory-subjective",
+        [
+            ActionIntent(
+                agent_id="alice-subjective",
+                action_type="talk",
+                target_agent_id="bob-subjective",
+                payload={"message": "I am really worried about you."},
+            )
+        ],
+    )
+
+    alice_memories = await AgentRepository(db_session).list_recent_memories("alice-subjective")
+    bob_memories = await AgentRepository(db_session).list_recent_memories("bob-subjective")
+
+    assert len(alice_memories) == 1
+    assert len(bob_memories) == 1
+    assert alice_memories[0].importance < bob_memories[0].importance
+    assert alice_memories[0].memory_category == "medium_term"
+    assert bob_memories[0].memory_category == "medium_term"
+    assert alice_memories[0].self_relevance < bob_memories[0].self_relevance
+    assert "Alice said" in bob_memories[0].content
