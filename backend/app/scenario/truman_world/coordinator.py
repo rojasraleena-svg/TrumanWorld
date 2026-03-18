@@ -36,8 +36,14 @@ logger = get_logger(__name__)
 class TrumanWorldCoordinator:
     """Coordinates Truman-world specific director and fallback behavior."""
 
-    def __init__(self, session: AsyncSession | None = None) -> None:
+    def __init__(
+        self,
+        session: AsyncSession | None = None,
+        *,
+        scenario_id: str = "truman_world",
+    ) -> None:
         self.session = session
+        self.scenario_id = scenario_id
         self.run_repo = RunRepository(session) if session is not None else None
         self.agent_repo = AgentRepository(session) if session is not None else None
         self.event_repo = EventRepository(session) if session is not None else None
@@ -45,7 +51,7 @@ class TrumanWorldCoordinator:
             DirectorMemoryRepository(session) if session is not None else None
         )
         self.observer = DirectorObserver()
-        self.planner = DirectorPlanner()
+        self.planner = DirectorPlanner(scenario_id=scenario_id)
         self.settings = get_settings()
 
     async def observe_run(self, run_id: str, event_limit: int = 20) -> DirectorAssessment:

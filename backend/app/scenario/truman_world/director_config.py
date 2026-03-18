@@ -27,8 +27,8 @@ _DIRECTOR_CONFIG_PATH = _SCENARIO_DIR / "director.yml"
 _DIRECTOR_PROMPT_PATH = _SCENARIO_DIR / "director_prompt.md"
 
 # Cache for configuration
-_config_cache: dict[str, Any] | None = None
-_config_load_time: float = 0
+_config_cache: dict[str, dict[str, Any]] = {}
+_config_load_time: dict[str, float] = {}
 _CONFIG_CACHE_TTL = 30  # 30 seconds cache TTL for development
 
 
@@ -82,6 +82,7 @@ class DirectorConfig:
     strategies: dict[str, DirectorStrategy] = field(default_factory=dict)
     effectiveness: DirectorEffectivenessConfig = field(default_factory=DirectorEffectivenessConfig)
     scene_goals: dict[str, dict[str, str]] = field(default_factory=dict)
+    scenario_id: str = "truman_world"
 
     # Internal
     _prompt_template: str | None = None
@@ -89,7 +90,7 @@ class DirectorConfig:
     def get_prompt_template(self) -> str:
         """Get the prompt template, loading from file if needed."""
         if self._prompt_template is None:
-            template = load_director_prompt_template_for_scenario("truman_world", self.prompt.file)
+            template = load_director_prompt_template_for_scenario(self.scenario_id, self.prompt.file)
             if template is not None:
                 self._prompt_template = template
             else:
@@ -128,7 +129,10 @@ Decide whether to intervene. Output JSON with should_intervene, scene_goal, targ
         return list(self.strategies.values())
 
 
-def load_director_config(force_reload: bool = False) -> DirectorConfig:
+def load_director_config(
+    scenario_id: str = "truman_world",
+    force_reload: bool = False,
+) -> DirectorConfig:
     """Load director configuration from YAML file.
 
     Uses caching to avoid repeated file reads. In development mode,
@@ -140,23 +144,24 @@ def load_director_config(force_reload: bool = False) -> DirectorConfig:
     Returns:
         DirectorConfig instance
     """
-    global _config_cache, _config_load_time
-
     current_time = time.time()
 
     # Check if we can use cached config
-    if not force_reload and _config_cache is not None:
-        if current_time - _config_load_time < _CONFIG_CACHE_TTL:
-            return _parse_config(_config_cache)
+    if not force_reload and scenario_id in _config_cache:
+        if current_time - _config_load_time.get(scenario_id, 0) < _CONFIG_CACHE_TTL:
+            return _parse_config(_config_cache[scenario_id], scenario_id=scenario_id)
 
     # Load from file
     try:
-        _config_cache = load_director_config_dict_for_scenario("truman_world")
-        if not _config_cache:
+        config_dict = load_director_config_dict_for_scenario(scenario_id)
+        if not config_dict and scenario_id != "truman_world":
+            config_dict = load_director_config_dict_for_scenario("truman_world")
+        if not config_dict:
             with open(_DIRECTOR_CONFIG_PATH, encoding="utf-8") as f:
-                _config_cache = yaml.safe_load(f)
-        _config_load_time = current_time
-        logger.debug("Loaded director config for truman_world")
+                config_dict = yaml.safe_load(f)
+        _config_cache[scenario_id] = config_dict
+        _config_load_time[scenario_id] = current_time
+        logger.debug(f"Loaded director config for {scenario_id}")
     except FileNotFoundError:
         logger.warning(f"Director config file not found: {_DIRECTOR_CONFIG_PATH}")
         return DirectorConfig()  # Return default config
@@ -164,10 +169,14 @@ def load_director_config(force_reload: bool = False) -> DirectorConfig:
         logger.error(f"Failed to parse director config: {e}")
         return DirectorConfig()  # Return default config
 
-    return _parse_config(_config_cache)
+    return _parse_config(_config_cache[scenario_id], scenario_id=scenario_id)
 
 
-def _parse_config(config_dict: dict[str, Any]) -> DirectorConfig:
+def _parse_config(
+    config_dict: dict[str, Any],
+    *,
+    scenario_id: str = "truman_world",
+) -> DirectorConfig:
     """Parse configuration dictionary into DirectorConfig."""
     if not config_dict:
         return DirectorConfig()
@@ -220,4 +229,5 @@ def _parse_config(config_dict: dict[str, Any]) -> DirectorConfig:
         strategies=strategies,
         effectiveness=effectiveness_config,
         scene_goals=scene_goals,
+        scenario_id=scenario_id,
     )

@@ -251,6 +251,81 @@ async def test_truman_world_seed_builder_prefers_scenario_bundle_agents(
 
 
 @pytest.mark.asyncio
+async def test_truman_world_adapter_seed_demo_run_uses_active_bundle_files(
+    db_session, tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    bundle_root = tmp_path / "scenarios" / "alt_world"
+    agent_dir = bundle_root / "agents" / "hero"
+    agent_dir.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: alt_world",
+                "name: Alt World",
+                "version: 1",
+                "runtime_adapter: truman_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (bundle_root / "world.yml").write_text(
+        "\n".join(
+            [
+                "locations:",
+                "  - id_suffix: library",
+                "    name: 静水图书馆",
+                "    location_type: library",
+                "    capacity: 4",
+                "    x: 5",
+                "    y: 6",
+                "    attributes:",
+                "      kind: quiet",
+                "location_id_map:",
+                "  apartment: library",
+                "occupation_names:",
+                "  resident: 住户",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "agent.yml").write_text(
+        "\n".join(
+            [
+                "id: hero",
+                "name: Hero",
+                "world_role: truman",
+                "occupation: resident",
+                "home: apartment",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "prompt.md").write_text("# Hero\nBase prompt", encoding="utf-8")
+    (agent_dir / "bio.md").write_text("Alt bundle hero", encoding="utf-8")
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    run = SimulationRun(
+        id="run-alt-world",
+        name="alt-world",
+        status="running",
+        scenario_type="alt_world",
+    )
+    db_session.add(run)
+    await db_session.commit()
+
+    scenario = create_scenario("alt_world", db_session)
+    await scenario.seed_demo_run(run)
+
+    agents = await AgentRepository(db_session).list_for_run(run.id)
+
+    assert [agent.name for agent in agents] == ["Hero"]
+    assert agents[0].occupation == "住户"
+    assert agents[0].home_location_id == f"{run.id}-library"
+
+
+@pytest.mark.asyncio
 async def test_open_world_scenario_seed_is_minimal(db_session):
     run = SimulationRun(id="run-open-world", name="open-world", status="running")
     db_session.add(run)
@@ -278,6 +353,73 @@ def test_scenario_factory_returns_expected_implementation(db_session):
     assert isinstance(create_scenario("open_world", db_session), OpenWorldScenario)
     assert isinstance(create_scenario("truman_world", db_session), TrumanWorldScenario)
     assert isinstance(create_scenario(None, db_session), TrumanWorldScenario)
+
+
+def test_truman_world_adapter_uses_active_bundle_world_knowledge(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    bundle_root = tmp_path / "scenarios" / "alt_world"
+    agent_dir = bundle_root / "agents" / "hero"
+    agent_dir.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: alt_world",
+                "name: Alt World",
+                "version: 1",
+                "runtime_adapter: truman_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (bundle_root / "world.yml").write_text(
+        "\n".join(
+            [
+                "social_norms:",
+                "  - 保持安静排队",
+                "location_purposes:",
+                "  library:",
+                "    - 阅读",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "agent.yml").write_text(
+        "\n".join(
+            [
+                "id: hero",
+                "name: Hero",
+                "world_role: truman",
+                "occupation: resident",
+                "home: apartment",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "prompt.md").write_text("# Hero\nBase prompt", encoding="utf-8")
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    runtime = AgentRuntime(
+        registry=AgentRegistry(bundle_root / "agents"),
+        context_builder=ContextBuilder(),
+    )
+    scenario = create_scenario("alt_world")
+    scenario.configure_runtime(runtime)
+
+    invocation = runtime.prepare_reactor(
+        "hero",
+        world={
+            "current_goal": "rest",
+            "self_status": {"suspicion_score": 0.1},
+        },
+    )
+
+    assert invocation.context["world_common_knowledge"]["social_norms"] == ["保持安静排队"]
+    assert invocation.context["world_common_knowledge"]["location_purposes"] == {
+        "library": ["阅读"]
+    }
 
 
 def test_scenario_configures_runtime_allowed_actions(tmp_path):

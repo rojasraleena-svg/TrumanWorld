@@ -17,4 +17,5 @@ def create_scenario(
 
     if runtime_adapter == "open_world":
         return OpenWorldScenario(session)
-    return TrumanWorldScenario(session)
+    scenario_id = bundle.manifest.id if bundle is not None else "truman_world"
+    return TrumanWorldScenario(session, scenario_id=scenario_id)

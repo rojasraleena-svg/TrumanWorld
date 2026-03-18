@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING
 
 from app.agent.context_builder import ScenarioContextHooks
@@ -25,14 +26,22 @@ if TYPE_CHECKING:
 class TrumanWorldScenario(Scenario):
     """Scenario implementation for the Truman world."""
 
-    def __init__(self, session: AsyncSession | None = None) -> None:
+    def __init__(
+        self,
+        session: AsyncSession | None = None,
+        *,
+        scenario_id: str = "truman_world",
+    ) -> None:
         self.session = session
-        self.coordinator = TrumanWorldCoordinator(session)
+        self.scenario_id = scenario_id
+        self.coordinator = TrumanWorldCoordinator(session, scenario_id=scenario_id)
         self.state_updater = TrumanWorldStateUpdater(session) if session is not None else None
-        self.seed_builder = TrumanWorldSeedBuilder(session) if session is not None else None
+        self.seed_builder = (
+            TrumanWorldSeedBuilder(session, scenario_id=scenario_id) if session is not None else None
+        )
 
     def with_session(self, session: AsyncSession | None) -> TrumanWorldScenario:
-        return TrumanWorldScenario(session)
+        return TrumanWorldScenario(session, scenario_id=self.scenario_id)
 
     def configure_runtime(self, agent_runtime: AgentRuntime) -> None:
         agent_runtime.configure_allowed_actions(self.allowed_actions())
@@ -45,7 +54,7 @@ class TrumanWorldScenario(Scenario):
                 world_filter_hook=filter_world_for_role,
                 role_context_hook=build_role_context,
                 scene_guidance_hook=build_scene_guidance,
-                world_knowledge_hook=build_world_common_knowledge,
+                world_knowledge_hook=partial(build_world_common_knowledge, self.scenario_id),
             )
         )
 

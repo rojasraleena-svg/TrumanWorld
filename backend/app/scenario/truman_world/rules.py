@@ -24,19 +24,21 @@ if TYPE_CHECKING:
     from app.sim.world import WorldState
     from app.store.models import Relationship
 
-_WORLD_CONFIG_CACHE: dict[str, Any] | None = None
+_WORLD_CONFIG_CACHE: dict[str, dict[str, Any]] = {}
 
 
-def load_world_config() -> dict[str, Any]:
+def load_world_config(scenario_id: str = "truman_world") -> dict[str, Any]:
     """Load world configuration from YAML file.
 
     Uses caching to avoid repeated file reads.
     This is the public API for accessing world configuration.
     """
-    global _WORLD_CONFIG_CACHE
-    if _WORLD_CONFIG_CACHE is None:
-        _WORLD_CONFIG_CACHE = load_world_config_for_scenario("truman_world")
-    return _WORLD_CONFIG_CACHE
+    if scenario_id not in _WORLD_CONFIG_CACHE:
+        config = load_world_config_for_scenario(scenario_id)
+        if not config and scenario_id != "truman_world":
+            config = load_world_config_for_scenario("truman_world")
+        _WORLD_CONFIG_CACHE[scenario_id] = config
+    return _WORLD_CONFIG_CACHE[scenario_id]
 
 
 def build_perception_context(
@@ -125,7 +127,7 @@ def build_role_context(world_role: str, world: dict[str, Any]) -> dict[str, Any]
     }
 
 
-def build_world_common_knowledge() -> dict[str, Any]:
+def build_world_common_knowledge(scenario_id: str = "truman_world") -> dict[str, Any]:
     """Build world common knowledge shared by all agents in TrumanWorld.
 
     This defines the shared understanding of how the world works,
@@ -133,7 +135,7 @@ def build_world_common_knowledge() -> dict[str, Any]:
 
     Configuration is loaded from world_config.yml for easy management.
     """
-    config = load_world_config()
+    config = load_world_config(scenario_id)
     return {
         "daily_rhythm": config.get("daily_rhythm", {}),
         "location_purposes": config.get("location_purposes", {}),

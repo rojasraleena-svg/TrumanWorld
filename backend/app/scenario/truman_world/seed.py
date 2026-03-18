@@ -18,30 +18,32 @@ if TYPE_CHECKING:
 
 
 # 延迟加载世界配置（避免模块导入时初始化问题）
-_WORLD_CONFIG_CACHE: dict | None = None
+_WORLD_CONFIG_CACHE: dict[str, dict] = {}
 
 
-def _get_world_config() -> dict:
+def _get_world_config(scenario_id: str) -> dict:
     """Lazy load world configuration."""
-    global _WORLD_CONFIG_CACHE
-    if _WORLD_CONFIG_CACHE is None:
-        _WORLD_CONFIG_CACHE = load_world_config_for_scenario("truman_world") or load_world_config()
-    return _WORLD_CONFIG_CACHE
+    if scenario_id not in _WORLD_CONFIG_CACHE:
+        config = load_world_config_for_scenario(scenario_id)
+        if not config:
+            config = load_world_config()
+        _WORLD_CONFIG_CACHE[scenario_id] = config
+    return _WORLD_CONFIG_CACHE[scenario_id]
 
 
 # 地点定义：从 YAML 配置加载（延迟加载）
-def _get_location_configs() -> list[dict]:
-    return _get_world_config().get("locations", [])
+def _get_location_configs(scenario_id: str) -> list[dict]:
+    return _get_world_config(scenario_id).get("locations", [])
 
 
 # 地点 ID 映射：从 YAML 配置加载（延迟加载）
-def _get_location_id_map() -> dict:
-    return _get_world_config().get("location_id_map", {})
+def _get_location_id_map(scenario_id: str) -> dict:
+    return _get_world_config(scenario_id).get("location_id_map", {})
 
 
 # 职业中文映射：从 YAML 配置加载（延迟加载）
-def _get_occupation_names() -> dict[str, str]:
-    return _get_world_config().get("occupation_names", {})
+def _get_occupation_names(scenario_id: str) -> dict[str, str]:
+    return _get_world_config(scenario_id).get("occupation_names", {})
 
 
 class TrumanWorldSeedBuilder:
@@ -51,11 +53,14 @@ class TrumanWorldSeedBuilder:
         self,
         session: AsyncSession,
         registry: AgentRegistry | None = None,
+        *,
+        scenario_id: str = "truman_world",
     ) -> None:
         self.session = session
+        self.scenario_id = scenario_id
         settings = get_settings()
         self.registry = registry or AgentRegistry(
-            resolve_agents_root_for_scenario("truman_world", project_root=settings.project_root)
+            resolve_agents_root_for_scenario(scenario_id, project_root=settings.project_root)
         )
 
     def _build_location_id(self, run_id: str, suffix: str) -> str:
@@ -76,7 +81,7 @@ class TrumanWorldSeedBuilder:
 
     def _get_occupation_name(self, occupation: str) -> str:
         """Get localized occupation name."""
-        return _get_occupation_names().get(occupation, occupation)
+        return _get_occupation_names(self.scenario_id).get(occupation, occupation)
 
     async def seed_demo_run(self, run: SimulationRun) -> None:
         """Seed a demo run from agent configuration files."""
@@ -84,7 +89,7 @@ class TrumanWorldSeedBuilder:
 
         # 1. 创建地点
         locations: dict[str, Location] = {}
-        for loc_config in _get_location_configs():
+        for loc_config in _get_location_configs(self.scenario_id):
             loc_id = self._build_location_id(run_id, loc_config["id_suffix"])
             locations[loc_config["id_suffix"]] = Location(
                 id=loc_id,
@@ -109,7 +114,7 @@ class TrumanWorldSeedBuilder:
             bio = self.registry.get_bio(config.id) or ""
 
             # 解析 home_location_id
-            location_id_map = _get_location_id_map()
+            location_id_map = _get_location_id_map(self.scenario_id)
             home_location_id = self._resolve_location_id(run_id, config.home, location_id_map)
 
             # 解析 workplace_location_id

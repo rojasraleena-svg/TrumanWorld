@@ -37,12 +37,18 @@ class DirectorPlanner:
     - 可配置决策间隔（默认 5 tick）
     """
 
-    def __init__(self, backend: DirectorCognitionBackend | None = None) -> None:
+    def __init__(
+        self,
+        backend: DirectorCognitionBackend | None = None,
+        *,
+        scenario_id: str = "truman_world",
+    ) -> None:
+        self._scenario_id = scenario_id
         self._backend = backend or get_cognition_registry().build_director_backend()
         self._strategy_executor = StrategyExecutor()
         self._pending_decision: asyncio.Task[DirectorPlan | None] | None = None
         self._last_decision_tick: int = 0
-        self._config = load_director_config()
+        self._config = load_director_config(scenario_id=scenario_id)
 
     async def build_plan(
         self,
