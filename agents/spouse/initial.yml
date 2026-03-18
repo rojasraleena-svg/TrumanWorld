@@ -1,9 +1,0 @@
-# Meryl 的初始状态配置
-status:
-  energy: 0.78
-plan:
-  morning: prepare_day
-  daytime: work
-  evening: home
-initial_goal: work
-initial_location: home

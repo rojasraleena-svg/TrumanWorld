@@ -1,9 +1,0 @@
-# Bob 的初始状态配置
-status:
-  energy: 0.75
-plan:
-  morning: wander
-  daytime: wander
-  evening: socialize
-initial_goal: wander
-initial_location: home
