@@ -52,3 +52,17 @@ class ScenarioBundleRegistry:
 def get_scenario_bundle_registry() -> ScenarioBundleRegistry:
     settings = get_settings()
     return ScenarioBundleRegistry(settings.project_root / "scenarios")
+
+
+def resolve_agents_root_for_scenario(
+    scenario_id: str | None,
+    *,
+    project_root: Path | None = None,
+) -> Path:
+    settings = get_settings()
+    base_root = project_root or settings.project_root
+    registry = ScenarioBundleRegistry(base_root / "scenarios")
+    bundle = registry.get_bundle(scenario_id)
+    if bundle is not None and bundle.agents_root.exists():
+        return bundle.agents_root
+    return base_root / "agents"

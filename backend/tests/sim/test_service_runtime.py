@@ -2,6 +2,7 @@ import pytest
 
 from app.cognition.heuristic.agent_backend import HeuristicAgentBackend
 from app.director.service import DirectorEventService
+from app.infra.settings import get_settings
 from app.scenario.truman_world.coordinator import TrumanWorldCoordinator
 from app.sim.action_resolver import ActionIntent
 from app.sim.service import SimulationService
@@ -13,6 +14,33 @@ from .test_service import (
     FakeScenario,
     RecordingDecisionProvider,
 )
+
+
+def test_simulation_service_switches_registry_root_with_scenario_bundle(
+    db_session, tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    scenario_root = tmp_path / "scenarios" / "open_world"
+    scenario_root.mkdir(parents=True)
+    (scenario_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: open_world",
+                "name: Open World",
+                "version: 1",
+                "runtime_adapter: open_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (scenario_root / "agents").mkdir()
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    service = SimulationService(db_session)
+    service._configure_scenario("open_world")
+
+    assert service.agent_runtime.registry.root == scenario_root / "agents"
 
 
 @pytest.mark.asyncio

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 import app.sim.bootstrap as bootstrap_module
+from app.infra.settings import get_settings
 from app.store.models import Agent, SimulationRun
 
 
@@ -33,6 +34,64 @@ class FakeService:
 
     async def run_tick_isolated(self, run_id: str, engine) -> None:
         self.run_tick_calls.append((run_id, engine))
+
+
+@pytest.mark.asyncio
+async def test_bootstrapper_uses_bundle_agents_root_when_present(db_session, tmp_path):
+    run = SimulationRun(
+        id="run-bootstrap-bundle",
+        name="demo",
+        status="running",
+        scenario_type="open_world",
+    )
+    db_session.add(run)
+    await db_session.commit()
+
+    scenario_root = tmp_path / "scenarios" / "open_world"
+    scenario_root.mkdir(parents=True)
+    (scenario_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: open_world",
+                "name: Open World",
+                "version: 1",
+                "runtime_adapter: open_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    agents_root = scenario_root / "agents"
+    agents_root.mkdir()
+
+    created_registry_paths: list[object] = []
+
+    class FakeRegistry:
+        def __init__(self, path) -> None:
+            created_registry_paths.append(path)
+
+    class FakeRuntime:
+        def __init__(self, registry, cognition_registry=None) -> None:
+            self.registry = registry
+            self.cognition_registry = cognition_registry
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+    monkeypatch.setattr(bootstrap_module, "AgentRegistry", FakeRegistry)
+    monkeypatch.setattr(bootstrap_module, "AgentRuntime", FakeRuntime)
+    monkeypatch.setattr(bootstrap_module, "get_cognition_registry", lambda: FakeCognitionRegistry())
+    monkeypatch.setattr(
+        bootstrap_module.SimulationService,
+        "create_for_scheduler",
+        lambda agent_runtime, scenario: FakeService(),
+    )
+    try:
+        await bootstrap_module.RunExecutionBootstrapper().prepare(db_session, run)
+    finally:
+        monkeypatch.undo()
+        get_settings.cache_clear()
+
+    assert created_registry_paths == [agents_root]
 
 
 @pytest.mark.asyncio

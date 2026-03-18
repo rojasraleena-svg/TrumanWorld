@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from app.agent.registry import AgentRegistry
 from app.infra.settings import get_settings
+from app.scenario.bundle_registry import resolve_agents_root_for_scenario
 from app.scenario.truman_world.rules import load_world_config
 from app.scenario.truman_world.types import build_agent_profile
 from app.sim.context import DEFAULT_WORLD_START_TIME
@@ -53,7 +54,9 @@ class TrumanWorldSeedBuilder:
     ) -> None:
         self.session = session
         settings = get_settings()
-        self.registry = registry or AgentRegistry(settings.project_root / "agents")
+        self.registry = registry or AgentRegistry(
+            resolve_agents_root_for_scenario("truman_world", project_root=settings.project_root)
+        )
 
     def _build_location_id(self, run_id: str, suffix: str) -> str:
         """Build full location ID from run_id and suffix."""

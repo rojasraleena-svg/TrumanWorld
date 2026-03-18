@@ -1,0 +1,9 @@
+# Marlon 的初始状态配置
+status:
+  energy: 0.74
+plan:
+  morning: work
+  daytime: work
+  evening: socialize
+initial_goal: commute
+initial_location: home

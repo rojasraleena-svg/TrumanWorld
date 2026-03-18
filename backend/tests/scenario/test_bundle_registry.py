@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.scenario.bundle_registry import ScenarioBundleRegistry
+from app.infra.settings import get_settings
+from app.scenario.bundle_registry import ScenarioBundleRegistry, resolve_agents_root_for_scenario
 
 
 def test_bundle_registry_loads_scenarios_from_directory(tmp_path):
@@ -65,6 +66,62 @@ def test_bundle_registry_returns_bundle_by_id(tmp_path):
 
     assert bundle is not None
     assert bundle.manifest.name == "Truman World"
+
+
+def test_bundle_registry_prefers_bundle_agents_directory(tmp_path, monkeypatch):
+    scenarios_root = tmp_path / "scenarios"
+    bundle_root = scenarios_root / "truman_world"
+    bundle_root.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: truman_world",
+                "name: Truman World",
+                "version: 1",
+                "runtime_adapter: truman_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    agents_root = bundle_root / "agents"
+    agents_root.mkdir()
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    registry = ScenarioBundleRegistry(scenarios_root)
+    bundle = registry.get_bundle("truman_world")
+
+    assert bundle is not None
+    assert bundle.agents_root == agents_root
+
+
+def test_resolve_agents_root_falls_back_to_project_agents_when_bundle_agents_missing(
+    tmp_path, monkeypatch
+):
+    scenarios_root = tmp_path / "scenarios"
+    bundle_root = scenarios_root / "truman_world"
+    bundle_root.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: truman_world",
+                "name: Truman World",
+                "version: 1",
+                "runtime_adapter: truman_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    project_agents_root = tmp_path / "agents"
+    project_agents_root.mkdir()
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    resolved = resolve_agents_root_for_scenario("truman_world")
+
+    assert resolved == project_agents_root
 
 
 def test_bundle_registry_rejects_invalid_manifest(tmp_path):

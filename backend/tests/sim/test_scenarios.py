@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import pytest
 
+from app.infra.settings import get_settings
 from app.agent.context_builder import ContextBuilder
 from app.agent.registry import AgentRegistry
 from app.agent.runtime import AgentRuntime
 from app.scenario.factory import create_scenario
 from app.scenario.open_world.scenario import OpenWorldScenario
 from app.scenario.truman_world.scenario import TrumanWorldScenario
+from app.scenario.truman_world.seed import TrumanWorldSeedBuilder
 from app.store.models import Event, SimulationRun
 from app.store.repositories import AgentRepository
 
@@ -184,6 +186,68 @@ async def test_truman_world_scenario_seed_and_state_update(db_session):
     await db_session.refresh(truman)
 
     assert truman.status["suspicion_score"] > starting_score
+
+
+@pytest.mark.asyncio
+async def test_truman_world_seed_builder_prefers_scenario_bundle_agents(
+    db_session, tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    scenario_agents_root = tmp_path / "scenarios" / "truman_world" / "agents" / "bundle_agent"
+    scenario_agents_root.mkdir(parents=True)
+    (tmp_path / "scenarios" / "truman_world" / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: truman_world",
+                "name: Truman World",
+                "version: 1",
+                "runtime_adapter: truman_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (scenario_agents_root / "agent.yml").write_text(
+        "\n".join(
+            [
+                "id: bundle_agent",
+                "name: Bundle Agent",
+                "world_role: cast",
+                "occupation: resident",
+                "home: apartment",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (scenario_agents_root / "prompt.md").write_text("# Bundle Agent", encoding="utf-8")
+
+    project_agents_root = tmp_path / "agents" / "project_agent"
+    project_agents_root.mkdir(parents=True)
+    (project_agents_root / "agent.yml").write_text(
+        "\n".join(
+            [
+                "id: project_agent",
+                "name: Project Agent",
+                "world_role: cast",
+                "occupation: resident",
+                "home: apartment",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (project_agents_root / "prompt.md").write_text("# Project Agent", encoding="utf-8")
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    run = SimulationRun(id="run-scenario-bundle-seed", name="scenario-seed", status="running")
+    db_session.add(run)
+    await db_session.commit()
+
+    builder = TrumanWorldSeedBuilder(db_session)
+    await builder.seed_demo_run(run)
+
+    agents = await AgentRepository(db_session).list_for_run(run.id)
+
+    assert [agent.name for agent in agents] == ["Bundle Agent"]
 
 
 @pytest.mark.asyncio

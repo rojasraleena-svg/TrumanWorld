@@ -11,6 +11,7 @@ from app.cognition.registry import get_cognition_registry
 from app.infra.db import async_engine
 from app.infra.logging import get_logger
 from app.infra.settings import get_settings
+from app.scenario.bundle_registry import resolve_agents_root_for_scenario
 from app.scenario.factory import create_scenario
 from app.sim.service import SimulationService
 from app.store.models import SimulationRun
@@ -29,7 +30,9 @@ class RunExecutionPlan:
 class RunExecutionBootstrapper:
     async def prepare(self, session: AsyncSession, run: SimulationRun) -> RunExecutionPlan:
         settings = get_settings()
-        agent_registry = AgentRegistry(settings.project_root / "agents")
+        agent_registry = AgentRegistry(
+            resolve_agents_root_for_scenario(run.scenario_type, project_root=settings.project_root)
+        )
         cognition_registry = get_cognition_registry()
         if bool(getattr(settings, "claude_sdk_reactor_pool_enabled", True)):
             await cognition_registry.warmup_for_run(session, run.id)

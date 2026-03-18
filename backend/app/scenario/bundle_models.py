@@ -20,3 +20,7 @@ class ScenarioBundle(BaseModel):
     manifest: ScenarioManifest
     root: Path
     manifest_path: Path
+
+    @property
+    def agents_root(self) -> Path:
+        return self.root / "agents"

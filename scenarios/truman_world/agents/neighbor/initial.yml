@@ -1,0 +1,9 @@
+# Lauren 的初始状态配置
+status:
+  energy: 0.72
+plan:
+  morning: socialize
+  daytime: wander
+  evening: socialize
+initial_goal: wander
+initial_location: home

@@ -13,6 +13,7 @@ from app.infra.logging import get_logger
 from app.infra.metrics import observe_tick
 from app.infra.settings import get_settings
 from app.scenario.base import Scenario
+from app.scenario.bundle_registry import resolve_agents_root_for_scenario
 from app.scenario.factory import create_scenario
 from app.sim.action_resolver import ActionIntent
 from app.sim.context import ContextBuilder
@@ -51,6 +52,7 @@ class SimulationService:
         self.agent_repo = AgentRepository(session) if session is not None else None
         self._context_builder = ContextBuilder(session) if session is not None else None
         self._persistence = PersistenceManager(session) if session is not None else None
+        self._custom_agents_root = agents_root is not None
         # Track whether a scenario was explicitly injected (e.g. in tests).
         # When True, run_tick will NOT override _scenario based on run.scenario_type.
         self._injected_scenario: bool = scenario is not None
@@ -68,6 +70,10 @@ class SimulationService:
 
     def _configure_scenario(self, scenario_type: str | None) -> Scenario:
         self._scenario = create_scenario(scenario_type, self.session)
+        if not self._custom_agents_root:
+            self.agent_runtime.registry = AgentRegistry(
+                resolve_agents_root_for_scenario(scenario_type)
+            )
         self._scenario.configure_runtime(self.agent_runtime)
         return self._scenario
 
