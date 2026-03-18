@@ -7,6 +7,7 @@ from app.scenario.bundle_registry import (
     ScenarioBundleRegistry,
     load_director_config_dict_for_scenario,
     load_director_prompt_template_for_scenario,
+    load_ui_config_for_scenario,
     load_world_config_for_scenario,
     resolve_agents_root_for_scenario,
     resolve_sleep_config_for_scenario,
@@ -243,6 +244,41 @@ def test_load_director_config_and_prompt_for_scenario_reads_bundle_files(tmp_pat
 
     assert director_config["decision_interval"] == 9
     assert prompt_template == "Director prompt from scenario bundle"
+
+
+def test_load_ui_config_for_scenario_reads_bundle_ui_file(tmp_path, monkeypatch):
+    bundle_root = tmp_path / "scenarios" / "truman_world"
+    bundle_root.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: truman_world",
+                "name: Truman World",
+                "version: 1",
+                "runtime_adapter: truman_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (bundle_root / "ui.yml").write_text(
+        "\n".join(
+            [
+                "location_detail:",
+                "  max_events_display: 42",
+                "intelligence_stream:",
+                "  poll_interval_ms: 1234",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    ui_config = load_ui_config_for_scenario("truman_world")
+
+    assert ui_config["location_detail"]["max_events_display"] == 42
+    assert ui_config["intelligence_stream"]["poll_interval_ms"] == 1234
 
 
 def test_bundle_registry_rejects_invalid_manifest(tmp_path):

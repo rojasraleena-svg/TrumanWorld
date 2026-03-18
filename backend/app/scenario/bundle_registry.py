@@ -119,6 +119,17 @@ def load_director_prompt_template_for_scenario(
     return path.read_text(encoding="utf-8")
 
 
+def load_ui_config_for_scenario(
+    scenario_id: str | None,
+    *,
+    project_root: Path | None = None,
+) -> dict:
+    settings = get_settings()
+    base_root = project_root or settings.project_root
+    registry = ScenarioBundleRegistry(base_root / "scenarios")
+    return registry.load_bundle_yaml(scenario_id, "ui.yml")
+
+
 def resolve_sleep_config_for_scenario(
     scenario_id: str | None,
     *,

@@ -25,7 +25,7 @@ from app.api.schemas.simulation import (
 )
 from app.infra.db import get_db_session
 from app.infra.logging import get_logger
-from app.scenario.bundle_registry import load_world_config_for_scenario
+from app.scenario.bundle_registry import load_ui_config_for_scenario, load_world_config_for_scenario
 from app.scenario.truman_world.types import get_agent_config_id
 from app.sim.context import DEFAULT_WORLD_START_TIME, get_run_world_time
 from app.store.repositories import (
@@ -229,12 +229,13 @@ def build_run_snapshot(run) -> WorldSnapshotRunResponse:
 def _build_health_metrics_config(scenario_type: str | None) -> WorldHealthMetricsConfig:
     try:
         world_cfg = load_world_config_for_scenario(scenario_type)
+        ui_cfg = load_ui_config_for_scenario(scenario_type)
         cfg = world_cfg.get("health_metrics", {})
         cont = cfg.get("continuity", {})
         soc = cfg.get("social", {})
         heat = world_cfg.get("location_heat", {})
         thresholds = heat.get("thresholds", {})
-        ui = world_cfg.get("ui_config", {})
+        ui = ui_cfg or world_cfg.get("ui_config", {})
         ui_loc = ui.get("location_detail", {})
         ui_intel = ui.get("intelligence_stream", {})
         ui_dir = ui.get("director_panel", {})
