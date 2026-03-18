@@ -9,11 +9,9 @@ Architecture only passes raw data, LLM infers:
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import yaml
-
+from app.scenario.bundle_registry import load_world_config_for_scenario
 from app.scenario.truman_world.types import get_director_guidance
 from app.sim.world_queries import (
     build_familiarity_map,
@@ -26,9 +24,6 @@ if TYPE_CHECKING:
     from app.sim.world import WorldState
     from app.store.models import Relationship
 
-
-# 加载世界配置
-_WORLD_CONFIG_PATH = Path(__file__).parent / "world_config.yml"
 _WORLD_CONFIG_CACHE: dict[str, Any] | None = None
 
 
@@ -40,8 +35,7 @@ def load_world_config() -> dict[str, Any]:
     """
     global _WORLD_CONFIG_CACHE
     if _WORLD_CONFIG_CACHE is None:
-        with open(_WORLD_CONFIG_PATH, encoding="utf-8") as f:
-            _WORLD_CONFIG_CACHE = yaml.safe_load(f)
+        _WORLD_CONFIG_CACHE = load_world_config_for_scenario("truman_world")
     return _WORLD_CONFIG_CACHE
 
 

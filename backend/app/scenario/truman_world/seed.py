@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from app.agent.registry import AgentRegistry
 from app.infra.settings import get_settings
-from app.scenario.bundle_registry import resolve_agents_root_for_scenario
+from app.scenario.bundle_registry import load_world_config_for_scenario, resolve_agents_root_for_scenario
 from app.scenario.truman_world.rules import load_world_config
 from app.scenario.truman_world.types import build_agent_profile
 from app.sim.context import DEFAULT_WORLD_START_TIME
@@ -25,7 +25,7 @@ def _get_world_config() -> dict:
     """Lazy load world configuration."""
     global _WORLD_CONFIG_CACHE
     if _WORLD_CONFIG_CACHE is None:
-        _WORLD_CONFIG_CACHE = load_world_config()
+        _WORLD_CONFIG_CACHE = load_world_config_for_scenario("truman_world") or load_world_config()
     return _WORLD_CONFIG_CACHE
 
 

@@ -14,6 +14,10 @@ from typing import Any
 import yaml
 
 from app.infra.logging import get_logger
+from app.scenario.bundle_registry import (
+    load_director_config_dict_for_scenario,
+    load_director_prompt_template_for_scenario,
+)
 
 logger = get_logger(__name__)
 
@@ -85,13 +89,12 @@ class DirectorConfig:
     def get_prompt_template(self) -> str:
         """Get the prompt template, loading from file if needed."""
         if self._prompt_template is None:
-            prompt_path = _SCENARIO_DIR / self.prompt.file
-            try:
-                with open(prompt_path, encoding="utf-8") as f:
-                    self._prompt_template = f.read()
-            except FileNotFoundError:
+            template = load_director_prompt_template_for_scenario("truman_world", self.prompt.file)
+            if template is not None:
+                self._prompt_template = template
+            else:
+                prompt_path = _SCENARIO_DIR / self.prompt.file
                 logger.warning(f"Director prompt file not found: {prompt_path}")
-                # Return default prompt
                 self._prompt_template = self._get_default_prompt()
         return self._prompt_template
 
@@ -148,10 +151,12 @@ def load_director_config(force_reload: bool = False) -> DirectorConfig:
 
     # Load from file
     try:
-        with open(_DIRECTOR_CONFIG_PATH, encoding="utf-8") as f:
-            _config_cache = yaml.safe_load(f)
-            _config_load_time = current_time
-            logger.debug(f"Loaded director config from {_DIRECTOR_CONFIG_PATH}")
+        _config_cache = load_director_config_dict_for_scenario("truman_world")
+        if not _config_cache:
+            with open(_DIRECTOR_CONFIG_PATH, encoding="utf-8") as f:
+                _config_cache = yaml.safe_load(f)
+        _config_load_time = current_time
+        logger.debug("Loaded director config for truman_world")
     except FileNotFoundError:
         logger.warning(f"Director config file not found: {_DIRECTOR_CONFIG_PATH}")
         return DirectorConfig()  # Return default config

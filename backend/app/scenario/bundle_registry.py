@@ -90,6 +90,35 @@ def load_world_config_for_scenario(
     return registry.load_bundle_yaml(scenario_id, "world.yml")
 
 
+def load_director_config_dict_for_scenario(
+    scenario_id: str | None,
+    *,
+    project_root: Path | None = None,
+) -> dict:
+    settings = get_settings()
+    base_root = project_root or settings.project_root
+    registry = ScenarioBundleRegistry(base_root / "scenarios")
+    return registry.load_bundle_yaml(scenario_id, "director.yml")
+
+
+def load_director_prompt_template_for_scenario(
+    scenario_id: str | None,
+    filename: str,
+    *,
+    project_root: Path | None = None,
+) -> str | None:
+    settings = get_settings()
+    base_root = project_root or settings.project_root
+    registry = ScenarioBundleRegistry(base_root / "scenarios")
+    bundle = registry.get_bundle(scenario_id)
+    if bundle is None:
+        return None
+    path = bundle.root / filename
+    if not path.exists():
+        return None
+    return path.read_text(encoding="utf-8")
+
+
 def resolve_sleep_config_for_scenario(
     scenario_id: str | None,
     *,
