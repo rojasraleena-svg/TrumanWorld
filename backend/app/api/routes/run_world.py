@@ -25,7 +25,7 @@ from app.api.schemas.simulation import (
 )
 from app.infra.db import get_db_session
 from app.infra.logging import get_logger
-from app.scenario.truman_world.rules import load_world_config
+from app.scenario.bundle_registry import load_world_config_for_scenario
 from app.scenario.truman_world.types import get_agent_config_id
 from app.sim.context import DEFAULT_WORLD_START_TIME, get_run_world_time
 from app.store.repositories import (
@@ -226,9 +226,9 @@ def build_run_snapshot(run) -> WorldSnapshotRunResponse:
     return WorldSnapshotRunResponse(**build_run_payload(run))
 
 
-def _build_health_metrics_config() -> WorldHealthMetricsConfig:
+def _build_health_metrics_config(scenario_type: str | None) -> WorldHealthMetricsConfig:
     try:
-        world_cfg = load_world_config()
+        world_cfg = load_world_config_for_scenario(scenario_type)
         cfg = world_cfg.get("health_metrics", {})
         cont = cfg.get("continuity", {})
         soc = cfg.get("social", {})
@@ -580,5 +580,5 @@ async def get_world_snapshot(
             total_cache_read_tokens=token_totals.get("cache_read_tokens", 0),
             total_cache_creation_tokens=token_totals.get("cache_creation_tokens", 0),
         ),
-        health_metrics_config=_build_health_metrics_config(),
+        health_metrics_config=_build_health_metrics_config(run.scenario_type),
     )

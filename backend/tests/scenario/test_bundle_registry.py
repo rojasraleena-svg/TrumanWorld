@@ -3,7 +3,12 @@ from __future__ import annotations
 import pytest
 
 from app.infra.settings import get_settings
-from app.scenario.bundle_registry import ScenarioBundleRegistry, resolve_agents_root_for_scenario
+from app.scenario.bundle_registry import (
+    ScenarioBundleRegistry,
+    load_world_config_for_scenario,
+    resolve_agents_root_for_scenario,
+    resolve_sleep_config_for_scenario,
+)
 
 
 def test_bundle_registry_loads_scenarios_from_directory(tmp_path):
@@ -122,6 +127,78 @@ def test_resolve_agents_root_falls_back_to_project_agents_when_bundle_agents_mis
     resolved = resolve_agents_root_for_scenario("truman_world")
 
     assert resolved == project_agents_root
+
+
+def test_load_world_config_for_scenario_reads_bundle_world_file(tmp_path, monkeypatch):
+    bundle_root = tmp_path / "scenarios" / "truman_world"
+    bundle_root.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: truman_world",
+                "name: Truman World",
+                "version: 1",
+                "runtime_adapter: truman_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (bundle_root / "world.yml").write_text(
+        "\n".join(
+            [
+                "daily_rhythm:",
+                "  sleep_hours:",
+                "    start: 22",
+                "    end: 7",
+                "health_metrics:",
+                "  continuity:",
+                "    penalty_factor: 150",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    world_config = load_world_config_for_scenario("truman_world")
+
+    assert world_config["daily_rhythm"]["sleep_hours"]["start"] == 22
+    assert world_config["health_metrics"]["continuity"]["penalty_factor"] == 150
+
+
+def test_resolve_sleep_config_for_scenario_reads_bundle_world_file(tmp_path, monkeypatch):
+    bundle_root = tmp_path / "scenarios" / "truman_world"
+    bundle_root.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: truman_world",
+                "name: Truman World",
+                "version: 1",
+                "runtime_adapter: truman_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (bundle_root / "world.yml").write_text(
+        "\n".join(
+            [
+                "daily_rhythm:",
+                "  sleep_hours:",
+                "    start: 21",
+                "    end: 8",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    sleep_config = resolve_sleep_config_for_scenario("truman_world")
+
+    assert sleep_config == {"sleep_start_hour": 21, "sleep_end_hour": 8}
 
 
 def test_bundle_registry_rejects_invalid_manifest(tmp_path):

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from app.scenario.truman_world.rules import load_world_config
+from app.scenario.bundle_registry import resolve_sleep_config_for_scenario
 from app.sim.agent_snapshot_builder import build_agent_snapshots
 from app.sim.context import get_run_world_effects, get_run_world_time
 from app.sim.location_utils import resolve_agent_location_id
@@ -17,22 +17,6 @@ if TYPE_CHECKING:
     from app.director.types import DirectorPlan
     from app.scenario.base import Scenario
     from app.store.models import Agent, SimulationRun
-
-
-def _load_sleep_config() -> dict:
-    """Load sleep_hours from world_config.yml and return as WorldState kwargs."""
-    try:
-        cfg = load_world_config()
-        sleep = cfg.get("daily_rhythm", {}).get("sleep_hours", {})
-        result = {}
-        if "start" in sleep:
-            result["sleep_start_hour"] = int(sleep["start"])
-        if "end" in sleep:
-            result["sleep_end_hour"] = int(sleep["end"])
-        return result
-    except Exception:
-        # 配置加载失败时使用 WorldState 默认值
-        return {}
 
 
 @dataclass
@@ -110,7 +94,7 @@ async def load_tick_data(
         locations=location_states,
         agents=agent_states,
         world_effects=get_run_world_effects(run),
-        **_load_sleep_config(),
+        **resolve_sleep_config_for_scenario(run.scenario_type),
     )
 
     return LoadedTickData(

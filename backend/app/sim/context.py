@@ -10,7 +10,7 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from app.scenario.truman_world.rules import load_world_config
+from app.scenario.bundle_registry import resolve_sleep_config_for_scenario
 from app.scenario.types import ScenarioGuidance, get_world_role
 from app.sim.event_utils import format_event_for_context
 from app.sim.runtime_context_utils import (
@@ -28,22 +28,6 @@ if TYPE_CHECKING:
 
 
 DEFAULT_WORLD_START_TIME = datetime(2026, 3, 2, 6, 0, tzinfo=UTC)
-
-
-def _load_sleep_config() -> dict:
-    try:
-        cfg = load_world_config()
-        sleep = cfg.get("daily_rhythm", {}).get("sleep_hours", {})
-        result = {}
-        if "start" in sleep:
-            result["sleep_start_hour"] = int(sleep["start"])
-        if "end" in sleep:
-            result["sleep_end_hour"] = int(sleep["end"])
-        return result
-    except Exception:
-        return {}
-
-
 class ContextBuilder:
     """Builds context for agent decisions in simulation.
 
@@ -115,7 +99,7 @@ class ContextBuilder:
             locations=location_states,
             agents=agent_states,
             world_effects=get_run_world_effects(run),
-            **_load_sleep_config(),
+            **resolve_sleep_config_for_scenario(run.scenario_type),
         )
 
     def build_agent_world_context(
