@@ -153,6 +153,8 @@ class DirectorAgent:
             "world_time": context.world_time,
             "current_tick": context.current_tick,
             "run_id": context.run_id,
+            "subject_agent_id": assessment.subject_agent_id or "unknown",
+            "subject_alert_score": f"{assessment.subject_alert_score:.2f}",
             "truman_agent_id": assessment.subject_agent_id or "unknown",
             "truman_suspicion_score": f"{assessment.subject_alert_score:.2f}",
             "suspicion_level": assessment.suspicion_level,

@@ -234,3 +234,44 @@ async def test_langgraph_director_backend_accepts_legacy_target_cast_names() -> 
 
     assert result is not None
     assert result.target_agent_ids == ["cast-spouse"]
+
+
+def test_director_agent_builds_prompt_with_generic_subject_vocabulary() -> None:
+    from app.cognition.claude.director_agent import DirectorAgent, DirectorContext
+
+    agent = DirectorAgent(
+        Settings(agent_backend="heuristic", director_backend="claude_sdk")
+    )
+    prompt = agent._build_decision_prompt(
+        DirectorContext(
+            run_id="run-1",
+            current_tick=5,
+            assessment=DirectorAssessment(
+                run_id="run-1",
+                current_tick=5,
+                subject_agent_id="subject-1",
+                subject_alert_score=0.86,
+                suspicion_level="high",
+                continuity_risk="watch",
+                focus_agent_ids=["subject-1"],
+                notes=["Subject alert is high."],
+            ),
+            agents=[],
+            recent_events=[],
+            recent_interventions=[],
+            world_time="2026-03-02T08:00:00+00:00",
+        ),
+        [
+            {
+                "id": "cast-spouse",
+                "name": "Meryl",
+                "profile": {"world_role": "cast", "agent_config_id": "spouse"},
+                "current_location_id": "home",
+            }
+        ],
+        set(),
+    )
+
+    assert "Subject Status" in prompt
+    assert "subject-1" in prompt
+    assert "0.86" in prompt

@@ -112,10 +112,10 @@ class DirectorConfig:
 
     def _get_default_prompt(self) -> str:
         """Get default prompt if file is not found."""
-        return """You are the Director of the Truman World simulation.
+        return """You are the Director of the simulation.
 
 Current Tick: {{current_tick}}
-Truman Suspicion: {{truman_suspicion_score}}
+Subject Alert Score: {{subject_alert_score}}
 Isolation Ticks: {{truman_isolation_ticks}}
 
 Decide whether to intervene. Output JSON with should_intervene, scene_goal, target_agent_names, priority, urgency, reasoning, message_hint, strategy, cooldown_ticks. Legacy target_cast_names is still accepted for compatibility."""
