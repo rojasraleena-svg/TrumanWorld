@@ -177,7 +177,6 @@ async def test_director_memory_repository_accepts_generic_target_agent_ids(db_se
     )
 
     assert memory.target_agent_ids == '["agent-a", "agent-b"]'
-    assert memory.target_cast_ids == memory.target_agent_ids
     assert memory.trigger_subject_alert_score == 0.4
 
 

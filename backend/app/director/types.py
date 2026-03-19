@@ -30,7 +30,6 @@ class DirectorPlan:
         *,
         scene_goal: str,
         target_agent_ids: list[str] | None = None,
-        target_cast_ids: list[str] | None = None,
         priority: str,
         message_hint: str | None = None,
         location_hint: str | None = None,
@@ -44,7 +43,7 @@ class DirectorPlan:
         source_memory_id: str | None = None,
     ) -> None:
         self.scene_goal = scene_goal
-        self.target_agent_ids = list(target_agent_ids or target_cast_ids or [])
+        self.target_agent_ids = list(target_agent_ids or [])
         self.priority = priority
         self.message_hint = message_hint
         self.location_hint = location_hint
@@ -56,11 +55,3 @@ class DirectorPlan:
         self.strategy = strategy
         self.source_type = source_type
         self.source_memory_id = source_memory_id
-
-    @property
-    def target_cast_ids(self) -> list[str]:
-        return self.target_agent_ids
-
-    @target_cast_ids.setter
-    def target_cast_ids(self, value: list[str]) -> None:
-        self.target_agent_ids = value

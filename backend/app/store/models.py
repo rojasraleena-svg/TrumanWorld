@@ -209,11 +209,3 @@ class DirectorMemory(Base):
     # 元数据
     metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-    @property
-    def target_cast_ids(self) -> str:
-        return self.target_agent_ids
-
-    @target_cast_ids.setter
-    def target_cast_ids(self, value: str) -> None:
-        self.target_agent_ids = value

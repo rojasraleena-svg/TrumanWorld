@@ -50,7 +50,6 @@ def test_manual_planner_builds_gather_plan_for_broadcast():
     assert plan is not None
     assert plan.scene_goal == DIRECTOR_SCENE_GATHER
     assert plan.target_agent_ids == ["cast-a", "cast-b"]
-    assert plan.target_cast_ids == ["cast-a", "cast-b"]
     assert plan.location_hint == "square"
     assert plan.target_agent_id == "truman"
     assert plan.message_hint == "meet at the square"

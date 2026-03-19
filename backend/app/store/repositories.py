@@ -765,7 +765,6 @@ class DirectorMemoryRepository:
         run_id: str,
         tick_no: int,
         scene_goal: str,
-        target_cast_ids: list[str] | None = None,
         target_agent_ids: list[str] | None = None,
         priority: str = "advisory",
         urgency: str = "advisory",
@@ -778,7 +777,7 @@ class DirectorMemoryRepository:
         location_hint: str | None = None,
     ) -> DirectorMemory:
         """创建导演干预记忆"""
-        resolved_target_agent_ids = list(target_agent_ids or target_cast_ids or [])
+        resolved_target_agent_ids = list(target_agent_ids or [])
         # Build metadata dict for extra fields not in the model
         metadata_json: dict = {}
         if location_hint:
