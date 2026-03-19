@@ -124,18 +124,3 @@ def test_manual_planner_returns_none_for_unsupported_event_type():
     )
 
     assert plan is None
-
-
-def test_manual_planner_accepts_legacy_truman_agent_id_alias():
-    planner = ManualDirectorPlanner()
-
-    plan = planner.build_plan_from_manual_event(
-        event_type="broadcast",
-        payload={"message": "meet at the square"},
-        location_id="square",
-        agents=[_make_agent("cast-a", "cast")],
-        truman_agent_id="truman",
-    )
-
-    assert plan is not None
-    assert plan.target_agent_id == "truman"

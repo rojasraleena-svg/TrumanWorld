@@ -38,9 +38,7 @@ class DirectorAssessment:
         run_id: str,
         current_tick: int,
         subject_agent_id: str | None = None,
-        truman_agent_id: str | None = None,
-        subject_alert_score: float | None = None,
-        truman_suspicion_score: float | None = None,
+        subject_alert_score: float = 0.0,
         suspicion_level: str,
         continuity_risk: str,
         suspicion_trend: SuspicionTrend | None = None,
@@ -51,22 +49,14 @@ class DirectorAssessment:
         active_support_count: int | None = None,
         active_cast_count: int | None = None,
     ) -> None:
-        resolved_subject_agent_id = (
-            subject_agent_id if subject_agent_id is not None else truman_agent_id
-        )
-        resolved_subject_alert_score = (
-            subject_alert_score
-            if subject_alert_score is not None
-            else (truman_suspicion_score if truman_suspicion_score is not None else 0.0)
-        )
         resolved_active_support_count = (
             active_support_count if active_support_count is not None else active_cast_count or 0
         )
 
         self.run_id = run_id
         self.current_tick = current_tick
-        self.subject_agent_id = resolved_subject_agent_id
-        self.subject_alert_score = resolved_subject_alert_score
+        self.subject_agent_id = subject_agent_id
+        self.subject_alert_score = subject_alert_score
         self.suspicion_level = suspicion_level
         self.continuity_risk = continuity_risk
         self.suspicion_trend = suspicion_trend
@@ -75,22 +65,6 @@ class DirectorAssessment:
         self.truman_isolation_ticks = truman_isolation_ticks
         self.recent_rejections = recent_rejections
         self.active_support_count = resolved_active_support_count
-
-    @property
-    def truman_agent_id(self) -> str | None:
-        return self.subject_agent_id
-
-    @truman_agent_id.setter
-    def truman_agent_id(self, value: str | None) -> None:
-        self.subject_agent_id = value
-
-    @property
-    def truman_suspicion_score(self) -> float:
-        return self.subject_alert_score
-
-    @truman_suspicion_score.setter
-    def truman_suspicion_score(self, value: float) -> None:
-        self.subject_alert_score = value
 
     @property
     def active_cast_count(self) -> int:

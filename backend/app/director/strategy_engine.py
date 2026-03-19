@@ -69,7 +69,6 @@ class StrategyConditionEngine:
             "continuity_risk": assessment.continuity_risk,
             "recent_rejections": assessment.recent_rejections,
             "subject_alert_score": assessment.subject_alert_score,
-            "truman_suspicion_score": assessment.subject_alert_score,
         }
         return metric_map.get(metric_name)
 

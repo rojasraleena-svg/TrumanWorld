@@ -35,7 +35,6 @@ class ManualDirectorPlanner:
         location_id: str | None,
         agents: list[Agent],
         subject_agent_id: str | None = None,
-        truman_agent_id: str | None = None,
     ) -> DirectorPlan | None:
         """Build a DirectorPlan from a manual event injection.
 
@@ -45,7 +44,6 @@ class ManualDirectorPlanner:
             location_id: Optional target location ID
             agents: List of all agents in the run
             subject_agent_id: Primary subject agent ID (if exists)
-            truman_agent_id: Legacy alias for subject agent ID
 
         Returns:
             DirectorPlan or None if event_type is not supported
@@ -53,16 +51,13 @@ class ManualDirectorPlanner:
         cast_agents = [a for a in agents if get_world_role(a.profile) == "cast"]
         if not cast_agents:
             return None
-        resolved_subject_agent_id = (
-            subject_agent_id if subject_agent_id is not None else truman_agent_id
-        )
 
         if event_type == "broadcast":
             return self._build_gather_plan(
                 payload=payload,
                 location_id=location_id,
                 cast_agents=cast_agents,
-                subject_agent_id=resolved_subject_agent_id,
+                subject_agent_id=subject_agent_id,
             )
 
         if event_type == "activity":
@@ -70,7 +65,7 @@ class ManualDirectorPlanner:
                 payload=payload,
                 location_id=location_id,
                 cast_agents=cast_agents,
-                subject_agent_id=resolved_subject_agent_id,
+                subject_agent_id=subject_agent_id,
             )
 
         if event_type == "shutdown":
@@ -78,7 +73,7 @@ class ManualDirectorPlanner:
                 payload=payload,
                 location_id=location_id,
                 cast_agents=cast_agents,
-                subject_agent_id=resolved_subject_agent_id,
+                subject_agent_id=subject_agent_id,
             )
 
         if event_type == "weather_change":
@@ -86,7 +81,7 @@ class ManualDirectorPlanner:
                 payload=payload,
                 location_id=location_id,
                 cast_agents=cast_agents,
-                subject_agent_id=resolved_subject_agent_id,
+                subject_agent_id=subject_agent_id,
             )
 
         if event_type == "power_outage":
@@ -94,7 +89,7 @@ class ManualDirectorPlanner:
                 payload=payload,
                 location_id=location_id,
                 cast_agents=cast_agents,
-                subject_agent_id=resolved_subject_agent_id,
+                subject_agent_id=subject_agent_id,
             )
 
         return None
