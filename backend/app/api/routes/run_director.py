@@ -36,8 +36,8 @@ def serialize_director_memory(
     location_name_map: dict[str, str],
     manual_goals: set[str],
 ) -> DirectorMemoryResponse:
-    target_cast_ids = json.loads(memory.target_cast_ids) if memory.target_cast_ids else []
-    target_agent_ids = list(target_cast_ids)
+    target_agent_ids = json.loads(memory.target_agent_ids) if memory.target_agent_ids else []
+    target_cast_ids = list(target_agent_ids)
     location_hint = memory.metadata_json.get("location_hint") if memory.metadata_json else None
     if memory.was_executed:
         delivery_status = "consumed"

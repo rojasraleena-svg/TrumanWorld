@@ -188,8 +188,8 @@ class DirectorMemory(Base):
     tick_no: Mapped[int] = mapped_column(Integer, default=0)
     # 场景目标
     scene_goal: Mapped[str] = mapped_column(String(50), nullable=False)
-    # 目标 cast agent
-    target_cast_ids: Mapped[str] = mapped_column(Text, nullable=False)  # JSON array
+    # 目标 agent
+    target_agent_ids: Mapped[str] = mapped_column(Text, nullable=False)  # JSON array
     # 干预优先级
     priority: Mapped[str] = mapped_column(String(20), default="advisory")
     urgency: Mapped[str] = mapped_column(String(20), default="advisory")
@@ -211,9 +211,9 @@ class DirectorMemory(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     @property
-    def target_agent_ids(self) -> str:
-        return self.target_cast_ids
+    def target_cast_ids(self) -> str:
+        return self.target_agent_ids
 
-    @target_agent_ids.setter
-    def target_agent_ids(self, value: str) -> None:
-        self.target_cast_ids = value
+    @target_cast_ids.setter
+    def target_cast_ids(self, value: str) -> None:
+        self.target_agent_ids = value

@@ -107,7 +107,7 @@ async def test_get_director_memories_marks_consumed_and_expired_entries(client, 
                 run_id=run_id,
                 tick_no=10,
                 scene_goal="gather",
-                target_cast_ids='["agent-cast-memory"]',
+                target_agent_ids='["agent-cast-memory"]',
                 target_agent_id="agent-target-memory",
                 was_executed=True,
                 metadata_json={"location_hint": "loc-memory-status"},
@@ -117,7 +117,7 @@ async def test_get_director_memories_marks_consumed_and_expired_entries(client, 
                 run_id=run_id,
                 tick_no=1,
                 scene_goal="activity",
-                target_cast_ids='["agent-cast-memory"]',
+                target_agent_ids='["agent-cast-memory"]',
                 was_executed=False,
                 metadata_json={"location_hint": "loc-memory-status"},
             ),
@@ -173,8 +173,8 @@ async def test_director_memory_repository_accepts_generic_target_agent_ids(db_se
         target_agent_id="subject-a",
     )
 
-    assert memory.target_cast_ids == '["agent-a", "agent-b"]'
-    assert memory.target_agent_ids == memory.target_cast_ids
+    assert memory.target_agent_ids == '["agent-a", "agent-b"]'
+    assert memory.target_cast_ids == memory.target_agent_ids
 
 
 @pytest.mark.asyncio
@@ -288,7 +288,7 @@ async def test_delete_run_removes_related_records_and_cleans_pool(
             Event(id="event-delete", run_id=run_id, tick_no=1, event_type="talk", actor_agent_id="agent-delete-a", target_agent_id="agent-delete-b", location_id="loc-delete", payload={}),
             Memory(id="memory-delete", run_id=run_id, agent_id="agent-delete-a", tick_no=1, memory_type="episodic_long", memory_category="long_term", content="Talked with Bob", summary="Talked with Bob", importance=0.9, related_agent_id="agent-delete-b", location_id="loc-delete", metadata_json={}),
             Relationship(id="relationship-delete", run_id=run_id, agent_id="agent-delete-a", other_agent_id="agent-delete-b", familiarity=0.3, trust=0.2, affinity=0.4, relation_type="friend"),
-            DirectorMemory(id="director-memory-delete", run_id=run_id, tick_no=1, scene_goal="gather", target_cast_ids='["agent-delete-b"]', message_hint="Meet now", was_executed=False),
+            DirectorMemory(id="director-memory-delete", run_id=run_id, tick_no=1, scene_goal="gather", target_agent_ids='["agent-delete-b"]', message_hint="Meet now", was_executed=False),
         ]
     )
     await db_session.commit()

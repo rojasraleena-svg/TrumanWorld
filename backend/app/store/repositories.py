@@ -789,7 +789,7 @@ class DirectorMemoryRepository:
             run_id=run_id,
             tick_no=tick_no,
             scene_goal=scene_goal,
-            target_cast_ids=json.dumps(resolved_target_agent_ids),
+            target_agent_ids=json.dumps(resolved_target_agent_ids),
             priority=priority,
             urgency=urgency,
             message_hint=message_hint,

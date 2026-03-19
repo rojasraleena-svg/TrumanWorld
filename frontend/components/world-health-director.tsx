@@ -400,8 +400,14 @@ function DirectorMemoryCard({ memory }: { memory: DirectorMemory }) {
         {memory.target_agent_name || memory.target_agent_id ? (
           <p><span className="font-medium text-slate-700">目标：</span>{memory.target_agent_name ?? memory.target_agent_id}</p>
         ) : null}
-        {memory.target_cast_names.length > 0 ? (
-          <p><span className="font-medium text-slate-700">执行演员：</span>{memory.target_cast_names.join("、")}</p>
+        {(memory.target_agent_names.length > 0 || memory.target_cast_names.length > 0) ? (
+          <p>
+            <span className="font-medium text-slate-700">执行对象：</span>
+            {(memory.target_agent_names.length > 0
+              ? memory.target_agent_names
+              : memory.target_cast_names
+            ).join("、")}
+          </p>
         ) : null}
       </div>
     </div>

@@ -254,7 +254,7 @@ class TrumanWorldCoordinator:
         """将 DirectorMemory 转换为 DirectorPlan"""
         import json
 
-        target_cast_ids = json.loads(memory.target_cast_ids) if memory.target_cast_ids else []
+        target_agent_ids = json.loads(memory.target_agent_ids) if memory.target_agent_ids else []
 
         # location_hint 可能存储在 metadata_json 中（手动注入时）
         location_hint = None
@@ -265,7 +265,7 @@ class TrumanWorldCoordinator:
 
         return DirectorPlan(
             scene_goal=memory.scene_goal,
-            target_agent_ids=target_cast_ids,
+            target_agent_ids=target_agent_ids,
             priority=memory.priority,
             urgency=memory.urgency,
             message_hint=memory.message_hint,
