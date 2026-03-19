@@ -63,3 +63,19 @@ def test_director_observer_assesses_truman_world_state():
     assert assessment.continuity_risk in {"watch", "elevated", "critical"}
     assert assessment.focus_agent_ids[0] == "truman-1"
     assert assessment.notes
+
+
+def test_director_assessment_accepts_legacy_truman_aliases():
+    from app.director.observer import DirectorAssessment
+
+    assessment = DirectorAssessment(
+        run_id="run-1",
+        current_tick=3,
+        truman_agent_id="truman-1",
+        truman_suspicion_score=0.68,
+        suspicion_level="alerted",
+        continuity_risk="watch",
+    )
+
+    assert assessment.subject_agent_id == "truman-1"
+    assert assessment.subject_alert_score == 0.68

@@ -30,7 +30,7 @@ def test_manual_planner_returns_none_without_cast_agents():
         payload={"message": "everyone gather"},
         location_id="square",
         agents=[_make_agent("truman", "truman")],
-        truman_agent_id="truman",
+        subject_agent_id="truman",
     )
 
     assert plan is None
@@ -44,7 +44,7 @@ def test_manual_planner_builds_gather_plan_for_broadcast():
         payload={"message": "meet at the square"},
         location_id="square",
         agents=[_make_agent("cast-a", "cast"), _make_agent("cast-b", "cast")],
-        truman_agent_id="truman",
+        subject_agent_id="truman",
     )
 
     assert plan is not None
@@ -66,28 +66,28 @@ def test_manual_planner_builds_activity_shutdown_weather_and_power_outage_plans(
         payload={"message": "coffee party"},
         location_id="cafe",
         agents=agents,
-        truman_agent_id="truman",
+        subject_agent_id="truman",
     )
     shutdown = planner.build_plan_from_manual_event(
         event_type="shutdown",
         payload={"message": "hospital closed"},
         location_id="hospital",
         agents=agents,
-        truman_agent_id="truman",
+        subject_agent_id="truman",
     )
     weather = planner.build_plan_from_manual_event(
         event_type="weather_change",
         payload={"message": "heavy rain"},
         location_id="harbor",
         agents=agents,
-        truman_agent_id="truman",
+        subject_agent_id="truman",
     )
     power_outage = planner.build_plan_from_manual_event(
         event_type="power_outage",
         payload={"message": "Block blackout"},
         location_id="harbor",
         agents=agents,
-        truman_agent_id="truman",
+        subject_agent_id="truman",
     )
 
     assert activity is not None
@@ -120,7 +120,22 @@ def test_manual_planner_returns_none_for_unsupported_event_type():
         payload={"message": "ignored"},
         location_id=None,
         agents=[_make_agent("cast-a", "cast")],
-        truman_agent_id="truman",
+        subject_agent_id="truman",
     )
 
     assert plan is None
+
+
+def test_manual_planner_accepts_legacy_truman_agent_id_alias():
+    planner = ManualDirectorPlanner()
+
+    plan = planner.build_plan_from_manual_event(
+        event_type="broadcast",
+        payload={"message": "meet at the square"},
+        location_id="square",
+        agents=[_make_agent("cast-a", "cast")],
+        truman_agent_id="truman",
+    )
+
+    assert plan is not None
+    assert plan.target_agent_id == "truman"

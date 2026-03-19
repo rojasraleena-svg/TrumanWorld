@@ -9,7 +9,7 @@ from app.store.models import Agent, Event
 
 @dataclass
 class SuspicionTrend:
-    """怀疑度变化趋势"""
+    """主体告警度变化趋势"""
 
     current_score: float
     previous_score: float
@@ -28,7 +28,7 @@ class DirectorAssessment:
     suspicion_trend: SuspicionTrend | None = None
     focus_agent_ids: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
-    truman_isolation_ticks: int = 0  # Truman 独处时长
+    truman_isolation_ticks: int = 0  # Legacy alias for subject isolation duration
     recent_rejections: int = 0  # 最近被拒绝的次数
     active_support_count: int = 0  # 当前可用的支援角色数量
 
@@ -102,7 +102,7 @@ class DirectorAssessment:
 
 
 class DirectorObserver:
-    """Read-only observer for world stability and Truman suspicion."""
+    """Read-only observer for world stability and subject alert signals."""
 
     def assess(
         self,
@@ -128,7 +128,7 @@ class DirectorObserver:
         )
         continuity_score = min(1.0, (rejected_count * 0.18) + (director_count * 0.22))
 
-        # 计算怀疑度趋势
+        # 计算告警度趋势
         suspicion_trend = self._compute_suspicion_trend(
             current_score=suspicion_score,
             previous_score=previous_suspicion_score,
@@ -145,7 +145,7 @@ class DirectorObserver:
             if len(focus_agent_ids) >= 3:
                 break
 
-        # 计算 cast 数量
+        # 计算支援角色数量
         cast_count = sum(1 for agent in agents if get_world_role(agent.profile) == "cast")
 
         notes: list[str] = []
@@ -182,7 +182,7 @@ class DirectorObserver:
         current_score: float,
         previous_score: float,
     ) -> SuspicionTrend:
-        """计算怀疑度变化趋势"""
+        """计算主体告警度变化趋势"""
         delta = current_score - previous_score
 
         if delta >= 0.2:

@@ -24,7 +24,7 @@ class ManualDirectorPlanner:
     """Converts manual director events into DirectorPlan objects.
 
     This planner unifies manual injection with automatic intervention
-    by converting event types into scene goals that Cast Agents can
+    by converting event types into scene goals that support agents can
     understand and act upon.
     """
 
@@ -108,7 +108,7 @@ class ManualDirectorPlanner:
     ) -> DirectorPlan:
         """Build a gather plan for broadcast events.
 
-        Example: "12点钟集合" -> Cast Agents should gather at location
+        Example: "12点钟集合" -> Support agents should gather at location
         """
         message = payload.get("message", "")
         target_agent_ids = [a.id for a in cast_agents]
@@ -134,7 +134,7 @@ class ManualDirectorPlanner:
     ) -> DirectorPlan:
         """Build an activity plan for activity events.
 
-        Example: "咖啡馆派对" -> Cast Agents should participate in activity
+        Example: "咖啡馆派对" -> Support agents should participate in activity
         """
         message = payload.get("message", "")
         target_agent_ids = [a.id for a in cast_agents]
@@ -160,7 +160,7 @@ class ManualDirectorPlanner:
     ) -> DirectorPlan:
         """Build a shutdown plan for location shutdown events.
 
-        Example: "医院临时关闭" -> Cast Agents should avoid location
+        Example: "医院临时关闭" -> Support agents should avoid location
         """
         message = payload.get("message", "")
         target_agent_ids = [a.id for a in cast_agents]
@@ -186,7 +186,7 @@ class ManualDirectorPlanner:
     ) -> DirectorPlan:
         """Build a weather change plan for weather events.
 
-        Example: "暴雨预警" -> Cast Agents should react to weather
+        Example: "暴雨预警" -> Support agents should react to weather
         """
         message = payload.get("message", "")
         target_agent_ids = [a.id for a in cast_agents]
