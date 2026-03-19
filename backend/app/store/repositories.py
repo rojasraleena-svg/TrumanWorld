@@ -772,6 +772,7 @@ class DirectorMemoryRepository:
         message_hint: str | None = None,
         target_agent_id: str | None = None,
         reason: str | None = None,
+        trigger_subject_alert_score: float = 0.0,
         trigger_suspicion_score: float = 0.0,
         trigger_continuity_risk: str = "stable",
         cooldown_ticks: int = 3,
@@ -795,7 +796,11 @@ class DirectorMemoryRepository:
             message_hint=message_hint,
             target_agent_id=target_agent_id,
             reason=reason,
-            trigger_suspicion_score=trigger_suspicion_score,
+            trigger_subject_alert_score=(
+                trigger_subject_alert_score
+                if trigger_subject_alert_score != 0.0 or trigger_suspicion_score == 0.0
+                else trigger_suspicion_score
+            ),
             trigger_continuity_risk=trigger_continuity_risk,
             cooldown_ticks=cooldown_ticks,
             cooldown_until_tick=tick_no + cooldown_ticks,
@@ -892,7 +897,7 @@ class DirectorMemoryRepository:
         )
         result = await self.session.execute(stmt)
         memory = result.scalar_one_or_none()
-        return memory.trigger_suspicion_score if memory else 0.0
+        return memory.trigger_subject_alert_score if memory else 0.0
 
     async def get_pending_manual_interventions(
         self,

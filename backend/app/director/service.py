@@ -78,7 +78,7 @@ class DirectorEventService:
             message_hint=plan.message_hint,
             target_agent_id=plan.target_agent_id,
             reason=plan.reason,
-            trigger_suspicion_score=0.0,
+            trigger_subject_alert_score=0.0,
             trigger_continuity_risk="stable",
             cooldown_ticks=plan.cooldown_ticks,
             location_hint=plan.location_hint,

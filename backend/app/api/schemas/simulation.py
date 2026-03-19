@@ -432,6 +432,7 @@ class DirectorMemoryResponse(BaseModel):
         ..., description="投递状态", examples=["queued", "consumed", "expired"]
     )
     effectiveness_score: float | None = Field(None, description="效果分数", ge=0, le=1)
+    trigger_subject_alert_score: float = Field(0.0, description="触发主体告警度", ge=0, le=1)
     trigger_suspicion_score: float = Field(0.0, description="触发怀疑度", ge=0, le=1)
     trigger_continuity_risk: str = Field("stable", description="触发连续性风险")
     cooldown_ticks: int = Field(0, description="冷却 tick 数", ge=0)

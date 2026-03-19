@@ -193,6 +193,7 @@ export type DirectorMemory = {
   was_executed: boolean; // 是否已被某个 tick 消费
   delivery_status: "queued" | "consumed" | "expired";
   effectiveness_score?: number | null;
+  trigger_subject_alert_score: number;
   trigger_suspicion_score: number;
   trigger_continuity_risk: string;
   cooldown_ticks: number;

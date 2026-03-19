@@ -201,7 +201,7 @@ class DirectorMemory(Base):
     was_executed: Mapped[bool] = mapped_column(default=False)
     effectiveness_score: Mapped[float | None] = mapped_column(Float)
     # 触发时的世界状态快照
-    trigger_suspicion_score: Mapped[float] = mapped_column(Float, default=0.0)
+    trigger_subject_alert_score: Mapped[float] = mapped_column(Float, default=0.0)
     trigger_continuity_risk: Mapped[str] = mapped_column(String(20), default="stable")
     # 冷却信息
     cooldown_ticks: Mapped[int] = mapped_column(Integer, default=3)
@@ -217,3 +217,11 @@ class DirectorMemory(Base):
     @target_cast_ids.setter
     def target_cast_ids(self, value: str) -> None:
         self.target_agent_ids = value
+
+    @property
+    def trigger_suspicion_score(self) -> float:
+        return self.trigger_subject_alert_score
+
+    @trigger_suspicion_score.setter
+    def trigger_suspicion_score(self, value: float) -> None:
+        self.trigger_subject_alert_score = value

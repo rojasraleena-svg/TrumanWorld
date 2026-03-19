@@ -109,6 +109,7 @@ async def test_get_director_memories_marks_consumed_and_expired_entries(client, 
                 scene_goal="gather",
                 target_agent_ids='["agent-cast-memory"]',
                 target_agent_id="agent-target-memory",
+                trigger_subject_alert_score=0.7,
                 was_executed=True,
                 metadata_json={"location_hint": "loc-memory-status"},
             ),
@@ -135,6 +136,8 @@ async def test_get_director_memories_marks_consumed_and_expired_entries(client, 
     assert memories["director-memory-consumed"]["target_cast_ids"] == ["agent-cast-memory"]
     assert memories["director-memory-consumed"]["target_agent_names"] == ["Meryl"]
     assert memories["director-memory-consumed"]["target_cast_names"] == ["Meryl"]
+    assert memories["director-memory-consumed"]["trigger_subject_alert_score"] == 0.7
+    assert memories["director-memory-consumed"]["trigger_suspicion_score"] == 0.7
     assert memories["director-memory-consumed"]["location_name"] == "Plaza"
     assert memories["director-memory-expired"]["delivery_status"] == "expired"
 
@@ -171,10 +174,13 @@ async def test_director_memory_repository_accepts_generic_target_agent_ids(db_se
         scene_goal="gather",
         target_agent_ids=["agent-a", "agent-b"],
         target_agent_id="subject-a",
+        trigger_subject_alert_score=0.4,
     )
 
     assert memory.target_agent_ids == '["agent-a", "agent-b"]'
     assert memory.target_cast_ids == memory.target_agent_ids
+    assert memory.trigger_subject_alert_score == 0.4
+    assert memory.trigger_suspicion_score == memory.trigger_subject_alert_score
 
 
 @pytest.mark.asyncio

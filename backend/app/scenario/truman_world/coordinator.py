@@ -240,7 +240,7 @@ class TrumanWorldCoordinator:
             message_hint=plan.message_hint,
             target_agent_id=plan.target_agent_id,
             reason=plan.reason,
-            trigger_suspicion_score=assessment.subject_alert_score if assessment else 0.0,
+            trigger_subject_alert_score=assessment.subject_alert_score if assessment else 0.0,
             trigger_continuity_risk=assessment.continuity_risk if assessment else "stable",
             cooldown_ticks=plan.cooldown_ticks,
         )
