@@ -37,7 +37,6 @@ DIRECTOR_DECISION_SCHEMA = {
             ],
         },
         "target_agent_names": {"type": "array", "items": {"type": "string"}},
-        "target_cast_names": {"type": "array", "items": {"type": "string"}},
         "priority": {"type": "string", "enum": ["low", "normal", "high", "critical"]},
         "urgency": {"type": "string", "enum": ["advisory", "immediate", "emergency"]},
         "reasoning": {"type": "string"},
@@ -155,8 +154,6 @@ class DirectorAgent:
             "run_id": context.run_id,
             "subject_agent_id": assessment.subject_agent_id or "unknown",
             "subject_alert_score": f"{assessment.subject_alert_score:.2f}",
-            "truman_agent_id": assessment.subject_agent_id or "unknown",
-            "truman_suspicion_score": f"{assessment.subject_alert_score:.2f}",
             "suspicion_level": assessment.suspicion_level,
             "truman_isolation_ticks": assessment.truman_isolation_ticks,
             "recent_rejections": assessment.recent_rejections,
@@ -278,9 +275,7 @@ class DirectorAgent:
             if scene_goal == "none":
                 return None
 
-            target_names = data.get("target_agent_names")
-            if not isinstance(target_names, list):
-                target_names = data.get("target_cast_names", [])
+            target_names = data.get("target_agent_names", [])
             target_agent_ids = []
             for name in target_names:
                 for agent in cast_agents:
