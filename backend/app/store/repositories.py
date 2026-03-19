@@ -773,7 +773,6 @@ class DirectorMemoryRepository:
         target_agent_id: str | None = None,
         reason: str | None = None,
         trigger_subject_alert_score: float = 0.0,
-        trigger_suspicion_score: float = 0.0,
         trigger_continuity_risk: str = "stable",
         cooldown_ticks: int = 3,
         location_hint: str | None = None,
@@ -796,11 +795,7 @@ class DirectorMemoryRepository:
             message_hint=message_hint,
             target_agent_id=target_agent_id,
             reason=reason,
-            trigger_subject_alert_score=(
-                trigger_subject_alert_score
-                if trigger_subject_alert_score != 0.0 or trigger_suspicion_score == 0.0
-                else trigger_suspicion_score
-            ),
+            trigger_subject_alert_score=trigger_subject_alert_score,
             trigger_continuity_risk=trigger_continuity_risk,
             cooldown_ticks=cooldown_ticks,
             cooldown_until_tick=tick_no + cooldown_ticks,

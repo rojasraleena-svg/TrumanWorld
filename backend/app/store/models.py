@@ -217,11 +217,3 @@ class DirectorMemory(Base):
     @target_cast_ids.setter
     def target_cast_ids(self, value: str) -> None:
         self.target_agent_ids = value
-
-    @property
-    def trigger_suspicion_score(self) -> float:
-        return self.trigger_subject_alert_score
-
-    @trigger_suspicion_score.setter
-    def trigger_suspicion_score(self, value: float) -> None:
-        self.trigger_subject_alert_score = value
