@@ -37,7 +37,6 @@ def serialize_director_memory(
     manual_goals: set[str],
 ) -> DirectorMemoryResponse:
     target_agent_ids = json.loads(memory.target_agent_ids) if memory.target_agent_ids else []
-    target_cast_ids = list(target_agent_ids)
     location_hint = memory.metadata_json.get("location_hint") if memory.metadata_json else None
     if memory.was_executed:
         delivery_status = "consumed"
@@ -59,8 +58,6 @@ def serialize_director_memory(
         else None,
         target_agent_ids=target_agent_ids,
         target_agent_names=[agent_name_map.get(agent_id, agent_id) for agent_id in target_agent_ids],
-        target_cast_ids=target_cast_ids,
-        target_cast_names=[agent_name_map.get(agent_id, agent_id) for agent_id in target_cast_ids],
         location_hint=location_hint,
         location_name=location_name_map.get(location_hint) if location_hint else None,
         reason=memory.reason,
@@ -68,7 +65,6 @@ def serialize_director_memory(
         delivery_status=delivery_status,
         effectiveness_score=memory.effectiveness_score,
         trigger_subject_alert_score=memory.trigger_subject_alert_score,
-        trigger_suspicion_score=memory.trigger_subject_alert_score,
         trigger_continuity_risk=memory.trigger_continuity_risk,
         cooldown_ticks=memory.cooldown_ticks,
         cooldown_until_tick=memory.cooldown_until_tick,
@@ -97,8 +93,6 @@ async def get_director_observation(
         current_tick=assessment.current_tick,
         subject_agent_id=assessment.subject_agent_id,
         subject_alert_score=assessment.subject_alert_score,
-        truman_agent_id=assessment.truman_agent_id,
-        truman_suspicion_score=assessment.truman_suspicion_score,
         suspicion_level=assessment.suspicion_level,
         continuity_risk=assessment.continuity_risk,
         focus_agent_ids=assessment.focus_agent_ids,

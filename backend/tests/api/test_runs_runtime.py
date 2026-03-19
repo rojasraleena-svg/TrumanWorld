@@ -133,11 +133,11 @@ async def test_get_director_memories_marks_consumed_and_expired_entries(client, 
     assert memories["director-memory-consumed"]["delivery_status"] == "consumed"
     assert memories["director-memory-consumed"]["target_agent_name"] == "Truman"
     assert memories["director-memory-consumed"]["target_agent_ids"] == ["agent-cast-memory"]
-    assert memories["director-memory-consumed"]["target_cast_ids"] == ["agent-cast-memory"]
     assert memories["director-memory-consumed"]["target_agent_names"] == ["Meryl"]
-    assert memories["director-memory-consumed"]["target_cast_names"] == ["Meryl"]
     assert memories["director-memory-consumed"]["trigger_subject_alert_score"] == 0.7
-    assert memories["director-memory-consumed"]["trigger_suspicion_score"] == 0.7
+    assert "target_cast_ids" not in memories["director-memory-consumed"]
+    assert "target_cast_names" not in memories["director-memory-consumed"]
+    assert "trigger_suspicion_score" not in memories["director-memory-consumed"]
     assert memories["director-memory-consumed"]["location_name"] == "Plaza"
     assert memories["director-memory-expired"]["delivery_status"] == "expired"
 
@@ -155,9 +155,8 @@ async def test_get_director_observation_returns_assessment(client):
     assert body["run_id"] == run_id
     assert body["subject_agent_id"]
     assert isinstance(body["subject_alert_score"], float)
-    assert body["truman_agent_id"]
-    assert body["truman_agent_id"] == body["subject_agent_id"]
-    assert body["truman_suspicion_score"] == body["subject_alert_score"]
+    assert "truman_agent_id" not in body
+    assert "truman_suspicion_score" not in body
     assert body["suspicion_level"] in {"low", "guarded", "alerted", "high"}
     assert body["continuity_risk"] in {"stable", "watch", "elevated", "critical"}
     assert isinstance(body["notes"], list)

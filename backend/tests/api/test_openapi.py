@@ -61,19 +61,19 @@ async def test_openapi_documents_core_response_models(client):
 
 
 @pytest.mark.asyncio
-async def test_openapi_marks_legacy_director_fields_as_deprecated(client):
+async def test_openapi_no_longer_exposes_legacy_director_fields(client):
     response = await client.get("/api/openapi.json")
 
     assert response.status_code == 200
     document = response.json()
 
-    legacy_fields = [
+    legacy_fields = {
         ("DirectorObservationResponse", "truman_agent_id"),
         ("DirectorObservationResponse", "truman_suspicion_score"),
         ("DirectorMemoryResponse", "target_cast_ids"),
         ("DirectorMemoryResponse", "target_cast_names"),
         ("DirectorMemoryResponse", "trigger_suspicion_score"),
-    ]
+    }
 
     for schema_name, property_name in legacy_fields:
-        assert _schema_property(document, schema_name, property_name)["deprecated"] is True
+        assert property_name not in document["components"]["schemas"][schema_name]["properties"]
