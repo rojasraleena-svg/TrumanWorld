@@ -143,7 +143,6 @@ def test_director_agent_parse_response_prefers_target_agent_names() -> None:
           "should_intervene": true,
           "scene_goal": "soft_check_in",
           "target_agent_names": ["Lauren"],
-          "target_cast_names": ["Meryl"],
           "priority": "high",
           "urgency": "immediate",
           "reasoning": "Prefer the new generic target field.",
