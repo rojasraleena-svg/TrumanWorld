@@ -266,8 +266,11 @@ async def test_llm_call_repository_get_token_totals_empty(db_session):
 
     assert totals["input_tokens"] == 0
     assert totals["output_tokens"] == 0
+    assert totals["reasoning_tokens"] == 0
     assert totals["cache_read_tokens"] == 0
     assert totals["cache_creation_tokens"] == 0
+    assert totals["provider"] is None
+    assert totals["model"] is None
 
 
 @pytest.mark.asyncio
@@ -293,9 +296,12 @@ async def test_llm_call_repository_get_token_totals_aggregates_correctly(db_sess
             run_id="run-llm-1",
             agent_id="agent-llm-1",
             task_type="reactor",
+            provider="openai",
+            model="qwen-test",
             tick_no=1,
             input_tokens=100,
             output_tokens=200,
+            reasoning_tokens=120,
             cache_read_tokens=50,
             cache_creation_tokens=30,
             total_cost_usd=0.01,
@@ -306,9 +312,12 @@ async def test_llm_call_repository_get_token_totals_aggregates_correctly(db_sess
             run_id="run-llm-1",
             agent_id="agent-llm-1",
             task_type="reactor",
+            provider="openai",
+            model="qwen-test-2",
             tick_no=2,
             input_tokens=150,
             output_tokens=300,
+            reasoning_tokens=180,
             cache_read_tokens=80,
             cache_creation_tokens=20,
             total_cost_usd=0.02,
@@ -323,8 +332,11 @@ async def test_llm_call_repository_get_token_totals_aggregates_correctly(db_sess
 
     assert totals["input_tokens"] == 250
     assert totals["output_tokens"] == 500
+    assert totals["reasoning_tokens"] == 300
     assert totals["cache_read_tokens"] == 130
     assert totals["cache_creation_tokens"] == 50
+    assert totals["provider"] == "openai"
+    assert totals["model"] == "qwen-test-2"
 
 
 @pytest.mark.asyncio
@@ -354,6 +366,7 @@ async def test_llm_call_repository_isolates_by_run_id(db_session):
             tick_no=1,
             input_tokens=999,
             output_tokens=888,
+            reasoning_tokens=777,
             cache_read_tokens=0,
             cache_creation_tokens=0,
             duration_ms=100,
@@ -366,4 +379,6 @@ async def test_llm_call_repository_isolates_by_run_id(db_session):
     totals_b = await repo.get_token_totals("run-llm-b")
 
     assert totals_a["input_tokens"] == 999
+    assert totals_a["reasoning_tokens"] == 777
     assert totals_b["input_tokens"] == 0
+    assert totals_b["reasoning_tokens"] == 0

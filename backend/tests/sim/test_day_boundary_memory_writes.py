@@ -7,12 +7,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.agent.runtime import RuntimeContext
 from app.sim.day_boundary import (
     _load_yesterday_plan_execution,
     run_evening_reflection,
     run_morning_planning,
 )
-from app.store.models import Agent, Base, Event, Location, Memory, SimulationRun
+from app.store.models import Agent, Base, Event, LlmCall, Location, Memory, SimulationRun
 
 
 class FakeAgentRuntime:
@@ -48,6 +49,56 @@ class FakeAgentRuntime:
             "mood": "satisfied",
             "tomorrow_intention": "stay steady tomorrow",
         }
+
+
+class FakeTrackingAgentRuntime(FakeAgentRuntime):
+    async def run_planner(
+        self,
+        agent_id: str,
+        agent_name: str,
+        world_context: dict,
+        recent_memories: list[dict] | None = None,
+        runtime_ctx: RuntimeContext | None = None,
+    ) -> dict | None:
+        if runtime_ctx and runtime_ctx.on_llm_call:
+            runtime_ctx.on_llm_call(
+                agent_id=agent_id,
+                task_type="planner",
+                usage={"input_tokens": 123, "output_tokens": 45},
+                total_cost_usd=0.01,
+                duration_ms=321,
+            )
+        return await super().run_planner(
+            agent_id=agent_id,
+            agent_name=agent_name,
+            world_context=world_context,
+            recent_memories=recent_memories,
+            runtime_ctx=runtime_ctx,
+        )
+
+    async def run_reflector(
+        self,
+        agent_id: str,
+        agent_name: str,
+        world_context: dict,
+        daily_events: list[dict] | None = None,
+        runtime_ctx: RuntimeContext | None = None,
+    ) -> dict | None:
+        if runtime_ctx and runtime_ctx.on_llm_call:
+            runtime_ctx.on_llm_call(
+                agent_id=agent_id,
+                task_type="reflector",
+                usage={"input_tokens": 234, "output_tokens": 56},
+                total_cost_usd=0.02,
+                duration_ms=654,
+            )
+        return await super().run_reflector(
+            agent_id=agent_id,
+            agent_name=agent_name,
+            world_context=world_context,
+            daily_events=daily_events,
+            runtime_ctx=runtime_ctx,
+        )
 
 
 @pytest.mark.asyncio
@@ -136,6 +187,162 @@ async def test_day_boundary_memories_populate_subjective_fields():
         assert memory.event_importance == memory.importance
         assert memory.self_relevance == 1.0
         assert memory.belief_confidence == 1.0
+
+
+@pytest.mark.asyncio
+async def test_morning_planning_persists_llm_calls():
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        poolclass=StaticPool,
+    )
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        run = SimulationRun(
+            id="run-day-boundary-planner-llm",
+            name="planner-llm",
+            status="running",
+            current_tick=0,
+            tick_minutes=5,
+        )
+        location = Location(
+            id="loc-boundary-planner-home",
+            run_id=run.id,
+            name="Home",
+            location_type="home",
+            capacity=2,
+        )
+        agent = Agent(
+            id="agent-boundary-planner",
+            run_id=run.id,
+            name="Alice",
+            occupation="resident",
+            home_location_id=location.id,
+            current_location_id=location.id,
+            personality={},
+            profile={},
+            status={},
+            current_plan={},
+        )
+        session.add_all([run, location, agent])
+        await session.commit()
+
+    class FakeWorld:
+        def __init__(self, current_time: datetime, tick_minutes: int) -> None:
+            self.current_time = current_time
+            self.tick_minutes = tick_minutes
+
+        def _time_period(self) -> str:
+            return "morning"
+
+        def _weekday_name(self, weekday: int) -> str:
+            return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][
+                weekday
+            ]
+
+    await run_morning_planning(
+        run_id="run-day-boundary-planner-llm",
+        tick_no=0,
+        world=FakeWorld(datetime(2026, 3, 2, 6, 0, tzinfo=UTC), 5),
+        engine=engine,
+        agent_runtime=FakeTrackingAgentRuntime(),
+    )
+
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        result = await session.execute(
+            select(LlmCall)
+            .where(LlmCall.run_id == "run-day-boundary-planner-llm")
+            .order_by(LlmCall.created_at.asc())
+        )
+        llm_calls = result.scalars().all()
+
+    await engine.dispose()
+
+    assert len(llm_calls) == 1
+    assert llm_calls[0].task_type == "planner"
+    assert llm_calls[0].input_tokens == 123
+    assert llm_calls[0].output_tokens == 45
+    assert llm_calls[0].duration_ms == 321
+
+
+@pytest.mark.asyncio
+async def test_evening_reflection_persists_llm_calls():
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        poolclass=StaticPool,
+    )
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        run = SimulationRun(
+            id="run-day-boundary-reflector-llm",
+            name="reflector-llm",
+            status="running",
+            current_tick=0,
+            tick_minutes=5,
+        )
+        location = Location(
+            id="loc-boundary-reflector-home",
+            run_id=run.id,
+            name="Home",
+            location_type="home",
+            capacity=2,
+        )
+        agent = Agent(
+            id="agent-boundary-reflector",
+            run_id=run.id,
+            name="Alice",
+            occupation="resident",
+            home_location_id=location.id,
+            current_location_id=location.id,
+            personality={},
+            profile={},
+            status={},
+            current_plan={},
+        )
+        session.add_all([run, location, agent])
+        await session.commit()
+
+    class FakeWorld:
+        def __init__(self, current_time: datetime, tick_minutes: int) -> None:
+            self.current_time = current_time
+            self.tick_minutes = tick_minutes
+
+        def _time_period(self) -> str:
+            return "night"
+
+        def _weekday_name(self, weekday: int) -> str:
+            return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][
+                weekday
+            ]
+
+    await run_evening_reflection(
+        run_id="run-day-boundary-reflector-llm",
+        tick_no=10,
+        world=FakeWorld(datetime(2026, 3, 2, 21, 55, tzinfo=UTC), 5),
+        engine=engine,
+        agent_runtime=FakeTrackingAgentRuntime(),
+    )
+
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        result = await session.execute(
+            select(LlmCall)
+            .where(LlmCall.run_id == "run-day-boundary-reflector-llm")
+            .order_by(LlmCall.created_at.asc())
+        )
+        llm_calls = result.scalars().all()
+
+    await engine.dispose()
+
+    assert len(llm_calls) == 1
+    assert llm_calls[0].task_type == "reflector"
+    assert llm_calls[0].input_tokens == 234
+    assert llm_calls[0].output_tokens == 56
+    assert llm_calls[0].duration_ms == 654
 
 
 @pytest.mark.asyncio

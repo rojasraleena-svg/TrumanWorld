@@ -17,7 +17,11 @@ from uuid import uuid4
 
 from sqlalchemy import select
 
+from app.agent.runtime import RuntimeContext
 from app.infra.logging import get_logger
+from app.infra.settings import get_settings
+from app.sim.llm_call_collector import LlmCallCollector
+from app.sim.llm_call_writer import LlmCallWriter
 from app.sim.memory_constants import MemoryCategory, should_consolidate_memory
 from app.store.models import Agent, Event, Memory
 from app.store.repositories import AgentRepository, MemoryRepository
@@ -300,6 +304,9 @@ async def run_morning_planning(
         return
 
     logger.info(f"[day_boundary] Morning planning for {len(pending)} agents (run={run_id})")
+    collector = LlmCallCollector()
+    llm_call_writer = LlmCallWriter()
+    settings = get_settings()
 
     async def plan_one(agent: Agent) -> tuple[str, str, dict | None]:
         config_id = (agent.profile or {}).get("agent_config_id") or agent.id
@@ -318,6 +325,18 @@ async def run_morning_planning(
             agent_name=agent.name,
             world_context=extended_ctx,
             recent_memories=memories_by_agent.get(agent.id),
+            runtime_ctx=RuntimeContext(
+                db_engine=engine,
+                run_id=run_id,
+                enable_memory_tools=True,
+                on_llm_call=collector.build_callback(
+                    run_id=run_id,
+                    db_agent_id=agent.id,
+                    tick_no=tick_no,
+                    provider=settings.llm_provider,
+                    model=settings.llm_model,
+                ),
+            ),
         )
         return agent.id, agent.name, result
 
@@ -376,6 +395,12 @@ async def run_morning_planning(
             await memory_repo.create_many(memories_to_create)
         await write_session.commit()
 
+    await llm_call_writer.persist(
+        run_id=run_id,
+        llm_records=collector.records,
+        engine=engine,
+    )
+
 
 # ── Reflector 执行 ────────────────────────────────────────────────────────────
 
@@ -424,6 +449,9 @@ async def run_evening_reflection(
         return
 
     logger.info(f"[day_boundary] Evening reflection for {len(pending)} agents (run={run_id})")
+    collector = LlmCallCollector()
+    llm_call_writer = LlmCallWriter()
+    settings = get_settings()
 
     async def reflect_one(agent: Agent) -> tuple[str, str, dict | None]:
         config_id = (agent.profile or {}).get("agent_config_id") or agent.id
@@ -432,6 +460,18 @@ async def run_evening_reflection(
             agent_name=agent.name,
             world_context={**world_ctx, "personality": agent.personality or {}},
             daily_events=events_by_agent.get(agent.id),
+            runtime_ctx=RuntimeContext(
+                db_engine=engine,
+                run_id=run_id,
+                enable_memory_tools=True,
+                on_llm_call=collector.build_callback(
+                    run_id=run_id,
+                    db_agent_id=agent.id,
+                    tick_no=tick_no,
+                    provider=settings.llm_provider,
+                    model=settings.llm_model,
+                ),
+            ),
         )
         return agent.id, agent.name, result
 
@@ -509,6 +549,12 @@ async def run_evening_reflection(
             tick_minutes=world.tick_minutes,
         )
         await write_session.commit()
+
+    await llm_call_writer.persist(
+        run_id=run_id,
+        llm_records=collector.records,
+        engine=engine,
+    )
 
 
 def _mood_to_valence(mood: str) -> float:

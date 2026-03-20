@@ -101,10 +101,7 @@ export function SystemStatusModal({
       metrics.tickTotal.isolatedError
     : 0;
   const totalTokens = metrics
-    ? metrics.llmTokensTotal.input +
-      metrics.llmTokensTotal.output +
-      metrics.llmTokensTotal.cacheRead +
-      metrics.llmTokensTotal.cacheCreation
+    ? metrics.llmTokensTotal.input + metrics.llmTokensTotal.output
     : 0;
   const totalFailures = metrics
     ? metrics.tickTotal.inlineError + metrics.tickTotal.isolatedError

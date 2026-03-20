@@ -140,8 +140,11 @@ export type WorldSnapshot = {
     rejection_count: number;
     total_input_tokens: number;
     total_output_tokens: number;
+    total_reasoning_tokens: number;
     total_cache_read_tokens: number;
     total_cache_creation_tokens: number;
+    llm_provider?: string | null;
+    llm_model?: string | null;
   };
   health_metrics_config?: {
     continuity_penalty_factor: number;

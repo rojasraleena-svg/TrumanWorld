@@ -474,8 +474,11 @@ async def get_world_pulse(
             + all_time_event_counts.get("talk_rejected", 0),
             total_input_tokens=token_totals.get("input_tokens", 0),
             total_output_tokens=token_totals.get("output_tokens", 0),
+            total_reasoning_tokens=token_totals.get("reasoning_tokens", 0),
             total_cache_read_tokens=token_totals.get("cache_read_tokens", 0),
             total_cache_creation_tokens=token_totals.get("cache_creation_tokens", 0),
+            llm_provider=token_totals.get("provider"),
+            llm_model=token_totals.get("model"),
         ),
     )
 
@@ -591,8 +594,11 @@ async def get_world_snapshot(
             + all_time_event_counts.get("talk_rejected", 0),
             total_input_tokens=token_totals.get("input_tokens", 0),
             total_output_tokens=token_totals.get("output_tokens", 0),
+            total_reasoning_tokens=token_totals.get("reasoning_tokens", 0),
             total_cache_read_tokens=token_totals.get("cache_read_tokens", 0),
             total_cache_creation_tokens=token_totals.get("cache_creation_tokens", 0),
+            llm_provider=token_totals.get("provider"),
+            llm_model=token_totals.get("model"),
         ),
         health_metrics_config=_build_health_metrics_config(run.scenario_type),
     )

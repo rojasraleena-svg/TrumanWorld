@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from app.agent.runtime import RuntimeContext
 from app.cognition.errors import UpstreamApiUnavailableError
 from app.infra.logging import get_logger
+from app.infra.settings import get_settings
 from app.scenario.base import Scenario
 from app.scenario.narrative_world.rules import build_runtime_role_semantics
 from app.scenario.types import get_agent_config_id, get_scenario_guidance, get_world_role
@@ -124,6 +125,7 @@ class TickOrchestrator:
     ) -> tuple[list[ActionIntent], list[LlmCall]]:
         phase_started_at = perf_counter()
         collector = LlmCallCollector()
+        settings = get_settings()
         concurrency_limit = self.agent_runtime.decision_concurrency_limit()
         semaphore = (
             asyncio.Semaphore(concurrency_limit)
@@ -180,6 +182,8 @@ class TickOrchestrator:
                         run_id=run_id,
                         db_agent_id=db_agent_id,
                         tick_no=tick_no,
+                        provider=settings.llm_provider,
+                        model=settings.llm_model,
                     ),
                     memory_cache=memory_cache,
                 )

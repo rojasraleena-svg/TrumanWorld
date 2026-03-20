@@ -11,6 +11,17 @@ class LlmCallCollector:
         self.records: list[LlmCall] = []
 
     @staticmethod
+    def _extract_reasoning_tokens(usage: dict | None) -> int:
+        usage = usage or {}
+        output_token_details = usage.get("output_token_details")
+        if isinstance(output_token_details, dict):
+            return int(output_token_details.get("reasoning", 0) or 0)
+        completion_token_details = usage.get("completion_tokens_details")
+        if isinstance(completion_token_details, dict):
+            return int(completion_token_details.get("reasoning_tokens", 0) or 0)
+        return int(usage.get("reasoning_tokens", 0) or 0)
+
+    @staticmethod
     def _extract_cache_tokens(usage: dict | None) -> tuple[int, int]:
         usage = usage or {}
         input_token_details = usage.get("input_token_details")
@@ -30,6 +41,8 @@ class LlmCallCollector:
         run_id: str,
         db_agent_id: str,
         tick_no: int,
+        provider: str | None = None,
+        model: str | None = None,
     ) -> Callable[..., None]:
         def on_llm_call(
             agent_id: str,
@@ -39,15 +52,19 @@ class LlmCallCollector:
             duration_ms: int,
         ) -> None:
             cache_read_tokens, cache_creation_tokens = self._extract_cache_tokens(usage)
+            reasoning_tokens = self._extract_reasoning_tokens(usage)
             self.records.append(
                 LlmCall(
                     id=str(uuid4()),
                     run_id=run_id,
                     agent_id=db_agent_id,
                     task_type=task_type,
+                    provider=provider,
+                    model=model,
                     tick_no=tick_no,
                     input_tokens=int((usage or {}).get("input_tokens", 0)),
                     output_tokens=int((usage or {}).get("output_tokens", 0)),
+                    reasoning_tokens=reasoning_tokens,
                     cache_read_tokens=cache_read_tokens,
                     cache_creation_tokens=cache_creation_tokens,
                     total_cost_usd=total_cost_usd,

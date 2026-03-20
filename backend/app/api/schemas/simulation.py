@@ -394,8 +394,11 @@ class WorldDailyStatsResponse(BaseModel):
     rejection_count: int = Field(0, description="拒绝数", ge=0)
     total_input_tokens: int = Field(0, description="输入 token 数", ge=0)
     total_output_tokens: int = Field(0, description="输出 token 数", ge=0)
+    total_reasoning_tokens: int = Field(0, description="推理 token 数", ge=0)
     total_cache_read_tokens: int = Field(0, description="缓存读取 token 数", ge=0)
     total_cache_creation_tokens: int = Field(0, description="缓存创建 token 数", ge=0)
+    llm_provider: str | None = Field(None, description="最近一次 LLM 调用的 provider")
+    llm_model: str | None = Field(None, description="最近一次 LLM 调用的模型名")
 
 
 class WorldHealthMetricsConfig(BaseModel):

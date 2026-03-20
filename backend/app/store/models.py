@@ -165,9 +165,12 @@ class LlmCall(Base):
         ForeignKey("agents.id", ondelete="SET NULL"), nullable=True
     )
     task_type: Mapped[str] = mapped_column(String(30), nullable=False)  # planner/reactor/reflector
+    provider: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     tick_no: Mapped[int] = mapped_column(Integer, default=0)
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    reasoning_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cache_read_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cache_creation_tokens: Mapped[int] = mapped_column(Integer, default=0)
     total_cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
