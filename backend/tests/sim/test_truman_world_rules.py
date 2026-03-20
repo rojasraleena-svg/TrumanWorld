@@ -6,9 +6,11 @@ from types import SimpleNamespace
 from app.scenario.truman_world.rules import (
     build_perception_context_for_agent,
     build_role_context,
+    build_runtime_role_semantics,
     build_scene_guidance,
     filter_world_for_role,
 )
+from app.scenario.truman_world.heuristics import build_truman_world_decision
 from app.sim.world import AgentState, LocationState, WorldState
 
 
@@ -42,11 +44,55 @@ def test_build_role_context_and_scene_guidance_follow_world_role():
     )
 
     assert truman_context["perspective"] == "subjective"
+    assert truman_context["current_alert_score"] == 0.4
     assert truman_context["current_suspicion_score"] == 0.4
     assert cast_context["perspective"] == "supporting_cast"
     assert cast_guidance["scene_goal"] == "guide_truman_home"
     assert cast_guidance["priority"] == "high"
     assert build_scene_guidance("truman", {"director_scene_goal": "ignored"}) == {}
+
+
+def test_rules_support_semantics_for_subject_support_and_alert_metric():
+    semantics = build_runtime_role_semantics("truman_world")
+    semantics.subject_role = "protagonist"
+    semantics.support_roles = ["ally"]
+    semantics.alert_metric = "anomaly_score"
+
+    filtered = filter_world_for_role(
+        "protagonist",
+        {
+            "self_status": {"anomaly_score": 0.6},
+            "director_scene_goal": "stay_calm",
+            "cast_secret": "hidden",
+            "public_weather": "sunny",
+        },
+        semantics=semantics,
+    )
+    role_context = build_role_context(
+        "protagonist",
+        {"self_status": {"anomaly_score": 0.6}},
+        semantics=semantics,
+    )
+    support_context = build_role_context("ally", {}, semantics=semantics)
+    support_guidance = build_scene_guidance(
+        "ally",
+        {
+            "director_scene_goal": "guide_subject_home",
+            "director_priority": "high",
+            "director_target_agent_id": "hero",
+        },
+        semantics=semantics,
+    )
+
+    assert filtered == {
+        "self_status": {"anomaly_score": 0.6},
+        "public_weather": "sunny",
+    }
+    assert role_context["current_alert_score"] == 0.6
+    assert role_context["current_suspicion_score"] == 0.6
+    assert support_context["perspective"] == "supporting_cast"
+    assert support_guidance["scene_goal"] == "guide_subject_home"
+    assert build_scene_guidance("protagonist", {"director_scene_goal": "ignored"}, semantics=semantics) == {}
 
 
 def test_build_perception_context_for_agent_uses_location_and_relationships():
@@ -85,3 +131,22 @@ def test_build_perception_context_for_agent_uses_location_and_relationships():
     assert perceived["id"] == "meryl"
     assert perceived["occupation"] == "hospital staff"
     assert perceived["familiarity"] == 0.8
+
+
+def test_heuristics_support_semantics_for_support_roles():
+    semantics = build_runtime_role_semantics("truman_world")
+    semantics.subject_role = "protagonist"
+    semantics.support_roles = ["ally"]
+
+    decision = build_truman_world_decision(
+        world={"world_role": "ally"},
+        nearby_agent_id="hero",
+        current_location_id="square",
+        home_location_id="home",
+        semantics=semantics,
+    )
+
+    assert decision is not None
+    assert decision.action_type == "talk"
+    assert decision.target_agent_id == "hero"
+    assert decision.message == "嗨，刚好碰到你，聊两句吧。"

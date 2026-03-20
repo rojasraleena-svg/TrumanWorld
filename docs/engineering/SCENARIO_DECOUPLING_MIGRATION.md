@@ -81,6 +81,86 @@
 
 因此，“基于 `md` / `yml` 构建场景”现在在技术上已可成立，剩余问题主要是场景资产本身的组织质量，而不是核心代码层的耦合。
 
+## 当前已支持的场景语义
+
+`scenario.yml` 现在除了场景标识外，还可以承载场景语义与能力开关。
+
+当前已接入运行时主链路的字段包括：
+
+- `adapter`
+- `semantics.subject_role`
+- `semantics.support_roles`
+- `semantics.alert_metric`
+- `capabilities.director`
+- `capabilities.alert_tracking`
+- `capabilities.scene_guidance`
+
+其中：
+
+- `adapter` 决定复用哪个 Python scenario adapter
+- `subject_role` 决定 observer / state updater / runtime context 中的主体角色
+- `support_roles` 决定 director planner / manual planner / director backend / fallback heuristics 中的支援角色
+- `alert_metric` 决定主体告警值读取与写入的状态字段
+
+这意味着：
+
+- 新场景不再必须使用 `truman` / `cast` / `suspicion_score`
+- 只要复用现有 adapter，就可以通过 `scenario.yml` 派生不同角色语义的场景 bundle
+
+## 当前已支持的 initial.yml 兼容输入
+
+`initial.yml` 目前已经支持两类写法并行存在：
+
+旧写法：
+
+```yaml
+initial_location: home
+initial_goal: work
+status:
+  energy: 0.8
+  suspicion_score: 0.2
+plan:
+  morning: work
+  daytime: work
+  evening: rest
+```
+
+新写法：
+
+```yaml
+spawn:
+  location: workplace
+  goal: greet
+status:
+  energy: 0.8
+  suspicion_score: 0.2
+plan:
+  default: patrol
+```
+
+当前行为是：
+
+- `spawn.location` 优先于 `initial_location`
+- `spawn.goal` 优先于 `initial_goal`
+- `status.suspicion_score` 仍是兼容输入字段
+- seed 会根据 `scenario.yml` 的 `semantics.alert_metric` 把该值写入对应状态字段
+
+因此，场景作者已经可以在不改公共 schema 的前提下：
+
+- 使用更通用的 `spawn` 结构描述初始位置与目标
+- 使用 `alert_metric` 将主体初始告警值映射到 `anomaly_score` 等新字段
+
+## 当前仍未完全泛化的部分
+
+以下部分仍然保留历史 Truman 语义或命名，需要后续继续收口：
+
+- `TrumanWorldScenario` / `TrumanWorldSeedBuilder` 等类名
+- `current_suspicion_score` 兼容字段仍然保留在 role context 中
+- `initial.status.suspicion_score` 作为输入字段名仍未改成完全中性名字
+- `plan.morning/daytime/evening` 仍然是默认保留计划字段
+
+这些问题当前主要影响命名一致性和 DSL 完整度，不再构成场景主流程的结构性耦合。
+
 ## 仍然保留旧名的地方
 
 以下旧名仍可能在仓库中被搜索到，但它们属于预期保留：

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.cognition.claude.decision_utils import RuntimeDecision
+from app.scenario.truman_world.rules import RuntimeRoleSemantics
 from app.sim.types import RuntimeWorldContext
 
 
@@ -16,12 +17,14 @@ def _build_fallback_message(
     world_role: str | None,
     scene_goal: str | None,
     message_hint: str | None,
+    semantics: RuntimeRoleSemantics | None = None,
 ) -> str:
+    resolved = semantics or RuntimeRoleSemantics()
     if message_hint:
         return message_hint
     if scene_goal == "gather":
         return "我们去广场那边看看吧。"
-    if world_role == "cast":
+    if world_role in set(resolved.support_roles):
         return "嗨，刚好碰到你，聊两句吧。"
     return "嗨，今天怎么样？"
 
@@ -33,6 +36,7 @@ def build_truman_world_decision(
     current_location_id: str | None,
     home_location_id: str | None,
     agent_id: str | None = None,
+    semantics: RuntimeRoleSemantics | None = None,
 ) -> RuntimeDecision | None:
     world_role = world.get("world_role") if isinstance(world.get("world_role"), str) else None
     scene_goal = _get_guidance_value(world, "scene_goal")
@@ -48,6 +52,7 @@ def build_truman_world_decision(
                 world_role=world_role,
                 scene_goal=scene_goal,
                 message_hint=message_hint,
+                semantics=semantics,
             ),
         )
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class AgentCapabilities(BaseModel):
@@ -45,6 +45,8 @@ class RelationConfig(BaseModel):
 class InitialStatusConfig(BaseModel):
     """初始状态配置"""
 
+    model_config = ConfigDict(extra="allow")
+
     energy: float = Field(default=0.75, ge=0.0, le=1.0)
     suspicion_score: float = Field(default=0.0, ge=0.0, le=1.0)
 
@@ -52,9 +54,18 @@ class InitialStatusConfig(BaseModel):
 class InitialPlanConfig(BaseModel):
     """初始日计划配置"""
 
+    model_config = ConfigDict(extra="allow")
+
     morning: str = "work"
     daytime: str = "work"
     evening: str = "rest"
+
+
+class InitialSpawnConfig(BaseModel):
+    """通用初始生成配置"""
+
+    location: str | None = None
+    goal: str | None = None
 
 
 class AgentInitialConfig(BaseModel):
@@ -62,8 +73,27 @@ class AgentInitialConfig(BaseModel):
 
     status: InitialStatusConfig = Field(default_factory=InitialStatusConfig)
     plan: InitialPlanConfig = Field(default_factory=InitialPlanConfig)
+    spawn: InitialSpawnConfig = Field(default_factory=InitialSpawnConfig)
     initial_goal: str | None = None
     initial_location: str | None = None  # "home" 或 "workplace" 或具体 location_id
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_spawn_aliases(cls, data):
+        if not isinstance(data, dict):
+            return data
+        normalized = dict(data)
+        spawn_raw = normalized.get("spawn")
+        spawn = dict(spawn_raw) if isinstance(spawn_raw, dict) else {}
+
+        if not spawn.get("goal") and isinstance(normalized.get("initial_goal"), str):
+            spawn["goal"] = normalized["initial_goal"]
+        if not spawn.get("location") and isinstance(normalized.get("initial_location"), str):
+            spawn["location"] = normalized["initial_location"]
+
+        if spawn:
+            normalized["spawn"] = spawn
+        return normalized
 
 
 class AgentConfig(BaseModel):

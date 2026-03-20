@@ -9,9 +9,10 @@ Architecture only passes raw data, LLM infers:
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from app.scenario.bundle_registry import load_world_config_for_scenario
+from app.scenario.bundle_registry import get_scenario_bundle, load_world_config_for_scenario
 from app.scenario.truman_world.types import get_director_guidance
 from app.sim.world_queries import (
     build_familiarity_map,
@@ -25,6 +26,25 @@ if TYPE_CHECKING:
     from app.store.models import Relationship
 
 _WORLD_CONFIG_CACHE: dict[str, dict[str, Any]] = {}
+
+
+@dataclass
+class RuntimeRoleSemantics:
+    subject_role: str = "truman"
+    support_roles: list[str] = field(default_factory=lambda: ["cast"])
+    alert_metric: str = "suspicion_score"
+
+
+def build_runtime_role_semantics(scenario_id: str) -> RuntimeRoleSemantics:
+    bundle = get_scenario_bundle(scenario_id)
+    semantics = bundle.semantics if bundle is not None else None
+    return RuntimeRoleSemantics(
+        subject_role=semantics.subject_role or "truman" if semantics else "truman",
+        support_roles=semantics.support_roles or ["cast"] if semantics else ["cast"],
+        alert_metric=semantics.alert_metric or "suspicion_score"
+        if semantics
+        else "suspicion_score",
+    )
 
 
 def load_world_config(scenario_id: str = "truman_world") -> dict[str, Any]:
@@ -86,10 +106,15 @@ def build_perception_context(
     }
 
 
-def filter_world_for_role(world_role: str, world: dict[str, Any]) -> dict[str, Any]:
+def filter_world_for_role(
+    world_role: str,
+    world: dict[str, Any],
+    semantics: RuntimeRoleSemantics | None = None,
+) -> dict[str, Any]:
     """Filter world info based on agent role."""
-    if world_role == "truman":
-        # Truman shouldn't see director/cast system info
+    resolved = semantics or RuntimeRoleSemantics()
+    if world_role == resolved.subject_role:
+        # Subject shouldn't see director/support system info
         return {
             key: value
             for key, value in world.items()
@@ -98,19 +123,26 @@ def filter_world_for_role(world_role: str, world: dict[str, Any]) -> dict[str, A
     return dict(world)
 
 
-def build_role_context(world_role: str, world: dict[str, Any]) -> dict[str, Any]:
+def build_role_context(
+    world_role: str,
+    world: dict[str, Any],
+    semantics: RuntimeRoleSemantics | None = None,
+) -> dict[str, Any]:
     """Build role-specific context for agent."""
-    if world_role == "truman":
+    resolved = semantics or RuntimeRoleSemantics()
+    if world_role == resolved.subject_role:
+        current_alert_score = world.get("self_status", {}).get(resolved.alert_metric, 0.0)
         return {
             "perspective": "subjective",
             "focus": "以普通居民的身份体验世界，只根据亲身经历理解周围发生的事",
-            "current_suspicion_score": world.get("self_status", {}).get("suspicion_score", 0.0),
+            "current_alert_score": current_alert_score,
+            "current_suspicion_score": current_alert_score,
             "guidance": [
                 "不要假设自己知道幕后信息",
                 "优先依据眼前线索和熟悉的日常节奏做判断",
             ],
         }
-    if world_role == "cast":
+    if world_role in set(resolved.support_roles):
         return {
             "perspective": "supporting_cast",
             "focus": "优先保持自然、熟悉、不过分用力的日常互动",
@@ -145,13 +177,18 @@ def build_world_common_knowledge(scenario_id: str = "truman_world") -> dict[str,
     }
 
 
-def build_scene_guidance(world_role: str, world: dict[str, Any]) -> dict[str, Any]:
+def build_scene_guidance(
+    world_role: str,
+    world: dict[str, Any],
+    semantics: RuntimeRoleSemantics | None = None,
+) -> dict[str, Any]:
     """Build scene guidance for cast agents.
 
     Supports both automatic intervention goals (soft_check_in, keep_scene_natural, etc.)
     and manual injection goals (gather, activity, shutdown, weather_change, power_outage).
     """
-    if world_role != "cast":
+    resolved = semantics or RuntimeRoleSemantics()
+    if world_role not in set(resolved.support_roles):
         return {}
 
     guidance = get_director_guidance(world)

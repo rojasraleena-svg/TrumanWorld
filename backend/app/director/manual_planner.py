@@ -8,6 +8,8 @@ flows.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+
 from app.director.types import DirectorPlan
 from app.protocol.simulation import (
     DIRECTOR_SCENE_ACTIVITY,
@@ -20,6 +22,11 @@ from app.scenario.types import get_world_role
 from app.store.models import Agent
 
 
+@dataclass
+class ManualDirectorPlannerSemantics:
+    support_roles: list[str] = field(default_factory=lambda: ["cast"])
+
+
 class ManualDirectorPlanner:
     """Converts manual director events into DirectorPlan objects.
 
@@ -27,6 +34,9 @@ class ManualDirectorPlanner:
     by converting event types into scene goals that support agents can
     understand and act upon.
     """
+
+    def __init__(self, semantics: ManualDirectorPlannerSemantics | None = None) -> None:
+        self._semantics = semantics or ManualDirectorPlannerSemantics()
 
     def build_plan_from_manual_event(
         self,
@@ -48,15 +58,19 @@ class ManualDirectorPlanner:
         Returns:
             DirectorPlan or None if event_type is not supported
         """
-        cast_agents = [a for a in agents if get_world_role(a.profile) == "cast"]
-        if not cast_agents:
+        support_agents = [
+            agent
+            for agent in agents
+            if get_world_role(agent.profile) in set(self._semantics.support_roles)
+        ]
+        if not support_agents:
             return None
 
         if event_type == "broadcast":
             return self._build_gather_plan(
                 payload=payload,
                 location_id=location_id,
-                cast_agents=cast_agents,
+                support_agents=support_agents,
                 subject_agent_id=subject_agent_id,
             )
 
@@ -64,7 +78,7 @@ class ManualDirectorPlanner:
             return self._build_activity_plan(
                 payload=payload,
                 location_id=location_id,
-                cast_agents=cast_agents,
+                support_agents=support_agents,
                 subject_agent_id=subject_agent_id,
             )
 
@@ -72,7 +86,7 @@ class ManualDirectorPlanner:
             return self._build_shutdown_plan(
                 payload=payload,
                 location_id=location_id,
-                cast_agents=cast_agents,
+                support_agents=support_agents,
                 subject_agent_id=subject_agent_id,
             )
 
@@ -80,7 +94,7 @@ class ManualDirectorPlanner:
             return self._build_weather_plan(
                 payload=payload,
                 location_id=location_id,
-                cast_agents=cast_agents,
+                support_agents=support_agents,
                 subject_agent_id=subject_agent_id,
             )
 
@@ -88,7 +102,7 @@ class ManualDirectorPlanner:
             return self._build_power_outage_plan(
                 payload=payload,
                 location_id=location_id,
-                cast_agents=cast_agents,
+                support_agents=support_agents,
                 subject_agent_id=subject_agent_id,
             )
 
@@ -98,7 +112,7 @@ class ManualDirectorPlanner:
         self,
         payload: dict,
         location_id: str | None,
-        cast_agents: list[Agent],
+        support_agents: list[Agent],
         subject_agent_id: str | None,
     ) -> DirectorPlan:
         """Build a gather plan for broadcast events.
@@ -106,7 +120,7 @@ class ManualDirectorPlanner:
         Example: "12点钟集合" -> Support agents should gather at location
         """
         message = payload.get("message", "")
-        target_agent_ids = [a.id for a in cast_agents]
+        target_agent_ids = [a.id for a in support_agents]
 
         return DirectorPlan(
             scene_goal=DIRECTOR_SCENE_GATHER,
@@ -124,7 +138,7 @@ class ManualDirectorPlanner:
         self,
         payload: dict,
         location_id: str | None,
-        cast_agents: list[Agent],
+        support_agents: list[Agent],
         subject_agent_id: str | None,
     ) -> DirectorPlan:
         """Build an activity plan for activity events.
@@ -132,7 +146,7 @@ class ManualDirectorPlanner:
         Example: "咖啡馆派对" -> Support agents should participate in activity
         """
         message = payload.get("message", "")
-        target_agent_ids = [a.id for a in cast_agents]
+        target_agent_ids = [a.id for a in support_agents]
 
         return DirectorPlan(
             scene_goal=DIRECTOR_SCENE_ACTIVITY,
@@ -150,7 +164,7 @@ class ManualDirectorPlanner:
         self,
         payload: dict,
         location_id: str | None,
-        cast_agents: list[Agent],
+        support_agents: list[Agent],
         subject_agent_id: str | None,
     ) -> DirectorPlan:
         """Build a shutdown plan for location shutdown events.
@@ -158,7 +172,7 @@ class ManualDirectorPlanner:
         Example: "医院临时关闭" -> Support agents should avoid location
         """
         message = payload.get("message", "")
-        target_agent_ids = [a.id for a in cast_agents]
+        target_agent_ids = [a.id for a in support_agents]
 
         return DirectorPlan(
             scene_goal=DIRECTOR_SCENE_SHUTDOWN,
@@ -176,7 +190,7 @@ class ManualDirectorPlanner:
         self,
         payload: dict,
         location_id: str | None,
-        cast_agents: list[Agent],
+        support_agents: list[Agent],
         subject_agent_id: str | None,
     ) -> DirectorPlan:
         """Build a weather change plan for weather events.
@@ -184,7 +198,7 @@ class ManualDirectorPlanner:
         Example: "暴雨预警" -> Support agents should react to weather
         """
         message = payload.get("message", "")
-        target_agent_ids = [a.id for a in cast_agents]
+        target_agent_ids = [a.id for a in support_agents]
 
         return DirectorPlan(
             scene_goal=DIRECTOR_SCENE_WEATHER_CHANGE,
@@ -202,12 +216,12 @@ class ManualDirectorPlanner:
         self,
         payload: dict,
         location_id: str | None,
-        cast_agents: list[Agent],
+        support_agents: list[Agent],
         subject_agent_id: str | None,
     ) -> DirectorPlan:
         """Build a power outage plan that combines world change and cast reaction."""
         message = payload.get("message", "")
-        target_agent_ids = [a.id for a in cast_agents]
+        target_agent_ids = [a.id for a in support_agents]
 
         return DirectorPlan(
             scene_goal=DIRECTOR_SCENE_POWER_OUTAGE,

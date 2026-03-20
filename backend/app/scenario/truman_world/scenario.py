@@ -9,6 +9,7 @@ from app.scenario.truman_world.coordinator import TrumanWorldCoordinator
 from app.scenario.truman_world.rules import (
     build_role_context,
     build_scene_guidance,
+    build_runtime_role_semantics,
     build_world_common_knowledge,
     filter_world_for_role,
 )
@@ -56,11 +57,12 @@ class TrumanWorldScenario(Scenario):
         self.configure_agent_context(agent_runtime.context_builder)
 
     def configure_agent_context(self, context_builder) -> None:
+        semantics = build_runtime_role_semantics(self.scenario_id)
         context_builder.configure_policy(
             ScenarioContextHooks(
-                world_filter_hook=filter_world_for_role,
-                role_context_hook=build_role_context,
-                scene_guidance_hook=build_scene_guidance,
+                world_filter_hook=partial(filter_world_for_role, semantics=semantics),
+                role_context_hook=partial(build_role_context, semantics=semantics),
+                scene_guidance_hook=partial(build_scene_guidance, semantics=semantics),
                 world_knowledge_hook=partial(build_world_common_knowledge, self.scenario_id),
             )
         )

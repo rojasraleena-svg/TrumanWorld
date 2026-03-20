@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from app.agent.config_loader import AgentConfigLoader
+from app.agent.config_loader import AgentConfigLoader, InitialConfigLoader
 from app.agent.prompt_loader import PromptLoader
 from app.agent.registry import AgentRegistry
 
@@ -78,3 +78,31 @@ def test_agent_registry_lists_configs_and_renders_prompt(tmp_path: Path):
     assert configs[0].world_role == "cast"
     assert prompt is not None
     assert '"tick": 3' in prompt
+
+
+def test_initial_config_loader_supports_spawn_aliases(tmp_path: Path):
+    initial_path = tmp_path / "initial.yml"
+    initial_path.write_text(
+        "\n".join(
+            [
+                "status:",
+                "  energy: 0.9",
+                "  suspicion_score: 0.2",
+                "plan:",
+                "  default: patrol",
+                "spawn:",
+                "  location: workplace",
+                "  goal: greet",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = InitialConfigLoader().load(initial_path)
+
+    assert config.status.energy == 0.9
+    assert config.status.suspicion_score == 0.2
+    assert config.spawn.location == "workplace"
+    assert config.spawn.goal == "greet"
+    assert config.initial_location is None
+    assert config.initial_goal is None

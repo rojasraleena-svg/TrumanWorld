@@ -10,6 +10,7 @@ from app.infra.logging import get_logger
 from app.infra.settings import get_settings
 from app.scenario.bundle_registry import get_scenario_bundle
 from app.scenario.truman_world.heuristics import build_truman_world_decision
+from app.scenario.truman_world.rules import build_runtime_role_semantics
 from app.scenario.truman_world.types import (
     DirectorGuidance,
     build_director_guidance,
@@ -53,6 +54,7 @@ class TrumanWorldCoordinator:
         )
         bundle = get_scenario_bundle(scenario_id)
         semantics = bundle.semantics if bundle is not None else None
+        self._runtime_role_semantics = build_runtime_role_semantics(scenario_id)
         self.observer = DirectorObserver(
             DirectorObserverSemantics(
                 subject_role=semantics.subject_role or "truman" if semantics else "truman",
@@ -344,6 +346,7 @@ class TrumanWorldCoordinator:
             current_location_id=current_location_id,
             home_location_id=home_location_id,
             agent_id=agent_id,
+            semantics=self._runtime_role_semantics,
         )
 
     def fallback_intent(
@@ -386,6 +389,7 @@ class TrumanWorldCoordinator:
             nearby_agent_id=nearby_agent_id,
             current_location_id=current_location_id,
             home_location_id=home_location_id,
+            semantics=self._runtime_role_semantics,
         )
         if decision is not None:
             payload = dict(decision.payload)

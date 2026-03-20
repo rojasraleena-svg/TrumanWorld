@@ -1,4 +1,4 @@
-from app.director.manual_planner import ManualDirectorPlanner
+from app.director.manual_planner import ManualDirectorPlanner, ManualDirectorPlannerSemantics
 from app.protocol.simulation import (
     DIRECTOR_SCENE_ACTIVITY,
     DIRECTOR_SCENE_GATHER,
@@ -34,6 +34,25 @@ def test_manual_planner_returns_none_without_cast_agents():
     )
 
     assert plan is None
+
+
+def test_manual_planner_uses_semantics_support_roles():
+    planner = ManualDirectorPlanner(
+        semantics=ManualDirectorPlannerSemantics(support_roles=["ally"]),
+    )
+
+    plan = planner.build_plan_from_manual_event(
+        event_type="broadcast",
+        payload={"message": "everyone gather"},
+        location_id="square",
+        agents=[_make_agent("ally-a", "ally"), _make_agent("hero", "protagonist")],
+        subject_agent_id="hero",
+    )
+
+    assert plan is not None
+    assert plan.scene_goal == DIRECTOR_SCENE_GATHER
+    assert plan.target_agent_ids == ["ally-a"]
+    assert plan.target_agent_id == "hero"
 
 
 def test_manual_planner_builds_gather_plan_for_broadcast():

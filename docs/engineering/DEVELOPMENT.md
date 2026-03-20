@@ -221,6 +221,84 @@ backend/app/scenario/
 - `seed_demo_run`
 - `update_state_from_events`
 
+### Scenario Bundle 语义
+
+当前推荐通过 `scenarios/<scenario_id>/scenario.yml` 定义场景语义，而不是把这些差异散落在代码里。
+
+目前已接入的字段：
+
+```yaml
+id: harbor_mystery
+name: Harbor Mystery
+version: 1
+adapter: truman_world
+
+semantics:
+  subject_role: protagonist
+  support_roles: [ally, cast]
+  alert_metric: anomaly_score
+
+capabilities:
+  director: true
+  alert_tracking: true
+  scene_guidance: true
+```
+
+含义：
+
+- `adapter`：复用哪个 scenario adapter
+- `subject_role`：主体角色名
+- `support_roles`：支援角色列表
+- `alert_metric`：主体告警值状态字段
+
+这组语义现在已经影响：
+
+- director observer
+- state updater
+- director planner / manual planner
+- claude / langgraph director backend
+- runtime role context / scene guidance
+- fallback heuristics
+- seed 初始状态写入
+
+### initial.yml 兼容写法
+
+`initial.yml` 现在同时支持旧写法和更通用的 `spawn` 写法。
+
+旧写法：
+
+```yaml
+initial_location: home
+initial_goal: work
+status:
+  energy: 0.8
+  suspicion_score: 0.1
+plan:
+  morning: work
+  daytime: work
+  evening: rest
+```
+
+新写法：
+
+```yaml
+spawn:
+  location: workplace
+  goal: greet
+status:
+  energy: 0.8
+  suspicion_score: 0.1
+plan:
+  default: patrol
+```
+
+当前兼容规则：
+
+- `spawn.location` 优先于 `initial_location`
+- `spawn.goal` 优先于 `initial_goal`
+- `status.suspicion_score` 仍然是兼容输入名
+- seed 会根据 `semantics.alert_metric` 把它写成对应状态字段
+
 ---
 
 ## 🐛 调试技巧

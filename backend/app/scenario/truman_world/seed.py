@@ -6,7 +6,7 @@ from uuid import uuid4
 from app.agent.registry import AgentRegistry
 from app.infra.settings import get_settings
 from app.scenario.bundle_registry import load_world_config_for_scenario, resolve_agents_root_for_scenario
-from app.scenario.truman_world.rules import load_world_config
+from app.scenario.truman_world.rules import build_runtime_role_semantics, load_world_config
 from app.scenario.truman_world.types import build_agent_profile
 from app.sim.context import DEFAULT_WORLD_START_TIME
 from app.store.models import Agent, Location, Relationship
@@ -86,6 +86,7 @@ class TrumanWorldSeedBuilder:
     async def seed_demo_run(self, run: SimulationRun) -> None:
         """Seed a demo run from agent configuration files."""
         run_id = run.id
+        semantics = build_runtime_role_semantics(self.scenario_id)
 
         # 1. 创建地点
         locations: dict[str, Location] = {}
@@ -126,14 +127,17 @@ class TrumanWorldSeedBuilder:
 
             # 确定初始位置
             current_location_id = home_location_id
-            if initial.initial_location == "workplace" and workplace_location_id:
+            initial_location = initial.spawn.location or initial.initial_location
+            initial_goal = initial.spawn.goal or initial.initial_goal
+
+            if initial_location == "workplace" and workplace_location_id:
                 current_location_id = workplace_location_id
-            elif initial.initial_location == "home" and home_location_id:
+            elif initial_location == "home" and home_location_id:
                 current_location_id = home_location_id
-            elif initial.initial_location:
+            elif initial_location:
                 # 可能是具体的 location key
                 resolved = self._resolve_location_id(
-                    run_id, initial.initial_location, location_id_map
+                    run_id, initial_location, location_id_map
                 )
                 if resolved:
                     current_location_id = resolved
@@ -162,8 +166,11 @@ class TrumanWorldSeedBuilder:
             status = {
                 "energy": initial.status.energy,
             }
-            if initial.status.suspicion_score > 0 or config.world_role == "truman":
-                status["suspicion_score"] = initial.status.suspicion_score
+            if (
+                initial.status.suspicion_score > 0
+                or config.world_role == semantics.subject_role
+            ):
+                status[semantics.alert_metric] = initial.status.suspicion_score
 
             # 构建计划
             current_plan = {
@@ -179,7 +186,7 @@ class TrumanWorldSeedBuilder:
                 occupation=self._get_occupation_name(config.occupation),
                 home_location_id=home_location_id,
                 current_location_id=current_location_id,
-                current_goal=initial.initial_goal,
+                current_goal=initial_goal,
                 personality=config.personality,
                 profile=profile,
                 status=status,
