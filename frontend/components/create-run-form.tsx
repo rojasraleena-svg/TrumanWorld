@@ -8,17 +8,12 @@ import type { ScenarioSummary } from "@/lib/types";
 import { useRuns } from "@/components/runs-provider";
 import { WorldOpeningAnimation } from "@/components/world-opening-animation";
 
-const FALLBACK_SCENARIOS: ScenarioSummary[] = [
-  { id: "truman_world", name: "Truman World", version: 1 },
-  { id: "open_world", name: "Open World", version: 1 },
-];
-
 export function CreateRunForm() {
   const router = useRouter();
   const { refreshRuns } = useRuns();
   const [name, setName] = useState("demo-run");
-  const [scenarioType, setScenarioType] = useState("truman_world");
-  const [scenarios, setScenarios] = useState<ScenarioSummary[]>(FALLBACK_SCENARIOS);
+  const [scenarioType, setScenarioType] = useState("");
+  const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [tickMinutes, setTickMinutes] = useState(5);
   const [message, setMessage] = useState<string>("");
   const [isPending, startTransition] = useTransition();
@@ -47,6 +42,10 @@ export function CreateRunForm() {
       const result = await listScenariosResult();
       const availableScenarios = result.data;
       if (cancelled || !availableScenarios || availableScenarios.length === 0) {
+        if (!cancelled) {
+          setScenarios([]);
+          setScenarioType("");
+        }
         return;
       }
       setScenarios(availableScenarios);
@@ -75,6 +74,10 @@ export function CreateRunForm() {
       className="space-y-3"
       onSubmit={(event) => {
         event.preventDefault();
+        if (!scenarioType) {
+          setMessage("暂无可用场景，请稍后重试");
+          return;
+        }
         // 立即启动动画
         setAnimationName(name);
         setShowAnimation(true);
@@ -114,20 +117,24 @@ export function CreateRunForm() {
         />
         {/* 场景选择器 */}
         <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
-          {scenarios.map((scenario) => (
-            <button
-              key={scenario.id}
-              type="button"
-              onClick={() => setScenarioType(scenario.id)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition whitespace-nowrap ${
-                scenarioType === scenario.id
-                  ? "bg-moss text-white shadow-xs"
-                  : "text-slate-500 hover:bg-white hover:text-slate-700"
-              }`}
-            >
-              {scenario.name}
-            </button>
-          ))}
+          {scenarios.length > 0 ? (
+            scenarios.map((scenario) => (
+              <button
+                key={scenario.id}
+                type="button"
+                onClick={() => setScenarioType(scenario.id)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition whitespace-nowrap ${
+                  scenarioType === scenario.id
+                    ? "bg-moss text-white shadow-xs"
+                    : "text-slate-500 hover:bg-white hover:text-slate-700"
+                }`}
+              >
+                {scenario.name}
+              </button>
+            ))
+          ) : (
+            <span className="px-3 py-1.5 text-sm text-slate-400">暂无可用场景</span>
+          )}
         </div>
         {/* 时间速度选择器 */}
         <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
@@ -148,7 +155,7 @@ export function CreateRunForm() {
         </div>
         <button
           type="submit"
-          disabled={isPending}
+          disabled={isPending || !scenarioType}
           className="inline-flex items-center gap-2 rounded-xl bg-moss px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-moss/90 disabled:opacity-60 whitespace-nowrap"
         >
           {isPending ? (
