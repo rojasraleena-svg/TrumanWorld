@@ -523,6 +523,8 @@ async def get_world_snapshot(
             occupation=agent.occupation,
             current_goal=agent.current_goal,
             current_location_id=agent.current_location_id,
+            status=agent.status or {},
+            profile=agent.profile or {},
             config_id=get_agent_config_id(agent.profile),
         )
         for agent in agents

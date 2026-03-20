@@ -152,9 +152,14 @@ export function calculateWorldHealthMetrics(
   }
 
   // 3. 主体告警值
-  const truman = agents.find((a) => a.name === "Truman");
-  const subjectAlert =
-    ((truman?.status?.suspicion_score as number) ?? 0) * 100;
+  const subjectAgent =
+    agents.find((a) => (a.profile?.world_role as string | undefined) === "truman") ??
+    agents.find((a) => a.name === "Truman");
+  const subjectAlertScore =
+    (subjectAgent?.status?.alert_score as number | undefined) ??
+    (subjectAgent?.status?.suspicion_score as number | undefined) ??
+    0;
+  const subjectAlert = subjectAlertScore * 100;
   const subjectAlertTrend: Trend = "stable";
 
   // 4. 导演干预统计

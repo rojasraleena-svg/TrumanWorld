@@ -34,6 +34,7 @@ class AgentWorldRow:
     occupation: str | None
     current_goal: str | None
     current_location_id: str | None
+    status: dict
     profile: dict
 
 
@@ -504,6 +505,7 @@ class AgentRepository:
                 Agent.occupation,
                 Agent.current_goal,
                 Agent.current_location_id,
+                Agent.status,
                 Agent.profile,
             )
             .where(Agent.run_id == run_id)
@@ -517,6 +519,7 @@ class AgentRepository:
                 occupation=row.occupation,
                 current_goal=row.current_goal,
                 current_location_id=row.current_location_id,
+                status=row.status or {},
                 profile=row.profile or {},
             )
             for row in result.all()

@@ -37,6 +37,13 @@ async def test_get_world_snapshot_returns_locations_agents_and_public_events(cli
     assert body["run"]["id"] == run_id
     assert len(body["locations"]) == 7
     assert any(len(location["occupants"]) >= 1 for location in body["locations"])
+    occupant = next(
+        occupant
+        for location in body["locations"]
+        for occupant in location["occupants"]
+    )
+    assert isinstance(occupant["status"], dict)
+    assert isinstance(occupant["profile"], dict)
     assert len(body["recent_events"]) >= 1
     assert body["director_stats"] == {"total": 0, "executed": 0, "execution_rate": 0}
 

@@ -267,6 +267,8 @@ class AgentSummaryResponse(BaseModel):
     occupation: str | None = Field(None, description="职业", examples=["咖啡师"])
     current_goal: str | None = Field(None, description="当前目标", examples=["完成早班工作"])
     current_location_id: str | None = Field(None, description="当前位置 ID", examples=["loc_cafe"])
+    status: dict = Field(default_factory=dict, description="状态信息")
+    profile: dict = Field(default_factory=dict, description="档案信息")
     config_id: str | None = Field(None, description="配置 ID", examples=["alice"])
 
 
