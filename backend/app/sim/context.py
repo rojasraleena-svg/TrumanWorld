@@ -36,7 +36,7 @@ class ContextBuilder:
     This class is responsible for:
     - Loading world state from database
     - Building agent world context for decisions
-    - Extracting Truman suspicion scores
+    - Extracting primary subject alert scores
     - Finding nearby agents
     - Formatting events for context injection
     """
@@ -127,7 +127,7 @@ class ContextBuilder:
             nearby_agent_id: ID of nearby agent for interaction
             current_status: Agent's current status dict
             subject_alert_score: Primary subject alert score when enabled
-            world_role: Agent's role (truman/cast)
+            world_role: Agent's scenario role
             director_guidance: Director guidance payload
 
         Returns:
@@ -163,24 +163,6 @@ class ContextBuilder:
         """Static implementation for finding nearby agent."""
         return find_nearby_agent(world, agent_id, location_id)
 
-    def extract_truman_suspicion_from_agent_data(
-        self,
-        agent_data: list[dict],
-        world: WorldState,
-        *,
-        semantics: RuntimeRoleSemantics | None = None,
-    ) -> float:
-        """Extract Truman's suspicion score from agent data.
-
-        Args:
-            agent_data: List of agent data dicts
-            world: Current world state
-
-        Returns:
-            Truman's suspicion score, or 0.0 if not found
-        """
-        return extract_truman_suspicion_from_agent_data(agent_data, world, semantics=semantics)
-
     def extract_subject_alert_from_agent_data(
         self,
         agent_data: list[dict],
@@ -191,22 +173,28 @@ class ContextBuilder:
         """Extract the primary subject alert score from agent data."""
         return extract_subject_alert_from_agent_data(agent_data, world, semantics=semantics)
 
-    def extract_truman_suspicion_from_agents(
+    def extract_truman_suspicion_from_agent_data(
+        self,
+        agent_data: list[dict],
+        world: WorldState,
+        *,
+        semantics: RuntimeRoleSemantics | None = None,
+    ) -> float:
+        """Legacy alias for extract_subject_alert_from_agent_data."""
+        return self.extract_subject_alert_from_agent_data(
+            agent_data,
+            world,
+            semantics=semantics,
+        )
+
+    def extract_subject_alert_from_agents(
         self,
         agents: list[Agent],
         world: WorldState,
         *,
         semantics: RuntimeRoleSemantics | None = None,
     ) -> float:
-        """Extract Truman's suspicion score from agent objects.
-
-        Args:
-            agents: List of Agent objects
-            world: Current world state
-
-        Returns:
-            Truman's suspicion score, or 0.0 if not found
-        """
+        """Extract the primary subject alert score from agent objects."""
         resolved = semantics or RuntimeRoleSemantics()
         for agent in agents:
             if get_world_role(agent.profile) != resolved.subject_role:
@@ -217,15 +205,15 @@ class ContextBuilder:
             return float((state.status or {}).get(resolved.alert_metric, 0.0) or 0.0)
         return 0.0
 
-    def extract_subject_alert_from_agents(
+    def extract_truman_suspicion_from_agents(
         self,
         agents: list[Agent],
         world: WorldState,
         *,
         semantics: RuntimeRoleSemantics | None = None,
     ) -> float:
-        """Extract the primary subject alert score from agent objects."""
-        return self.extract_truman_suspicion_from_agents(agents, world, semantics=semantics)
+        """Legacy alias for extract_subject_alert_from_agents."""
+        return self.extract_subject_alert_from_agents(agents, world, semantics=semantics)
 
     def format_event_for_context(
         self,

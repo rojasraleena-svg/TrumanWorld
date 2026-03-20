@@ -94,7 +94,7 @@ def inject_profile_fields_into_context(
         context["schedule_type"] = schedule_type
 
 
-def extract_truman_suspicion_from_agent_data(
+def extract_subject_alert_from_agent_data(
     agent_data: list[AgentDecisionSnapshot],
     world: WorldState,
     *,
@@ -112,13 +112,14 @@ def extract_truman_suspicion_from_agent_data(
     return 0.0
 
 
-def extract_subject_alert_from_agent_data(
+def extract_truman_suspicion_from_agent_data(
     agent_data: list[AgentDecisionSnapshot],
     world: WorldState,
     *,
     semantics: RuntimeRoleSemantics | None = None,
 ) -> float:
-    return extract_truman_suspicion_from_agent_data(agent_data, world, semantics=semantics)
+    """Legacy alias for extract_subject_alert_from_agent_data."""
+    return extract_subject_alert_from_agent_data(agent_data, world, semantics=semantics)
 
 
 def _normalize_director_guidance(guidance: ScenarioGuidance) -> ScenarioGuidance:

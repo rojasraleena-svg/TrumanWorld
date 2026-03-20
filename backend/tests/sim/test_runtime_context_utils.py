@@ -115,7 +115,7 @@ def test_build_agent_world_context_omits_subject_alert_score_when_disabled():
     assert "subject_alert_score" not in context
 
 
-def test_extract_truman_suspicion_from_agent_data_returns_first_truman_score():
+def test_extract_subject_alert_from_agent_data_returns_first_subject_score():
     world = _build_world()
     agent_data = [
         AgentDecisionSnapshot(
@@ -136,14 +136,14 @@ def test_extract_truman_suspicion_from_agent_data_returns_first_truman_score():
         ),
     ]
 
-    suspicion = extract_truman_suspicion_from_agent_data(agent_data, world)
     alert_score = extract_subject_alert_from_agent_data(agent_data, world)
+    suspicion = extract_truman_suspicion_from_agent_data(agent_data, world)
 
-    assert suspicion == 0.75
-    assert alert_score == suspicion
+    assert alert_score == 0.75
+    assert suspicion == alert_score
 
 
-def test_extract_truman_suspicion_from_agent_data_returns_zero_without_matching_state():
+def test_extract_subject_alert_from_agent_data_returns_zero_without_matching_state():
     world = _build_world()
     agent_data = [
         AgentDecisionSnapshot(
@@ -156,9 +156,11 @@ def test_extract_truman_suspicion_from_agent_data_returns_zero_without_matching_
         )
     ]
 
+    alert_score = extract_subject_alert_from_agent_data(agent_data, world)
     suspicion = extract_truman_suspicion_from_agent_data(agent_data, world)
 
-    assert suspicion == 0.0
+    assert alert_score == 0.0
+    assert suspicion == alert_score
 
 
 def test_extract_subject_alert_from_agent_data_supports_runtime_semantics():
