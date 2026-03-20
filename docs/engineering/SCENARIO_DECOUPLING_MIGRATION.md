@@ -9,6 +9,7 @@
 ## 当前结论
 
 - 运行时代码已经完成主要迁移
+- 默认 scenario adapter 与默认 bundle id 已迁移到 `narrative_world`
 - API / OpenAPI 已移除旧字段兼容别名
 - 持久化模型已切换到通用字段名
 - Director 提示词与上下文已改为 subject / agent 语义
@@ -80,7 +81,7 @@
 - Director 配置和 prompt 可以继续保留“某个具体场景的世界观内容”
 - 但这些内容不再要求底层接口暴露 Truman 专属字段
 
-因此，“基于 `md` / `yml` 构建场景”现在在技术上已可成立，剩余问题主要是场景资产本身的组织质量，而不是核心代码层的耦合。
+因此，“基于 `md` / `yml` 构建场景”现在在技术上已可成立，剩余问题主要是场景资产本身的组织质量，以及少量兼容输入字段，而不是核心代码层的耦合。
 
 ## 当前已支持的场景语义
 
@@ -157,12 +158,12 @@ plan:
 
 ## 当前仍未完全泛化的部分
 
-以下部分仍然保留历史 Truman 语义或命名，需要后续继续收口：
+以下部分仍然保留兼容层或旧 DSL 形态，需要后续继续收口：
 
-- `TrumanWorldScenario` / `TrumanWorldSeedBuilder` 等类名
-- `current_suspicion_score` 兼容字段仍然保留在 role context 中
-- `initial.status.suspicion_score` 作为输入字段名仍未改成完全中性名字
+- `status.suspicion_score` 仍作为兼容输入字段存在
+- `get_latest_suspicion_score()` 等旧访问器仍保留兼容 wrapper
 - `plan.morning/daytime/evening` 仍然是默认保留计划字段
+- 产品品牌文案和历史参考文档仍大量使用 `TrumanWorld`
 
 这些问题当前主要影响命名一致性和 DSL 完整度，不再构成场景主流程的结构性耦合。
 
