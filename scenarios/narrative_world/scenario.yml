@@ -2,3 +2,10 @@ id: narrative_world
 name: Narrative World
 version: 1
 runtime_adapter: narrative_world
+semantics:
+  subject_role: truman
+  support_roles:
+    - cast
+  alert_metric: suspicion_score
+capabilities:
+  subject_alert_tracking: true
