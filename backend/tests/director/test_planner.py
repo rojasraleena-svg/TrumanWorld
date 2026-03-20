@@ -297,8 +297,8 @@ async def test_director_planner_consumes_langgraph_backend_async_result():
             settings=Settings(
                 agent_backend="heuristic",
                 director_backend="langgraph",
-                langgraph_model="claude-test",
-                langgraph_api_key="langgraph-key",
+                llm_model="claude-test",
+                llm_api_key="langgraph-key",
             ),
             text_model=FakeTextModel(),
         )

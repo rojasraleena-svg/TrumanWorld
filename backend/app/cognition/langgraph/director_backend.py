@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from app.cognition.claude.director_agent import DirectorAgent
+from app.cognition.langgraph.model_factory import build_langgraph_chat_model
 from app.cognition.protocols import ChatModelProtocol, DirectorIntervention
 from app.cognition.types import DirectorDecisionInvocation
 from app.infra.logging import get_logger
@@ -76,23 +77,10 @@ class LangGraphDirectorBackend:
     def _build_default_model(self) -> BaseChatModel | None:
         model_name = (
             self._settings.director_agent_model
-            or self._settings.langgraph_model
+            or self._settings.llm_model
             or self._settings.agent_model
         )
-        api_key = self._settings.langgraph_api_key
-        if not model_name or not api_key:
-            return None
-
-        from langchain_anthropic import ChatAnthropic
-
-        model_kwargs: dict[str, Any] = {
-            "model": model_name,
-            "api_key": api_key,
-            "temperature": 0,
-        }
-        if self._settings.langgraph_base_url:
-            model_kwargs["base_url"] = self._settings.langgraph_base_url
-        return ChatAnthropic(**model_kwargs)
+        return build_langgraph_chat_model(self._settings, model_name=model_name)
 
     def _extract_text_content(self, response: object) -> str:
         content = getattr(response, "content", response)
