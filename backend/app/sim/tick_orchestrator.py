@@ -8,7 +8,7 @@ from app.agent.runtime import RuntimeContext
 from app.cognition.errors import UpstreamApiUnavailableError
 from app.infra.logging import get_logger
 from app.scenario.base import Scenario
-from app.scenario.truman_world.rules import build_runtime_role_semantics
+from app.scenario.narrative_world.rules import build_runtime_role_semantics
 from app.scenario.types import get_agent_config_id, get_scenario_guidance, get_world_role
 from app.sim.action_resolver import ActionIntent
 from app.sim.agent_snapshot_builder import build_agent_recent_events

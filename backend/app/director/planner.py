@@ -12,7 +12,7 @@ from app.director.strategy_engine import StrategyExecutor
 from app.director.types import DirectorPlan
 from app.infra.logging import get_logger
 from app.scenario.runtime_config import ScenarioRuntimeConfig
-from app.scenario.truman_world.director_config import load_director_config
+from app.scenario.narrative_world.director_config import load_director_config
 from app.scenario.types import get_agent_config_id, get_world_role
 
 if TYPE_CHECKING:

@@ -10,7 +10,7 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from app.scenario.truman_world.rules import RuntimeRoleSemantics
+from app.scenario.narrative_world.rules import RuntimeRoleSemantics
 from app.scenario.bundle_registry import resolve_sleep_config_for_scenario
 from app.scenario.types import ScenarioGuidance, get_world_role
 from app.sim.event_utils import format_event_for_context

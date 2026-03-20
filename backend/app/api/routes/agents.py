@@ -14,7 +14,7 @@ from app.api.schemas.simulation import (
 )
 from app.infra.db import get_db_session
 from app.infra.logging import get_logger
-from app.scenario.truman_world.types import get_agent_config_id
+from app.scenario.narrative_world.types import get_agent_config_id
 from app.store.repositories import (
     AgentRepository,
     LocationRepository,

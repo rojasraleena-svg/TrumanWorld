@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from app.scenario.truman_world.rules import RuntimeRoleSemantics
+from app.scenario.narrative_world.rules import RuntimeRoleSemantics
 from app.scenario.types import ScenarioGuidance, get_world_role
 from app.sim.types import AgentDecisionSnapshot, RuntimeWorldContext
 from app.sim.world_queries import get_agent, get_location, get_location_occupants

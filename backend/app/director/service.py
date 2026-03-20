@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from app.director.manual_planner import ManualDirectorPlanner, ManualDirectorPlannerSemantics
 from app.protocol.simulation import build_director_event_type
-from app.scenario.truman_world.rules import build_runtime_role_semantics
+from app.scenario.narrative_world.rules import build_runtime_role_semantics
 from app.scenario.types import get_world_role
 from app.sim.context import get_run_world_time
 from app.sim.event_utils import build_event
