@@ -881,8 +881,8 @@ class DirectorMemoryRepository:
         await self.session.refresh(memory)
         return memory
 
-    async def get_latest_suspicion_score(self, run_id: str) -> float:
-        """获取最近一次干预时记录的怀疑度"""
+    async def get_latest_subject_alert_score(self, run_id: str) -> float:
+        """获取最近一次干预时记录的主体告警值"""
         stmt: Select[tuple[DirectorMemory]] = (
             select(DirectorMemory)
             .where(DirectorMemory.run_id == run_id)
@@ -892,6 +892,10 @@ class DirectorMemoryRepository:
         result = await self.session.execute(stmt)
         memory = result.scalar_one_or_none()
         return memory.trigger_subject_alert_score if memory else 0.0
+
+    async def get_latest_suspicion_score(self, run_id: str) -> float:
+        """Legacy alias for get_latest_subject_alert_score."""
+        return await self.get_latest_subject_alert_score(run_id)
 
     async def get_pending_manual_interventions(
         self,

@@ -85,11 +85,11 @@ class TrumanWorldCoordinator:
             self.event_repo.list_for_run(run_id, limit=event_limit),
         )
 
-        # 获取上一次的怀疑度用于趋势计算
-        previous_suspicion_score = 0.0
+        # 获取上一次的主体告警值用于趋势计算
+        previous_subject_alert_score = 0.0
         if self.director_memory_repo is not None:
-            previous_suspicion_score = await self.director_memory_repo.get_latest_suspicion_score(
-                run_id
+            previous_subject_alert_score = (
+                await self.director_memory_repo.get_latest_subject_alert_score(run_id)
             )
 
         return self.assess(
@@ -97,7 +97,7 @@ class TrumanWorldCoordinator:
             current_tick=run.current_tick,
             agents=agents,
             events=events,
-            previous_suspicion_score=previous_suspicion_score,
+            previous_subject_alert_score=previous_subject_alert_score,
         )
 
     async def build_director_plan(self, run_id: str, agents: list[Agent]) -> DirectorPlan | None:
@@ -134,14 +134,14 @@ class TrumanWorldCoordinator:
             return None
 
         # 并行加载所有只读数据，避免串行等待
-        previous_suspicion_score = 0.0
+        previous_subject_alert_score = 0.0
         recent_goals: list[str] = []
         recent_interventions: list[dict[str, Any]] = []
         raw_events: list[Any] = []
 
-        async def _load_suspicion() -> float:
+        async def _load_subject_alert() -> float:
             if self.director_memory_repo is not None:
-                return await self.director_memory_repo.get_latest_suspicion_score(run_id)
+                return await self.director_memory_repo.get_latest_subject_alert_score(run_id)
             return 0.0
 
         async def _load_goals() -> list[str]:
@@ -173,12 +173,12 @@ class TrumanWorldCoordinator:
             return []
 
         (
-            previous_suspicion_score,
+            previous_subject_alert_score,
             recent_goals,
             recent_interventions,
             raw_events,
         ) = await asyncio.gather(
-            _load_suspicion(),
+            _load_subject_alert(),
             _load_goals(),
             _load_interventions(),
             _load_events(),
@@ -190,7 +190,7 @@ class TrumanWorldCoordinator:
             current_tick=run.current_tick,
             agents=agents,
             events=list(raw_events),
-            previous_suspicion_score=previous_suspicion_score,
+            previous_subject_alert_score=previous_subject_alert_score,
         )
 
         recent_events: list[dict[str, Any]] = [
@@ -305,6 +305,7 @@ class TrumanWorldCoordinator:
         current_tick: int,
         agents: list[Agent],
         events: list[Event],
+        previous_subject_alert_score: float = 0.0,
         previous_suspicion_score: float = 0.0,
     ) -> DirectorAssessment:
         return self.observer.assess(
@@ -312,6 +313,7 @@ class TrumanWorldCoordinator:
             current_tick=current_tick,
             agents=list(agents),
             events=list(events),
+            previous_subject_alert_score=previous_subject_alert_score,
             previous_suspicion_score=previous_suspicion_score,
         )
 

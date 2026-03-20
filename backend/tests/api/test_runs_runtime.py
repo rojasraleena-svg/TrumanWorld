@@ -219,6 +219,24 @@ async def test_director_memory_repository_accepts_generic_target_agent_ids(db_se
 
 
 @pytest.mark.asyncio
+async def test_director_memory_repository_supports_subject_alert_score_aliases(db_session):
+    repo = DirectorMemoryRepository(db_session)
+
+    await repo.create(
+        run_id="run-alert-alias",
+        tick_no=4,
+        scene_goal="observe",
+        trigger_subject_alert_score=0.55,
+    )
+
+    latest_alert = await repo.get_latest_subject_alert_score("run-alert-alias")
+    latest_suspicion = await repo.get_latest_suspicion_score("run-alert-alias")
+
+    assert latest_alert == 0.55
+    assert latest_suspicion == 0.55
+
+
+@pytest.mark.asyncio
 async def test_run_not_found_returns_404(client):
     response = await client.get("/api/runs/00000000-0000-0000-0000-000000000001")
 

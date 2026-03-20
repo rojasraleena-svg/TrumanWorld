@@ -95,9 +95,11 @@ class DirectorObserver:
         current_tick: int,
         agents: list[Agent],
         events: list[Event],
+        previous_subject_alert_score: float = 0.0,
         previous_suspicion_score: float = 0.0,
         truman_isolation_ticks: int = 0,
     ) -> DirectorAssessment:
+        previous_alert_score = previous_subject_alert_score or previous_suspicion_score
         subject = next(
             (
                 agent
@@ -122,7 +124,7 @@ class DirectorObserver:
         suspicion_trend = (
             self._compute_suspicion_trend(
                 current_score=subject_alert_score,
-                previous_score=previous_suspicion_score,
+                previous_score=previous_alert_score,
             )
             if self._semantics.subject_alert_tracking
             else None
