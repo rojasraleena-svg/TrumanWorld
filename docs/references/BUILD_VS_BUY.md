@@ -1,4 +1,4 @@
-# AI Truman World MVP：Build vs Buy 分析
+# Narrative World MVP：Build vs Buy 分析
 
 - 类型：`reference`
 - 版本：`v0.1.0`
@@ -7,7 +7,7 @@
 
 ## 1. 结论
 
-对于 TrumanWorld 这个 MVP，不应该采用“全部自己写”的策略。
+对于 Narrative World 这个 MVP，不应该采用“全部自己写”的策略。
 
 更合理的划分是：
 
@@ -29,11 +29,11 @@
 
 ### 2.2 参考改造
 
-已有项目或现成模式可以参考，但不能原样照搬，需要结合 TrumanWorld 的运行模型做适配。
+已有项目或现成模式可以参考，但不能原样照搬，需要结合 Narrative World 的运行模型做适配。
 
 ### 2.3 必须自研
 
-项目的核心业务逻辑，没有成熟方案可以直接替代，必须围绕 TrumanWorld 自己实现。
+项目的核心业务逻辑，没有成熟方案可以直接替代，必须围绕 Narrative World 自己实现。
 
 ## 3. 逐项核对
 
@@ -105,7 +105,7 @@
 
 ### 说明
 
-TrumanWorld 需要自己定义数据模型，但 ORM 和数据库访问层不需要重写。
+Narrative World 需要自己定义数据模型，但 ORM 和数据库访问层不需要重写。
 
 ---
 
@@ -218,7 +218,7 @@ MVP 没必要自建 design system。
 ### 说明
 
 不要绕过 SDK 自己造一层 agent 执行协议。
-你要写的是 TrumanWorld 的 runtime 封装，而不是替代 SDK。
+你要写的是 Narrative World 的 runtime 封装，而不是替代 SDK。
 
 ---
 
@@ -249,7 +249,7 @@ MVP 没必要自建 design system。
 - 能力开关显式化
 - agent 目录天然可扩展
 
-但 TrumanWorld 不能直接照搬其 workflow 驱动逻辑，只能复用配置组织方式。
+但 Narrative World 不能直接照搬其 workflow 驱动逻辑，只能复用配置组织方式。
 
 ---
 
@@ -276,7 +276,7 @@ MVP 没必要自建 design system。
 
 - 配置加载逻辑可以借鉴 `IssueLab`
 - SDK 调用本身不必重发明
-- 但 TrumanWorld 的上下文构造和 cognition 语义是世界仿真特有的
+- 但 Narrative World 的上下文构造和 cognition 语义是世界仿真特有的
 
 ---
 
@@ -295,7 +295,7 @@ MVP 没必要自建 design system。
 
 ### 说明
 
-这是 TrumanWorld 的核心，没有现成包能替你定义：
+这是 Narrative World 的核心，没有现成包能替你定义：
 
 - 世界如何推进
 - 何时调用 cognition
@@ -395,7 +395,7 @@ MVP 没必要自建 design system。
 
 ### 说明
 
-这是 TrumanWorld 社会模拟的核心逻辑之一。
+这是 Narrative World 社会模拟的核心逻辑之一。
 
 ---
 
@@ -451,7 +451,7 @@ MVP 没必要自建 design system。
 原因：
 
 - `IssueLab` 是事件触发系统
-- TrumanWorld 是持续仿真系统
+- Narrative World 是持续仿真系统
 
 这两种系统的调度模型完全不同。
 
@@ -510,7 +510,7 @@ MVP 没必要自建 design system。
 
 ## 7. 最终判断
 
-TrumanWorld 不需要从零发明所有部件。
+Narrative World 不需要从零发明所有部件。
 
 更好的策略是：
 

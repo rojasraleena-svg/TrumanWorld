@@ -1,4 +1,4 @@
-# AI Truman World MVP 架构设计
+# Narrative World MVP 架构设计
 
 - 类型：`reference`
 - 状态：`historical`
@@ -64,7 +64,7 @@ MVP 推荐架构：
 当前后端已经在 `sim / agent / director` 之外补了一层 `scenario`：
 
 - `backend/app/scenario/base.py`
-- `backend/app/scenario/truman_world/scenario.py`
+- `backend/app/scenario/narrative_world/scenario.py`
 - `backend/app/scenario/open_world/scenario.py`
 
 这一层的职责是：
@@ -83,7 +83,7 @@ MVP 推荐架构：
 
 目前已经落地两个 scenario：
 
-- `TrumanWorldScenario`
+- `NarrativeWorldScenario`
 - `OpenWorldScenario`
 
 其中 `OpenWorldScenario` 是一个最小示例，用来验证这套抽象不是只服务 Truman world。
@@ -208,7 +208,7 @@ backend/app/
 
 当前已实现：
 
-- `TrumanWorldScenario` - Truman World 规则
+- `NarrativeWorldScenario` - Narrative World 规则
 - `OpenWorldScenario` - 最小示例
 
 ### `director` (新增)
@@ -229,7 +229,7 @@ backend/app/
 
 ## 6. 基于 IssueLab 的智能体架构参考
 
-TrumanWorld 的智能体层建议参考 `IssueLab` 的这几个做法：
+Narrative World 的智能体层建议参考 `IssueLab` 的这几个做法：
 
 - agent 配置独立放在 `agents/<id>/`
 - `agent.yml` 和 `prompt.md` 分离
@@ -260,7 +260,7 @@ agents/
     .claude/agents/   # optional
 ```
 
-### 6.2 为什么这个设计适合 TrumanWorld
+### 6.2 为什么这个设计适合 Narrative World
 
 因为它天然解决了几个问题：
 
@@ -271,7 +271,7 @@ agents/
 
 ### 6.3 与 IssueLab 的关键差异
 
-TrumanWorld 不能直接照搬 `IssueLab`，因为两者运行模型不同。
+Narrative World 不能直接照搬 `IssueLab`，因为两者运行模型不同。
 
 `IssueLab` 更像：
 
@@ -279,7 +279,7 @@ TrumanWorld 不能直接照搬 `IssueLab`，因为两者运行模型不同。
 - 基于 GitHub workflow 的 orchestration
 - 单次任务型状态
 
-TrumanWorld 则是：
+Narrative World 则是：
 
 - tick-based 持续仿真
 - 世界状态长期存在

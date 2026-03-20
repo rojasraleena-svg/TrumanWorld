@@ -8,5 +8,5 @@ SYSTEM_PROMPT_PATH = Path(__file__).with_name("prompts") / "system.md"
 
 @lru_cache(maxsize=1)
 def build_system_prompt() -> str:
-    """Load the project-wide system prompt for TrumanWorld agents."""
+    """Load the project-wide system prompt for Narrative World agents."""
     return SYSTEM_PROMPT_PATH.read_text(encoding="utf-8").strip()

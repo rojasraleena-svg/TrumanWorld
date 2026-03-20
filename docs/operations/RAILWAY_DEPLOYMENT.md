@@ -128,7 +128,7 @@ railway up --service frontend
 
 下面假设：
 
-- Railway 项目名叫 `TrumanWorld`
+- Railway 项目名叫 `NarrativeWorld`
 - 服务名固定为 `backend`、`frontend`、`postgres`
 - 你在仓库根目录执行命令
 
@@ -136,7 +136,7 @@ railway up --service frontend
 
 ```bash
 railway login
-railway init -n TrumanWorld
+railway init -n NarrativeWorld
 ```
 
 检查当前绑定状态：

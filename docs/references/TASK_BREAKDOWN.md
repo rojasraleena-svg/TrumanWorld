@@ -1,4 +1,4 @@
-# AI Truman World MVP 任务拆解
+# Narrative World MVP 任务拆解
 
 - 类型：`reference`
 - 版本：`v0.1.0`
@@ -572,7 +572,7 @@ MVP 推荐顺序：
 
 ## 13. 最终判断
 
-TrumanWorld 的真正主路径非常清楚：
+Narrative World 的真正主路径非常清楚：
 
 - 先让 world 跑起来
 - 再让 Claude agent 被受控调用

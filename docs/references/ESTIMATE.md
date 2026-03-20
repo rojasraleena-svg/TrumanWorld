@@ -1,4 +1,4 @@
-# AI Truman World MVP 代码量与实现规模预估
+# Narrative World MVP 代码量与实现规模预估
 
 - 类型：`reference`
 - 版本：`v0.1.0`

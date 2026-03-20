@@ -2,7 +2,7 @@
 
 ## 1. Background
 
-TrumanWorld currently couples agent cognition to `claude_agent_sdk` in several places:
+Narrative World currently couples agent cognition to `claude_agent_sdk` in several places:
 
 - resident agent decision runtime
 - director cognition
@@ -10,7 +10,7 @@ TrumanWorld currently couples agent cognition to `claude_agent_sdk` in several p
 - SDK-specific retry / cancellation handling
 - SDK-specific configuration and environment wiring
 
-This coupling makes the current system expensive to run and difficult to evolve. The immediate design goal is not to replace the world simulator. The goal is to decouple the cognition runtime so TrumanWorld can select among:
+This coupling makes the current system expensive to run and difficult to evolve. The immediate design goal is not to replace the world simulator. The goal is to decouple the cognition runtime so Narrative World can select among:
 
 - `claude_sdk`
 - `langgraph`
@@ -85,7 +85,7 @@ This layer must not know whether cognition comes from Claude, LangGraph, or heur
 
 ### 5.2 Cognition Interface
 
-Defines the domain-level capabilities TrumanWorld needs.
+Defines the domain-level capabilities Narrative World needs.
 
 Example interfaces:
 
@@ -124,10 +124,10 @@ Each framework implements the interface:
 
 Each adapter is responsible for:
 
-- translating TrumanWorld invocation -> framework input
+- translating Narrative World invocation -> framework input
 - executing the framework runtime
 - parsing framework output
-- returning TrumanWorld-native result types
+- returning Narrative World-native result types
 
 ### 5.4 Framework-Specific Infrastructure
 
@@ -153,7 +153,7 @@ This layer is allowed to be framework-specific and should not leak upward.
 
 Connection pooling is not a universal optimization.
 
-For TrumanWorld's current Claude SDK integration:
+For Narrative World's current Claude SDK integration:
 
 - reactor / action decision may use pooled long-lived clients
 - planner must remain a one-shot query call
@@ -293,7 +293,7 @@ If the neutral interface tries to model every future framework feature, it will 
 
 Mitigation:
 
-- define only the domain operations TrumanWorld already needs
+- define only the domain operations Narrative World already needs
 
 ### 10.2 Claude Assumptions Leaking Into Neutral Types
 
@@ -325,7 +325,7 @@ Near-term recommendation:
 3. switch runtime construction to a backend registry
 4. add a minimal LangGraph action backend in parallel
 
-This gives TrumanWorld a clean path to support multiple cognition runtimes without rewriting the world simulator.
+This gives Narrative World a clean path to support multiple cognition runtimes without rewriting the world simulator.
 
 ## 12. Concrete Interface Sketch
 

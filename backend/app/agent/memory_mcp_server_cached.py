@@ -1,4 +1,4 @@
-"""Cached MCP Memory Tools for TrumanWorld Agents.
+"""Cached MCP Memory Tools for Narrative World agents.
 
 This module provides MCP tools that query pre-loaded memory cache instead of
 creating database sessions, avoiding greenlet conflicts with anyio task groups.
