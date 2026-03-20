@@ -57,6 +57,9 @@ declare global {
 const DEFAULT_API_BASE_URL = "/api";
 const DEFAULT_INTERNAL_API_BASE_URL = "http://127.0.0.1:18080/api";
 const DEMO_ADMIN_STORAGE_KEY = "trumanworld.demo_admin_password";
+const RAILWAY_BACKEND_API_BASE_URL = process.env.RAILWAY_SERVICE_BACKEND_URL
+  ? `https://${process.env.RAILWAY_SERVICE_BACKEND_URL.replace(/\/$/, "")}/api`
+  : undefined;
 
 function resolveApiBaseUrl() {
   const runtimeBaseUrl =
@@ -73,7 +76,11 @@ export function getApiBaseUrl() {
 }
 
 export function getInternalApiBaseUrl() {
-  return process.env.INTERNAL_API_BASE_URL?.replace(/\/$/, "") ?? DEFAULT_INTERNAL_API_BASE_URL;
+  return (
+    process.env.INTERNAL_API_BASE_URL?.replace(/\/$/, "") ??
+    RAILWAY_BACKEND_API_BASE_URL ??
+    DEFAULT_INTERNAL_API_BASE_URL
+  );
 }
 
 export function buildApiUrl(path: string) {

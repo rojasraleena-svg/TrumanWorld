@@ -16,8 +16,14 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
+  const railwayBackendApiBaseUrl = process.env.RAILWAY_SERVICE_BACKEND_URL
+    ? `https://${process.env.RAILWAY_SERVICE_BACKEND_URL.replace(/\/$/, "")}/api`
+    : undefined;
   const runtimeConfig = {
-    apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "/api",
+    apiBaseUrl:
+      railwayBackendApiBaseUrl ??
+      process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
+      "/api",
   };
   const initialRunsResult: ApiResult<RunSummary[]> = await fetchApiResult<RunSummary[]>(
     `${getInternalApiBaseUrl()}/runs`,

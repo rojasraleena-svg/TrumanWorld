@@ -17,13 +17,14 @@ RUN useradd --create-home --shell /bin/bash appuser
 ENV HOME=/home/appuser \
     PATH=/home/appuser/.local/bin:$PATH
 
-USER appuser
-
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
-WORKDIR /app/backend
+USER appuser
 
-COPY --chown=appuser:appuser backend/pyproject.toml backend/uv.lock ./
+WORKDIR /app
+
+COPY --chown=appuser:appuser backend/pyproject.toml backend/uv.lock /app/backend/
+WORKDIR /app/backend
 RUN uv sync --frozen
 
 COPY --chown=appuser:appuser backend /app/backend

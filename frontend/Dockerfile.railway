@@ -1,8 +1,15 @@
 FROM node:20-alpine
 
-WORKDIR /app/frontend
+WORKDIR /app
 
-COPY frontend/package.json frontend/package-lock.json ./
+ARG INTERNAL_API_BASE_URL=http://backend.railway.internal/api
+ARG NEXT_PUBLIC_API_BASE_URL=/api
+
+ENV INTERNAL_API_BASE_URL=${INTERNAL_API_BASE_URL} \
+    NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+
+COPY frontend/package.json frontend/package-lock.json /app/frontend/
+WORKDIR /app/frontend
 RUN npm ci
 
 COPY frontend /app/frontend
