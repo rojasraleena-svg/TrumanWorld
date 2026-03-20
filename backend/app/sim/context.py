@@ -29,6 +29,8 @@ if TYPE_CHECKING:
 
 
 DEFAULT_WORLD_START_TIME = datetime(2026, 3, 2, 6, 0, tzinfo=UTC)
+
+
 class ContextBuilder:
     """Builds context for agent decisions in simulation.
 

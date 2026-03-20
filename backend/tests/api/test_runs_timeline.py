@@ -216,10 +216,34 @@ async def test_events_incremental_query_with_since_tick(client, db_session):
 
     db_session.add_all(
         [
-            Event(id="inc-event-1", run_id=run_id, tick_no=1, event_type="talk", payload={"msg": "tick 1"}),
-            Event(id="inc-event-2", run_id=run_id, tick_no=2, event_type="move", payload={"msg": "tick 2"}),
-            Event(id="inc-event-3", run_id=run_id, tick_no=5, event_type="talk", payload={"msg": "tick 5"}),
-            Event(id="inc-event-4", run_id=run_id, tick_no=7, event_type="rest", payload={"msg": "tick 7"}),
+            Event(
+                id="inc-event-1",
+                run_id=run_id,
+                tick_no=1,
+                event_type="talk",
+                payload={"msg": "tick 1"},
+            ),
+            Event(
+                id="inc-event-2",
+                run_id=run_id,
+                tick_no=2,
+                event_type="move",
+                payload={"msg": "tick 2"},
+            ),
+            Event(
+                id="inc-event-3",
+                run_id=run_id,
+                tick_no=5,
+                event_type="talk",
+                payload={"msg": "tick 5"},
+            ),
+            Event(
+                id="inc-event-4",
+                run_id=run_id,
+                tick_no=7,
+                event_type="rest",
+                payload={"msg": "tick 7"},
+            ),
         ]
     )
     await db_session.commit()
@@ -305,8 +329,12 @@ async def test_get_timeline_supports_order_desc_and_event_type_filter(client, db
     db_session.add_all(
         [
             SimulationRun(id=run_id, name="timeline-order-run", status="running"),
-            Event(id="timeline-order-talk", run_id=run_id, tick_no=2, event_type="talk", payload={}),
-            Event(id="timeline-order-move", run_id=run_id, tick_no=5, event_type="move", payload={}),
+            Event(
+                id="timeline-order-talk", run_id=run_id, tick_no=2, event_type="talk", payload={}
+            ),
+            Event(
+                id="timeline-order-move", run_id=run_id, tick_no=5, event_type="move", payload={}
+            ),
         ]
     )
     await db_session.commit()

@@ -143,7 +143,10 @@ def test_bundle_registry_uses_empty_defaults_when_semantics_and_capabilities_mis
 
 def test_bundle_registry_prefers_narrative_world_as_default_when_present(tmp_path):
     scenarios_root = tmp_path / "scenarios"
-    for scenario_id, adapter in (("open_world", "open_world"), ("narrative_world", "narrative_world")):
+    for scenario_id, adapter in (
+        ("open_world", "open_world"),
+        ("narrative_world", "narrative_world"),
+    ):
         bundle_root = scenarios_root / scenario_id
         bundle_root.mkdir(parents=True)
         (bundle_root / "scenario.yml").write_text(

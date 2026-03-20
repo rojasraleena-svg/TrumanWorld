@@ -268,7 +268,9 @@ async def test_narrative_world_adapter_updates_configured_subject_alert_metric(
     await scenario.seed_demo_run(run)
 
     agents = await AgentRepository(db_session).list_for_run(run.id)
-    protagonist = next(agent for agent in agents if (agent.profile or {}).get("world_role") == "protagonist")
+    protagonist = next(
+        agent for agent in agents if (agent.profile or {}).get("world_role") == "protagonist"
+    )
     starting_score = float((protagonist.status or {}).get("anomaly_score", 0.0))
     event = Event(
         id="evt-alt-world-alert",

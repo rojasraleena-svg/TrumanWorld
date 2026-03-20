@@ -564,7 +564,9 @@ async def test_run_tick_isolated_advances_when_one_agent_falls_back():
             tick_minutes=5,
             scenario_type="narrative_world",
         )
-        home = Location(id="loc-home-fb", run_id=run_id, name="Home", location_type="home", capacity=4)
+        home = Location(
+            id="loc-home-fb", run_id=run_id, name="Home", location_type="home", capacity=4
+        )
         office = Location(
             id="loc-office-fb",
             run_id=run_id,

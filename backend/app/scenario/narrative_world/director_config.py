@@ -90,7 +90,9 @@ class DirectorConfig:
     def get_prompt_template(self) -> str:
         """Get the prompt template, loading from file if needed."""
         if self._prompt_template is None:
-            template = load_director_prompt_template_for_scenario(self.scenario_id, self.prompt.file)
+            template = load_director_prompt_template_for_scenario(
+                self.scenario_id, self.prompt.file
+            )
             if template is not None:
                 self._prompt_template = template
             else:

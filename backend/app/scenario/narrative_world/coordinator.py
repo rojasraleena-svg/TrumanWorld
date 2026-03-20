@@ -374,8 +374,7 @@ class NarrativeWorldCoordinator:
                 or scenario_guidance.get("director_target_agent_id"),
                 location_hint=scenario_guidance.get("location_hint")
                 or scenario_guidance.get("director_location_hint"),
-                reason=scenario_guidance.get("reason")
-                or scenario_guidance.get("director_reason"),
+                reason=scenario_guidance.get("reason") or scenario_guidance.get("director_reason"),
             )
         runtime_world: RuntimeWorldContext = {
             "world_role": world_role,

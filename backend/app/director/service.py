@@ -59,11 +59,7 @@ class DirectorEventService:
             semantics=ManualDirectorPlannerSemantics(support_roles=semantics.support_roles)
         )
         subject_agent = next(
-            (
-                agent
-                for agent in agents
-                if get_world_role(agent.profile) == semantics.subject_role
-            ),
+            (agent for agent in agents if get_world_role(agent.profile) == semantics.subject_role),
             None,
         )
         plan = manual_planner.build_plan_from_manual_event(

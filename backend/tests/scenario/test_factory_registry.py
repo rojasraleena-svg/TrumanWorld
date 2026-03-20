@@ -9,7 +9,9 @@ from app.scenario.open_world.scenario import OpenWorldScenario
 from app.scenario.narrative_world.scenario import NarrativeWorldScenario
 
 
-def test_factory_resolves_runtime_adapter_from_bundle_registry(tmp_path, monkeypatch: pytest.MonkeyPatch):
+def test_factory_resolves_runtime_adapter_from_bundle_registry(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     scenarios_root = tmp_path / "scenarios"
     truman_root = scenarios_root / "narrative_world"
     truman_root.mkdir(parents=True)

@@ -56,7 +56,9 @@ class LangGraphDirectorBackend:
         if not support_agents or context.assessment.subject_agent_id is None:
             return None
 
-        prompt = self._agent._build_decision_prompt(context, support_agents, invocation.recent_goals)
+        prompt = self._agent._build_decision_prompt(
+            context, support_agents, invocation.recent_goals
+        )
         full_prompt = f"{prompt}\n\n重要：你必须只返回一个有效的 JSON 对象，不要有其他任何文本。"
 
         try:

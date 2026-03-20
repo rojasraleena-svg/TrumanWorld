@@ -263,9 +263,29 @@ async def test_list_runs_includes_aggregated_counts(client, db_session: AsyncSes
     db_session.add_all(
         [
             SimulationRun(id=run_id, name="counted-run", status="running"),
-            Agent(id="agent-count-1", run_id=run_id, name="Alice", occupation="resident", personality={}, profile={}, status={}, current_plan={}),
-            Agent(id="agent-count-2", run_id=run_id, name="Bob", occupation="resident", personality={}, profile={}, status={}, current_plan={}),
-            Location(id="loc-count-1", run_id=run_id, name="Cafe", location_type="cafe", capacity=4),
+            Agent(
+                id="agent-count-1",
+                run_id=run_id,
+                name="Alice",
+                occupation="resident",
+                personality={},
+                profile={},
+                status={},
+                current_plan={},
+            ),
+            Agent(
+                id="agent-count-2",
+                run_id=run_id,
+                name="Bob",
+                occupation="resident",
+                personality={},
+                profile={},
+                status={},
+                current_plan={},
+            ),
+            Location(
+                id="loc-count-1", run_id=run_id, name="Cafe", location_type="cafe", capacity=4
+            ),
             Event(id="event-count-1", run_id=run_id, tick_no=1, event_type="talk", payload={}),
         ]
     )

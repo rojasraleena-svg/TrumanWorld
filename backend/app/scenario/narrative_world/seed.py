@@ -5,7 +5,10 @@ from uuid import uuid4
 
 from app.agent.registry import AgentRegistry
 from app.infra.settings import get_settings
-from app.scenario.bundle_registry import load_world_config_for_scenario, resolve_agents_root_for_scenario
+from app.scenario.bundle_registry import (
+    load_world_config_for_scenario,
+    resolve_agents_root_for_scenario,
+)
 from app.scenario.narrative_world.rules import build_runtime_role_semantics, load_world_config
 from app.scenario.narrative_world.types import build_agent_profile
 from app.sim.context import DEFAULT_WORLD_START_TIME
@@ -136,9 +139,7 @@ class NarrativeWorldSeedBuilder:
                 current_location_id = home_location_id
             elif initial_location:
                 # 可能是具体的 location key
-                resolved = self._resolve_location_id(
-                    run_id, initial_location, location_id_map
-                )
+                resolved = self._resolve_location_id(run_id, initial_location, location_id_map)
                 if resolved:
                     current_location_id = resolved
 
@@ -171,10 +172,7 @@ class NarrativeWorldSeedBuilder:
             status = {
                 "energy": initial.status.energy,
             }
-            if (
-                float(alert_value or 0.0) > 0
-                or config.world_role == semantics.subject_role
-            ):
+            if float(alert_value or 0.0) > 0 or config.world_role == semantics.subject_role:
                 status[semantics.alert_metric] = float(alert_value or 0.0)
 
             # 构建计划

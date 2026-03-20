@@ -39,9 +39,7 @@ async def test_get_world_snapshot_returns_locations_agents_and_public_events(cli
     assert len(body["locations"]) == 7
     assert any(len(location["occupants"]) >= 1 for location in body["locations"])
     occupant = next(
-        occupant
-        for location in body["locations"]
-        for occupant in location["occupants"]
+        occupant for location in body["locations"] for occupant in location["occupants"]
     )
     assert isinstance(occupant["status"], dict)
     assert isinstance(occupant["profile"], dict)
@@ -106,10 +104,36 @@ async def test_get_director_memories_marks_consumed_and_expired_entries(client, 
     run_id = "00000000-0000-0000-0000-000000000205"
     db_session.add_all(
         [
-            SimulationRun(id=run_id, name="director-memory-status", status="running", current_tick=12),
-            Agent(id="agent-cast-memory", run_id=run_id, name="Meryl", occupation="resident", personality={}, profile={}, status={}, current_plan={}),
-            Agent(id="agent-target-memory", run_id=run_id, name="Truman", occupation="resident", personality={}, profile={}, status={}, current_plan={}),
-            Location(id="loc-memory-status", run_id=run_id, name="Plaza", location_type="plaza", capacity=8),
+            SimulationRun(
+                id=run_id, name="director-memory-status", status="running", current_tick=12
+            ),
+            Agent(
+                id="agent-cast-memory",
+                run_id=run_id,
+                name="Meryl",
+                occupation="resident",
+                personality={},
+                profile={},
+                status={},
+                current_plan={},
+            ),
+            Agent(
+                id="agent-target-memory",
+                run_id=run_id,
+                name="Truman",
+                occupation="resident",
+                personality={},
+                profile={},
+                status={},
+                current_plan={},
+            ),
+            Location(
+                id="loc-memory-status",
+                run_id=run_id,
+                name="Plaza",
+                location_type="plaza",
+                capacity=8,
+            ),
             DirectorMemory(
                 id="director-memory-consumed",
                 run_id=run_id,
@@ -346,13 +370,71 @@ async def test_delete_run_removes_related_records_and_cleans_pool(
     db_session.add_all(
         [
             SimulationRun(id=run_id, name="delete-run", status="running"),
-            Agent(id="agent-delete-a", run_id=run_id, name="Alice", occupation="resident", current_location_id="loc-delete", personality={}, profile={}, status={}, current_plan={}),
-            Agent(id="agent-delete-b", run_id=run_id, name="Bob", occupation="resident", personality={}, profile={}, status={}, current_plan={}),
+            Agent(
+                id="agent-delete-a",
+                run_id=run_id,
+                name="Alice",
+                occupation="resident",
+                current_location_id="loc-delete",
+                personality={},
+                profile={},
+                status={},
+                current_plan={},
+            ),
+            Agent(
+                id="agent-delete-b",
+                run_id=run_id,
+                name="Bob",
+                occupation="resident",
+                personality={},
+                profile={},
+                status={},
+                current_plan={},
+            ),
             Location(id="loc-delete", run_id=run_id, name="Cafe", location_type="cafe", capacity=4),
-            Event(id="event-delete", run_id=run_id, tick_no=1, event_type="talk", actor_agent_id="agent-delete-a", target_agent_id="agent-delete-b", location_id="loc-delete", payload={}),
-            Memory(id="memory-delete", run_id=run_id, agent_id="agent-delete-a", tick_no=1, memory_type="episodic_long", memory_category="long_term", content="Talked with Bob", summary="Talked with Bob", importance=0.9, related_agent_id="agent-delete-b", location_id="loc-delete", metadata_json={}),
-            Relationship(id="relationship-delete", run_id=run_id, agent_id="agent-delete-a", other_agent_id="agent-delete-b", familiarity=0.3, trust=0.2, affinity=0.4, relation_type="friend"),
-            DirectorMemory(id="director-memory-delete", run_id=run_id, tick_no=1, scene_goal="gather", target_agent_ids='["agent-delete-b"]', message_hint="Meet now", was_executed=False),
+            Event(
+                id="event-delete",
+                run_id=run_id,
+                tick_no=1,
+                event_type="talk",
+                actor_agent_id="agent-delete-a",
+                target_agent_id="agent-delete-b",
+                location_id="loc-delete",
+                payload={},
+            ),
+            Memory(
+                id="memory-delete",
+                run_id=run_id,
+                agent_id="agent-delete-a",
+                tick_no=1,
+                memory_type="episodic_long",
+                memory_category="long_term",
+                content="Talked with Bob",
+                summary="Talked with Bob",
+                importance=0.9,
+                related_agent_id="agent-delete-b",
+                location_id="loc-delete",
+                metadata_json={},
+            ),
+            Relationship(
+                id="relationship-delete",
+                run_id=run_id,
+                agent_id="agent-delete-a",
+                other_agent_id="agent-delete-b",
+                familiarity=0.3,
+                trust=0.2,
+                affinity=0.4,
+                relation_type="friend",
+            ),
+            DirectorMemory(
+                id="director-memory-delete",
+                run_id=run_id,
+                tick_no=1,
+                scene_goal="gather",
+                target_agent_ids='["agent-delete-b"]',
+                message_hint="Meet now",
+                was_executed=False,
+            ),
         ]
     )
     await db_session.commit()

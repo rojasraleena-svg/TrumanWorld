@@ -90,7 +90,10 @@ def test_rules_support_semantics_for_subject_support_and_alert_metric():
     assert role_context["current_alert_score"] == 0.6
     assert support_context["perspective"] == "supporting_cast"
     assert support_guidance["scene_goal"] == "guide_subject_home"
-    assert build_scene_guidance("protagonist", {"director_scene_goal": "ignored"}, semantics=semantics) == {}
+    assert (
+        build_scene_guidance("protagonist", {"director_scene_goal": "ignored"}, semantics=semantics)
+        == {}
+    )
 
 
 def test_build_role_context_omits_alert_fields_when_subject_alert_tracking_disabled():

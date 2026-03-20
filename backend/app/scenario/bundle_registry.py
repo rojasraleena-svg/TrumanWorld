@@ -41,7 +41,9 @@ class ScenarioBundleRegistry:
         bundles = self.list_bundles()
         if not bundles:
             return "narrative_world"
-        preferred = next((bundle for bundle in bundles if bundle.manifest.id == "narrative_world"), None)
+        preferred = next(
+            (bundle for bundle in bundles if bundle.manifest.id == "narrative_world"), None
+        )
         return preferred.manifest.id if preferred is not None else bundles[0].manifest.id
 
     def _load_bundle(self, manifest_path: Path) -> ScenarioBundle:

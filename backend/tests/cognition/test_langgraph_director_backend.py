@@ -102,9 +102,7 @@ async def test_langgraph_director_backend_proposes_plan() -> None:
 def test_director_agent_parse_response_prefers_target_agent_names() -> None:
     from app.cognition.claude.director_agent import DirectorAgent, DirectorContext
 
-    agent = DirectorAgent(
-        Settings(agent_backend="heuristic", director_backend="claude_sdk")
-    )
+    agent = DirectorAgent(Settings(agent_backend="heuristic", director_backend="claude_sdk"))
     context = DirectorContext(
         run_id="run-1",
         current_tick=5,
@@ -164,9 +162,7 @@ def test_director_agent_parse_response_prefers_target_agent_names() -> None:
 def test_director_agent_builds_prompt_with_generic_subject_vocabulary() -> None:
     from app.cognition.claude.director_agent import DirectorAgent, DirectorContext
 
-    agent = DirectorAgent(
-        Settings(agent_backend="heuristic", director_backend="claude_sdk")
-    )
+    agent = DirectorAgent(Settings(agent_backend="heuristic", director_backend="claude_sdk"))
     prompt = agent._build_decision_prompt(
         DirectorContext(
             run_id="run-1",

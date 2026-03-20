@@ -131,7 +131,9 @@ class RunBaseResponse(BaseModel):
     id: str = Field(..., description="运行 ID", examples=["550e8400-e29b-41d4-a716-446655440000"])
     name: str = Field(..., description="运行名称", examples=["Truman Town"])
     status: str = Field(..., description="运行状态", examples=["running", "paused", "stopped"])
-    scenario_type: str = Field(..., description="场景类型", examples=["narrative_world", "open_world"])
+    scenario_type: str = Field(
+        ..., description="场景类型", examples=["narrative_world", "open_world"]
+    )
     current_tick: int = Field(..., description="当前 tick", examples=[42])
     tick_minutes: int = Field(..., description="每 tick 分钟数", examples=[5])
     was_running_before_restart: bool = Field(False, description="服务重启前是否在运行中")
