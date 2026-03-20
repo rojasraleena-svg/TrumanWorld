@@ -126,6 +126,7 @@ export type WorldLocation = {
 export type WorldSnapshot = {
   run: RunSummary;
   world_clock?: WorldClock;
+  subject_agent_id?: string | null;
   locations: WorldLocation[];
   recent_events: WorldEvent[];
   director_stats?: {

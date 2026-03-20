@@ -26,6 +26,7 @@ from app.api.schemas.simulation import (
 from app.infra.db import get_db_session
 from app.infra.logging import get_logger
 from app.scenario.bundle_registry import load_ui_config_for_scenario, load_world_config_for_scenario
+from app.scenario.runtime_config import build_scenario_runtime_config
 from app.scenario.truman_world.types import get_agent_config_id
 from app.sim.context import DEFAULT_WORLD_START_TIME, get_run_world_time
 from app.store.repositories import (
@@ -57,6 +58,15 @@ def build_occupants_by_location(agents) -> dict[str, list]:
             continue
         occupants_by_location.setdefault(agent.current_location_id, []).append(agent)
     return occupants_by_location
+
+
+def resolve_subject_agent_id(agents, scenario_type: str | None) -> str | None:
+    runtime_config = build_scenario_runtime_config(scenario_type)
+    subject_role = runtime_config.subject_role
+    for agent in agents:
+        if (agent.profile or {}).get("world_role") == subject_role:
+            return agent.id
+    return None
 
 
 def enrich_event_payload(
@@ -560,6 +570,7 @@ async def get_world_snapshot(
     return WorldSnapshotResponse(
         run=build_run_snapshot(run),
         world_clock=build_world_clock(world_time),
+        subject_agent_id=resolve_subject_agent_id(agents, run.scenario_type),
         locations=locations_payload,
         recent_events=[
             build_world_event_response(event, agent_name_map, location_name_map)

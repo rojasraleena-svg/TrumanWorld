@@ -452,6 +452,7 @@ class DirectorMemoriesResponse(BaseModel):
 class WorldSnapshotResponse(BaseModel):
     run: WorldSnapshotRunResponse = Field(..., description="运行信息")
     world_clock: WorldClockResponse = Field(..., description="世界时钟")
+    subject_agent_id: str | None = Field(None, description="当前场景主体 agent ID")
     locations: list[WorldLocationResponse] = Field(default_factory=list, description="地点列表")
     recent_events: list[WorldEventResponse] = Field(default_factory=list, description="最近事件")
     director_stats: WorldDirectorStatsResponse = Field(

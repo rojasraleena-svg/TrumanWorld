@@ -35,6 +35,7 @@ async def test_get_world_snapshot_returns_locations_agents_and_public_events(cli
     assert world_response.status_code == 200
     body = world_response.json()
     assert body["run"]["id"] == run_id
+    assert body["subject_agent_id"]
     assert len(body["locations"]) == 7
     assert any(len(location["occupants"]) >= 1 for location in body["locations"])
     occupant = next(

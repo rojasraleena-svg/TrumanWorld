@@ -153,6 +153,7 @@ export function calculateWorldHealthMetrics(
 
   // 3. 主体告警值
   const subjectAgent =
+    agents.find((a) => a.id === world.subject_agent_id) ??
     agents.find((a) => (a.profile?.world_role as string | undefined) === "truman") ??
     agents.find((a) => a.name === "Truman");
   const subjectAlertScore =
