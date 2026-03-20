@@ -25,8 +25,8 @@ export interface WorldHealthMetrics {
   socialActivity: number;
   socialTrend: Trend;
 
-  trumanSuspicion: number;
-  suspicionTrend: Trend;
+  subjectAlert: number;
+  subjectAlertTrend: Trend;
 
   directorStats: {
     total: number;
@@ -151,11 +151,11 @@ export function calculateWorldHealthMetrics(
       talkEvents.length > (fallbackBaseline / 2) ? "up" : talkEvents.length > 0 ? "stable" : "down";
   }
 
-  // 3. Truman怀疑度
+  // 3. 主体告警值
   const truman = agents.find((a) => a.name === "Truman");
-  const trumanSuspicion =
+  const subjectAlert =
     ((truman?.status?.suspicion_score as number) ?? 0) * 100;
-  const suspicionTrend: Trend = "stable";
+  const subjectAlertTrend: Trend = "stable";
 
   // 4. 导演干预统计
   const totalMemories = directorMemories?.length ?? 0;
@@ -181,8 +181,8 @@ export function calculateWorldHealthMetrics(
     socialActivity,
     socialTrend,
 
-    trumanSuspicion: Math.round(trumanSuspicion),
-    suspicionTrend,
+    subjectAlert: Math.round(subjectAlert),
+    subjectAlertTrend,
 
     directorStats: {
       total: totalDirectorInterventions,

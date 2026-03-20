@@ -147,10 +147,10 @@ export function WorldHealthPanel({ metrics, runId, world }: WorldHealthPanelProp
           description="居民之间的交流频率"
         />
         <MetricBar
-          label="Truman怀疑度"
-          value={metrics.trumanSuspicion}
-          trend={metrics.suspicionTrend}
-          description="Truman 对世界的信任程度"
+          label="主体告警"
+          value={metrics.subjectAlert}
+          trend={metrics.subjectAlertTrend}
+          description="当前场景主体角色的警觉/异常水平"
         />
       </div>
 
