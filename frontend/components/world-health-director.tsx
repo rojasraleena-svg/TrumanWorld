@@ -8,8 +8,8 @@ import { DirectorEventForm } from "@/components/director-event-form";
 import { ErrorState } from "@/components/error-state";
 import { LoadingState } from "@/components/loading-state";
 import { Modal, WorkspaceModalShell } from "@/components/modal";
-import { getDirectorMemoriesResult } from "@/lib/api";
-import type { DirectorMemory } from "@/lib/types";
+import { getDirectorMemoriesResult, getDirectorObservationResult } from "@/lib/api";
+import type { DirectorMemory, DirectorObservation } from "@/lib/types";
 
 interface DirectorStatsProps {
   stats: {
@@ -106,6 +106,9 @@ export function DirectorInterventionModal({
 }: DirectorInterventionModalProps) {
   const [selectedFilter, setSelectedFilter] = useState<DirectorFilter>("all");
   const [memories, setMemories] = useState<DirectorMemory[]>([]);
+  const [observation, setObservation] = useState<DirectorObservation | null>(null);
+  const [isLoadingObservation, setIsLoadingObservation] = useState(false);
+  const [observationError, setObservationError] = useState<string | null>(null);
   const [isLoadingMemories, setIsLoadingMemories] = useState(false);
   const [memoryError, setMemoryError] = useState<string | null>(null);
   const queuedCount = memories.filter((memory) => memory.delivery_status === "queued").length;
@@ -132,7 +135,22 @@ export function DirectorInterventionModal({
       setIsLoadingMemories(false);
     }
 
+    async function loadObservation() {
+      setIsLoadingObservation(true);
+      setObservationError(null);
+      const result = await getDirectorObservationResult(runId);
+      if (cancelled) return;
+      if (result.data) {
+        setObservation(result.data);
+      } else {
+        setObservation(null);
+        setObservationError(result.error === "network_error" ? "后端不可达" : "观察结果加载失败");
+      }
+      setIsLoadingObservation(false);
+    }
+
     void loadMemories();
+    void loadObservation();
 
     return () => {
       cancelled = true;
@@ -155,9 +173,15 @@ export function DirectorInterventionModal({
   const handleInjected = () => {
     onInjected();
     void (async () => {
-      const result = await getDirectorMemoriesResult(runId, maxMemories ?? 100);
-      if (result.data) {
-        setMemories(result.data.memories);
+      const [memoriesResult, observationResult] = await Promise.all([
+        getDirectorMemoriesResult(runId, maxMemories ?? 100),
+        getDirectorObservationResult(runId),
+      ]);
+      if (memoriesResult.data) {
+        setMemories(memoriesResult.data.memories);
+      }
+      if (observationResult.data) {
+        setObservation(observationResult.data);
       }
     })();
   };
@@ -246,6 +270,30 @@ export function DirectorInterventionModal({
               </>
             }
           >
+            <div className="mb-4">
+              <DirectorObservationCard
+                observation={observation}
+                isLoading={isLoadingObservation}
+                error={observationError}
+                onRetry={() => {
+                  void (async () => {
+                    setIsLoadingObservation(true);
+                    setObservationError(null);
+                    const result = await getDirectorObservationResult(runId);
+                    if (result.data) {
+                      setObservation(result.data);
+                    } else {
+                      setObservation(null);
+                      setObservationError(
+                        result.error === "network_error" ? "后端不可达" : "观察结果加载失败"
+                      );
+                    }
+                    setIsLoadingObservation(false);
+                  })();
+                }}
+              />
+            </div>
+
             <div className="mb-4 flex items-center gap-2">
               <span className="text-lg font-semibold text-ink">
                 {selectedFilter === "all" && "全部干预"}
@@ -407,6 +455,112 @@ function DirectorMemoryCard({ memory }: { memory: DirectorMemory }) {
           </p>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function DirectorObservationCard({
+  observation,
+  isLoading,
+  error,
+  onRetry,
+}: {
+  observation: DirectorObservation | null;
+  isLoading: boolean;
+  error: string | null;
+  onRetry: () => void;
+}) {
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+        <LoadingState message="正在加载导演观察..." size="sm" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+        <ErrorState message={error} onRetry={onRetry} size="sm" />
+      </div>
+    );
+  }
+
+  if (!observation) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs text-sm text-slate-500">
+        暂无导演观察结果
+      </div>
+    );
+  }
+
+  const alertTone = observation.subject_alert_tracking_enabled
+    ? "bg-amber-50 text-amber-700 border-amber-100"
+    : "bg-slate-100 text-slate-700 border-slate-200";
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-medium uppercase tracking-wider text-slate-400">导演观察</div>
+          <div className="mt-1 text-base font-semibold text-slate-900">当前世界信号</div>
+        </div>
+        <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${alertTone}`}>
+          {observation.subject_alert_tracking_enabled ? "主体告警已启用" : "主体告警未启用"}
+        </span>
+      </div>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-3">
+        <ObservationMetric
+          label="连续性风险"
+          value={observation.continuity_risk}
+          tone="text-slate-900"
+        />
+        <ObservationMetric
+          label="怀疑级别"
+          value={observation.suspicion_level}
+          tone={observation.subject_alert_tracking_enabled ? "text-amber-700" : "text-slate-500"}
+        />
+        <ObservationMetric
+          label="主体告警"
+          value={
+            observation.subject_alert_tracking_enabled && observation.subject_alert_score != null
+              ? observation.subject_alert_score.toFixed(2)
+              : "N/A"
+          }
+          tone={observation.subject_alert_tracking_enabled ? "text-amber-700" : "text-slate-500"}
+        />
+      </div>
+
+      {observation.focus_agent_ids.length > 0 ? (
+        <div className="mt-3 text-sm text-slate-600">
+          <span className="font-medium text-slate-700">关注对象：</span>
+          {observation.focus_agent_ids.join("、")}
+        </div>
+      ) : null}
+
+      {observation.notes.length > 0 ? (
+        <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          {observation.notes[0]}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ObservationMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: string;
+}) {
+  return (
+    <div className="rounded-xl bg-slate-50 px-3 py-2">
+      <div className="text-[11px] font-medium uppercase tracking-wider text-slate-400">{label}</div>
+      <div className={`mt-1 text-sm font-semibold ${tone}`}>{value}</div>
     </div>
   );
 }
