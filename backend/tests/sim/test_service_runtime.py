@@ -1,9 +1,11 @@
 import pytest
 
 from app.cognition.heuristic.agent_backend import HeuristicAgentBackend
+import app.director.service as director_service_module
 from app.director.service import DirectorEventService
 from app.infra.settings import get_settings
 from app.scenario.truman_world.coordinator import TrumanWorldCoordinator
+from app.scenario.truman_world.rules import RuntimeRoleSemantics
 from app.sim.action_resolver import ActionIntent
 from app.sim.service import SimulationService
 from app.store.models import Agent, Location, SimulationRun
@@ -281,6 +283,79 @@ async def test_manual_director_intervention_is_not_consumed_in_read_phase(db_ses
     assert first_plan.location_hint == square.id
     assert len(pending) == 1
     assert pending[0].was_executed is False
+
+
+@pytest.mark.asyncio
+async def test_director_event_service_uses_subject_role_semantics_for_manual_events(
+    db_session, monkeypatch: pytest.MonkeyPatch
+):
+    run = SimulationRun(
+        id="run-service-manual-semantics",
+        name="service",
+        status="running",
+        scenario_type="hero_world",
+        current_tick=0,
+        tick_minutes=5,
+    )
+    square = Location(
+        id="loc-square-manual-semantics",
+        run_id=run.id,
+        name="Square",
+        location_type="plaza",
+        capacity=4,
+    )
+    ally = Agent(
+        id="run-service-manual-semantics-ally",
+        run_id=run.id,
+        name="Guide",
+        occupation="resident",
+        home_location_id=square.id,
+        current_location_id=square.id,
+        current_goal="rest",
+        personality={},
+        profile={"agent_config_id": "guide", "world_role": "ally"},
+        status={},
+        current_plan={},
+    )
+    protagonist = Agent(
+        id="run-service-manual-semantics-protagonist",
+        run_id=run.id,
+        name="Hero",
+        occupation="resident",
+        home_location_id=square.id,
+        current_location_id=square.id,
+        current_goal="rest",
+        personality={},
+        profile={"agent_config_id": "hero", "world_role": "protagonist"},
+        status={},
+        current_plan={},
+    )
+    db_session.add_all([run, square, ally, protagonist])
+    await db_session.commit()
+
+    monkeypatch.setattr(
+        director_service_module,
+        "build_runtime_role_semantics",
+        lambda scenario_id: RuntimeRoleSemantics(
+            subject_role="protagonist",
+            support_roles=["ally"],
+            alert_metric="anomaly_score",
+        ),
+    )
+
+    await DirectorEventService(db_session).inject_event(
+        run_id=run.id,
+        event_type="broadcast",
+        payload={"message": "Town hall at plaza"},
+        location_id=square.id,
+        importance=0.8,
+    )
+
+    memories = await DirectorMemoryRepository(db_session).list_for_run(run.id)
+
+    assert len(memories) == 1
+    assert memories[0].target_agent_id == protagonist.id
+    assert memories[0].target_agent_ids == f'["{ally.id}"]'
 
 
 @pytest.mark.asyncio

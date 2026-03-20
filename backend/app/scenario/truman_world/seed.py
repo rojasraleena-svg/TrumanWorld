@@ -163,14 +163,21 @@ class TrumanWorldSeedBuilder:
             )
 
             # 构建状态
+            status_extras = initial.status.model_extra or {}
+            alert_value = status_extras.get(semantics.alert_metric)
+            if alert_value is None:
+                alert_value = status_extras.get("alert_score")
+            if alert_value is None:
+                alert_value = initial.status.suspicion_score
+
             status = {
                 "energy": initial.status.energy,
             }
             if (
-                initial.status.suspicion_score > 0
+                float(alert_value or 0.0) > 0
                 or config.world_role == semantics.subject_role
             ):
-                status[semantics.alert_metric] = initial.status.suspicion_score
+                status[semantics.alert_metric] = float(alert_value or 0.0)
 
             # 构建计划
             current_plan = {

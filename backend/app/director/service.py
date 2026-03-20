@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from app.director.manual_planner import ManualDirectorPlanner
+from app.director.manual_planner import ManualDirectorPlanner, ManualDirectorPlannerSemantics
 from app.protocol.simulation import build_director_event_type
+from app.scenario.truman_world.rules import build_runtime_role_semantics
 from app.scenario.types import get_world_role
 from app.sim.context import get_run_world_time
 from app.sim.event_utils import build_event
@@ -26,7 +27,6 @@ class DirectorEventService:
         self.director_memory_repo = DirectorMemoryRepository(session)
         self.event_repo = EventRepository(session)
         self.location_repo = LocationRepository(session)
-        self.manual_planner = ManualDirectorPlanner()
 
     async def inject_event(
         self,
@@ -54,15 +54,24 @@ class DirectorEventService:
             raise ValueError(msg)
 
         agents = await self.agent_repo.list_for_run(run_id)
-        truman = next(
-            (agent for agent in agents if get_world_role(agent.profile) == "truman"), None
+        semantics = build_runtime_role_semantics(run.scenario_type)
+        manual_planner = ManualDirectorPlanner(
+            semantics=ManualDirectorPlannerSemantics(support_roles=semantics.support_roles)
         )
-        plan = self.manual_planner.build_plan_from_manual_event(
+        subject_agent = next(
+            (
+                agent
+                for agent in agents
+                if get_world_role(agent.profile) == semantics.subject_role
+            ),
+            None,
+        )
+        plan = manual_planner.build_plan_from_manual_event(
             event_type=event_type,
             payload=payload,
             location_id=location_id,
             agents=agents,
-            subject_agent_id=truman.id if truman else None,
+            subject_agent_id=subject_agent.id if subject_agent else None,
         )
         if plan is None:
             msg = f"Unsupported director event type: {event_type}"
