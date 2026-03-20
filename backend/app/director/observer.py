@@ -23,6 +23,7 @@ class DirectorAssessment:
     current_tick: int
     subject_agent_id: str | None
     subject_alert_score: float
+    subject_alert_tracking_enabled: bool
     suspicion_level: str
     continuity_risk: str
     suspicion_trend: SuspicionTrend | None = None
@@ -39,6 +40,7 @@ class DirectorAssessment:
         current_tick: int,
         subject_agent_id: str | None = None,
         subject_alert_score: float = 0.0,
+        subject_alert_tracking_enabled: bool = True,
         suspicion_level: str,
         continuity_risk: str,
         suspicion_trend: SuspicionTrend | None = None,
@@ -57,6 +59,7 @@ class DirectorAssessment:
         self.current_tick = current_tick
         self.subject_agent_id = subject_agent_id
         self.subject_alert_score = subject_alert_score
+        self.subject_alert_tracking_enabled = subject_alert_tracking_enabled
         self.suspicion_level = suspicion_level
         self.continuity_risk = continuity_risk
         self.suspicion_trend = suspicion_trend
@@ -166,6 +169,7 @@ class DirectorObserver:
             current_tick=current_tick,
             subject_agent_id=subject.id if subject else None,
             subject_alert_score=subject_alert_score,
+            subject_alert_tracking_enabled=self._semantics.subject_alert_tracking,
             suspicion_level=(
                 self._label_suspicion(subject_alert_score)
                 if self._semantics.subject_alert_tracking

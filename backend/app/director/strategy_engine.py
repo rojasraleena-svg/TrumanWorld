@@ -60,6 +60,12 @@ class StrategyConditionEngine:
 
     def _get_metric(self, metric_name: str, assessment: DirectorAssessment) -> Any:
         """Get metric value from assessment by name."""
+        alert_metrics = {"suspicion_level", "suspicion_trend", "subject_alert_score"}
+        if (
+            metric_name in alert_metrics
+            and not getattr(assessment, "subject_alert_tracking_enabled", True)
+        ):
+            return None
         metric_map = {
             "truman_isolation_ticks": assessment.truman_isolation_ticks,
             "suspicion_level": assessment.suspicion_level,

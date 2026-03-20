@@ -338,3 +338,29 @@ async def test_director_planner_consumes_langgraph_backend_async_result():
     assert second is not None
     assert second.scene_goal == DIRECTOR_SCENE_SOFT_CHECK_IN
     assert second.target_agent_ids == ["cast-spouse"]
+
+
+@pytest.mark.asyncio
+async def test_director_planner_can_trigger_continuity_strategy_without_alert_tracking():
+    planner = DirectorPlanner()
+    agents = [
+        _make_cast_agent("cast-spouse", "Meryl", "spouse"),
+        _make_truman_agent(0.0),
+    ]
+    assessment = DirectorAssessment(
+        run_id="run-1",
+        current_tick=6,
+        subject_agent_id="truman-1",
+        subject_alert_score=0.0,
+        subject_alert_tracking_enabled=False,
+        suspicion_level="low",
+        continuity_risk="elevated",
+        focus_agent_ids=["truman-1"],
+        notes=["最近存在被拒绝或受阻的动作。"],
+    )
+
+    plan = await planner.build_plan(assessment=assessment, agents=agents)
+
+    assert plan is not None
+    assert plan.scene_goal == "keep_scene_natural"
+    assert plan.target_agent_ids == ["cast-spouse"]
