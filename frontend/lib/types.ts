@@ -198,6 +198,18 @@ export type DirectorMemory = {
   created_at: string;
 };
 
+export type DirectorObservation = {
+  run_id: string;
+  current_tick: number;
+  subject_agent_id?: string | null;
+  subject_alert_tracking_enabled: boolean;
+  subject_alert_score?: number | null;
+  suspicion_level: string;
+  continuity_risk: string;
+  focus_agent_ids: string[];
+  notes: string[];
+};
+
 export type SystemMetrics = {
   processResidentMemoryBytes: number;
   processVirtualMemoryBytes: number;

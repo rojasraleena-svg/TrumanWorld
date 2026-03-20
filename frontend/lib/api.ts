@@ -3,6 +3,7 @@ import type {
   AgentSummary,
   CreateRunResponse,
   DemoAccessStatus,
+  DirectorObservation,
   DirectorMemory,
   RunSummary,
   ScenarioSummary,
@@ -21,6 +22,7 @@ export type {
   AgentSummary,
   CreateRunResponse,
   DemoAccessStatus,
+  DirectorObservation,
   DirectorMemory,
   RunSummary,
   ScenarioSummary,
@@ -241,6 +243,12 @@ export async function getDirectorMemoriesResult(
   return fetchResult<{ run_id: string; memories: DirectorMemory[]; total: number }>(
     `/runs/${runId}/director/memories?limit=${limit}`,
   );
+}
+
+export async function getDirectorObservationResult(
+  runId: string,
+): Promise<ApiResult<DirectorObservation>> {
+  return fetchResult<DirectorObservation>(`/runs/${runId}/director/observation`);
 }
 
 export async function getAgentResult(
