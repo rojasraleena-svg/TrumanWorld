@@ -189,6 +189,97 @@ async def test_truman_world_scenario_seed_and_state_update(db_session):
 
 
 @pytest.mark.asyncio
+async def test_truman_world_adapter_updates_configured_subject_alert_metric(
+    db_session, tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    bundle_root = tmp_path / "scenarios" / "alt_world"
+    agent_dir = bundle_root / "agents" / "hero"
+    agent_dir.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: alt_world",
+                "name: Alt World",
+                "version: 1",
+                "adapter: truman_world",
+                "semantics:",
+                "  subject_role: protagonist",
+                "  support_roles:",
+                "    - ally",
+                "  alert_metric: anomaly_score",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (bundle_root / "world.yml").write_text(
+        "\n".join(
+            [
+                "locations:",
+                "  - id_suffix: library",
+                "    name: 静水图书馆",
+                "    location_type: library",
+                "    capacity: 4",
+                "    x: 5",
+                "    y: 6",
+                "    attributes:",
+                "      kind: quiet",
+                "location_id_map:",
+                "  apartment: library",
+                "occupation_names:",
+                "  resident: 住户",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "agent.yml").write_text(
+        "\n".join(
+            [
+                "id: hero",
+                "name: Hero",
+                "world_role: protagonist",
+                "occupation: resident",
+                "home: apartment",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "prompt.md").write_text("# Hero\nBase prompt", encoding="utf-8")
+    (agent_dir / "bio.md").write_text("Alt bundle hero", encoding="utf-8")
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    run = SimulationRun(
+        id="run-alt-world-alert",
+        name="alt-world-alert",
+        status="running",
+        scenario_type="alt_world",
+    )
+    db_session.add(run)
+    await db_session.commit()
+
+    scenario = create_scenario("alt_world", db_session)
+    await scenario.seed_demo_run(run)
+
+    agents = await AgentRepository(db_session).list_for_run(run.id)
+    protagonist = next(agent for agent in agents if (agent.profile or {}).get("world_role") == "protagonist")
+    starting_score = float((protagonist.status or {}).get("anomaly_score", 0.0))
+    event = Event(
+        id="evt-alt-world-alert",
+        run_id=run.id,
+        tick_no=1,
+        event_type="move_rejected",
+        actor_agent_id=protagonist.id,
+        payload={"agent_id": protagonist.id},
+    )
+
+    await scenario.update_state_from_events(run.id, [event])
+    await db_session.refresh(protagonist)
+
+    assert protagonist.status["anomaly_score"] > starting_score
+
+
+@pytest.mark.asyncio
 async def test_truman_world_seed_builder_prefers_scenario_bundle_agents(
     db_session, tmp_path, monkeypatch: pytest.MonkeyPatch
 ):

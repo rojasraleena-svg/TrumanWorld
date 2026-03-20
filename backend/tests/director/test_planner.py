@@ -2,7 +2,7 @@ import pytest
 import asyncio
 
 from app.director.observer import DirectorAssessment, SuspicionTrend
-from app.director.planner import DirectorPlanner
+from app.director.planner import DirectorPlanner, DirectorPlannerSemantics
 from app.protocol.simulation import (
     DIRECTOR_SCENE_BREAK_ISOLATION,
     DIRECTOR_SCENE_PREEMPTIVE_COMFORT,
@@ -63,6 +63,42 @@ async def test_director_planner_builds_soft_check_in_plan_for_high_suspicion():
     assert plan.target_agent_ids == ["cast-spouse"]
     assert plan.priority == "advisory"
     assert plan.target_agent_id == "truman-1"
+
+
+@pytest.mark.asyncio
+async def test_director_planner_uses_semantics_support_roles():
+    planner = DirectorPlanner(
+        semantics=DirectorPlannerSemantics(support_roles=["ally"]),
+    )
+    agents = [
+        Agent(
+            id="ally-friend",
+            run_id="run-1",
+            name="Ally",
+            occupation="resident",
+            profile={"world_role": "ally", "agent_config_id": "friend"},
+            personality={},
+            status={},
+            current_plan={},
+        ),
+        _make_truman_agent(0.86),
+    ]
+    assessment = DirectorAssessment(
+        run_id="run-1",
+        current_tick=5,
+        subject_agent_id="truman-1",
+        subject_alert_score=0.86,
+        suspicion_level="high",
+        continuity_risk="watch",
+        focus_agent_ids=["truman-1"],
+        notes=["主体告警值已经明显升高。"],
+    )
+
+    plan = await planner.build_plan(assessment=assessment, agents=agents)
+
+    assert plan is not None
+    assert plan.scene_goal == DIRECTOR_SCENE_SOFT_CHECK_IN
+    assert plan.target_agent_ids == ["ally-friend"]
 
 
 @pytest.mark.asyncio

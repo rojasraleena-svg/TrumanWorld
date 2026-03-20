@@ -3,11 +3,12 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from app.director.observer import DirectorAssessment, DirectorObserver
-from app.director.planner import DirectorPlanner
+from app.director.observer import DirectorAssessment, DirectorObserver, DirectorObserverSemantics
+from app.director.planner import DirectorPlanner, DirectorPlannerSemantics
 from app.director.types import DirectorPlan
 from app.infra.logging import get_logger
 from app.infra.settings import get_settings
+from app.scenario.bundle_registry import get_scenario_bundle
 from app.scenario.truman_world.heuristics import build_truman_world_decision
 from app.scenario.truman_world.types import (
     DirectorGuidance,
@@ -50,8 +51,23 @@ class TrumanWorldCoordinator:
         self.director_memory_repo = (
             DirectorMemoryRepository(session) if session is not None else None
         )
-        self.observer = DirectorObserver()
-        self.planner = DirectorPlanner(scenario_id=scenario_id)
+        bundle = get_scenario_bundle(scenario_id)
+        semantics = bundle.semantics if bundle is not None else None
+        self.observer = DirectorObserver(
+            DirectorObserverSemantics(
+                subject_role=semantics.subject_role or "truman" if semantics else "truman",
+                support_roles=semantics.support_roles or ["cast"] if semantics else ["cast"],
+                alert_metric=semantics.alert_metric or "suspicion_score"
+                if semantics
+                else "suspicion_score",
+            )
+        )
+        self.planner = DirectorPlanner(
+            scenario_id=scenario_id,
+            semantics=DirectorPlannerSemantics(
+                support_roles=semantics.support_roles or ["cast"] if semantics else ["cast"]
+            ),
+        )
         self.settings = get_settings()
 
     async def observe_run(self, run_id: str, event_limit: int = 20) -> DirectorAssessment:
@@ -205,7 +221,11 @@ class TrumanWorldCoordinator:
             # 如果智能决策失败，回退到纯规则决策
             plan = self.planner._build_config_based_plan(
                 assessment=assessment,
-                cast_agents=[a for a in agents if get_world_role(a.profile) == "cast"],
+                support_agents=[
+                    a
+                    for a in agents
+                    if get_world_role(a.profile) in set(self.observer._semantics.support_roles)
+                ],
                 recent_goals=set(recent_goals),
             )
 

@@ -5,7 +5,12 @@ from pathlib import Path
 import yaml
 
 from app.infra.settings import get_settings
-from app.scenario.bundle_models import ScenarioBundle, ScenarioManifest
+from app.scenario.bundle_models import (
+    ScenarioBundle,
+    ScenarioCapabilities,
+    ScenarioManifest,
+    ScenarioSemantics,
+)
 
 
 class ScenarioBundleRegistry:
@@ -38,12 +43,16 @@ class ScenarioBundleRegistry:
 
         try:
             manifest = ScenarioManifest.model_validate(raw)
+            semantics = ScenarioSemantics.model_validate(raw.get("semantics", {}))
+            capabilities = ScenarioCapabilities.model_validate(raw.get("capabilities", {}))
         except Exception as exc:
             msg = f"Invalid scenario manifest: {manifest_path}"
             raise ValueError(msg) from exc
 
         return ScenarioBundle(
             manifest=manifest,
+            semantics=semantics,
+            capabilities=capabilities,
             root=manifest_path.parent,
             manifest_path=manifest_path,
         )
@@ -63,6 +72,17 @@ class ScenarioBundleRegistry:
 def get_scenario_bundle_registry() -> ScenarioBundleRegistry:
     settings = get_settings()
     return ScenarioBundleRegistry(settings.project_root / "scenarios")
+
+
+def get_scenario_bundle(
+    scenario_id: str | None,
+    *,
+    project_root: Path | None = None,
+) -> ScenarioBundle | None:
+    settings = get_settings()
+    base_root = project_root or settings.project_root
+    registry = ScenarioBundleRegistry(base_root / "scenarios")
+    return registry.get_bundle(scenario_id)
 
 
 def resolve_agents_root_for_scenario(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from app.cognition.claude.director_agent import DirectorContext
@@ -18,6 +19,11 @@ if TYPE_CHECKING:
     from app.store.models import Agent
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class DirectorPlannerSemantics:
+    support_roles: list[str] = field(default_factory=lambda: ["cast"])
 
 
 class DirectorPlanner:
@@ -42,8 +48,10 @@ class DirectorPlanner:
         backend: DirectorCognitionBackend | None = None,
         *,
         scenario_id: str = "truman_world",
+        semantics: DirectorPlannerSemantics | None = None,
     ) -> None:
         self._scenario_id = scenario_id
+        self._semantics = semantics or DirectorPlannerSemantics()
         self._backend = backend or get_cognition_registry().build_director_backend()
         self._strategy_executor = StrategyExecutor()
         self._pending_decision: asyncio.Task[DirectorPlan | None] | None = None
@@ -81,8 +89,12 @@ class DirectorPlanner:
         Returns:
             DirectorPlan 或 None（无需干预时）
         """
-        cast_agents = [agent for agent in agents if get_world_role(agent.profile) == "cast"]
-        if not cast_agents or assessment.subject_agent_id is None:
+        support_agents = [
+            agent
+            for agent in agents
+            if get_world_role(agent.profile) in set(self._semantics.support_roles)
+        ]
+        if not support_agents or assessment.subject_agent_id is None:
             return None
 
         # 检查最近已执行的干预，避免重复
@@ -128,6 +140,7 @@ class DirectorPlanner:
                     current_tick=current_tick,
                     assessment=assessment,
                     agents=agent_snapshots,  # 纯 dict，不绑定 session
+                    support_roles=list(self._semantics.support_roles),
                     recent_events=recent_events or [],
                     recent_interventions=recent_interventions or [],
                     world_time=world_time,
@@ -145,20 +158,20 @@ class DirectorPlanner:
 
         # 回退到配置化规则决策（同步，立即返回）
         # _build_config_based_plan 仍使用原始 ORM 对象（同步访问，无 greenlet 问题）
-        return self._build_config_based_plan(assessment, cast_agents, recent_goals)
+        return self._build_config_based_plan(assessment, support_agents, recent_goals)
 
     def _build_config_based_plan(
         self,
         assessment: DirectorAssessment,
-        cast_agents: list[Agent],
+        support_agents: list[Agent],
         recent_goals: set[str],
     ) -> DirectorPlan | None:
         """基于配置的干预计划构建（回退方案）
 
         使用 director.yml 中的策略配置，通过 StrategyConditionEngine 评估条件。
         """
-        primary_cast = self._pick_primary_cast(cast_agents)
-        if primary_cast is None:
+        primary_support = self._pick_primary_support(support_agents)
+        if primary_support is None:
             return None
 
         # 使用策略执行器评估配置的策略
@@ -167,7 +180,7 @@ class DirectorPlanner:
             assessment=assessment,
             recent_goals=recent_goals,
             subject_agent_id=assessment.subject_agent_id,
-            primary_cast_id=primary_cast.id,
+            primary_cast_id=primary_support.id,
         )
 
         if triggered is None:
@@ -189,9 +202,9 @@ class DirectorPlanner:
             cooldown_ticks=plan_data["cooldown_ticks"],
         )
 
-    def _pick_primary_cast(self, cast_agents: list[Agent]) -> Agent | None:
+    def _pick_primary_support(self, support_agents: list[Agent]) -> Agent | None:
         sorted_agents = sorted(
-            cast_agents,
+            support_agents,
             key=lambda agent: (
                 get_agent_config_id(agent.profile) not in {"spouse", "friend"},
                 agent.name,

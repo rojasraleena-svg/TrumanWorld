@@ -52,13 +52,11 @@ class LangGraphDirectorBackend:
             return None
 
         context = invocation.context
-        cast_agents = [
-            a for a in context.agents if a.get("profile", {}).get("world_role") == "cast"
-        ]
-        if not cast_agents or context.assessment.subject_agent_id is None:
+        support_agents = self._agent._select_support_agents(context)
+        if not support_agents or context.assessment.subject_agent_id is None:
             return None
 
-        prompt = self._agent._build_decision_prompt(context, cast_agents, invocation.recent_goals)
+        prompt = self._agent._build_decision_prompt(context, support_agents, invocation.recent_goals)
         full_prompt = f"{prompt}\n\n重要：你必须只返回一个有效的 JSON 对象，不要有其他任何文本。"
 
         try:
@@ -70,7 +68,7 @@ class LangGraphDirectorBackend:
         return self._agent._parse_response(
             self._extract_text_content(response),
             context,
-            cast_agents,
+            support_agents,
         )
 
     def _build_default_model(self) -> BaseChatModel | None:

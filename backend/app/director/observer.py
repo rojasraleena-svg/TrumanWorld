@@ -75,8 +75,18 @@ class DirectorAssessment:
         self.active_support_count = value
 
 
+@dataclass
+class DirectorObserverSemantics:
+    subject_role: str = "truman"
+    support_roles: list[str] = field(default_factory=lambda: ["cast"])
+    alert_metric: str = "suspicion_score"
+
+
 class DirectorObserver:
     """Read-only observer for world stability and subject alert signals."""
+
+    def __init__(self, semantics: DirectorObserverSemantics | None = None) -> None:
+        self._semantics = semantics or DirectorObserverSemantics()
 
     def assess(
         self,
@@ -88,12 +98,18 @@ class DirectorObserver:
         previous_suspicion_score: float = 0.0,
         truman_isolation_ticks: int = 0,
     ) -> DirectorAssessment:
-        truman = next(
-            (agent for agent in agents if get_world_role(agent.profile) == "truman"),
+        subject = next(
+            (
+                agent
+                for agent in agents
+                if get_world_role(agent.profile) == self._semantics.subject_role
+            ),
             None,
         )
-        suspicion_score = (
-            float((truman.status or {}).get("suspicion_score", 0.0) or 0.0) if truman else 0.0
+        subject_alert_score = (
+            float((subject.status or {}).get(self._semantics.alert_metric, 0.0) or 0.0)
+            if subject
+            else 0.0
         )
 
         rejected_count = sum(1 for event in events if event.event_type.endswith("_rejected"))
@@ -104,11 +120,11 @@ class DirectorObserver:
 
         # 计算告警度趋势
         suspicion_trend = self._compute_suspicion_trend(
-            current_score=suspicion_score,
+            current_score=subject_alert_score,
             previous_score=previous_suspicion_score,
         )
 
-        focus_agent_ids = [truman.id] if truman else []
+        focus_agent_ids = [subject.id] if subject else []
         for event in events:
             for agent_id in (event.actor_agent_id, event.target_agent_id):
                 if not agent_id or agent_id in focus_agent_ids:
@@ -120,35 +136,39 @@ class DirectorObserver:
                 break
 
         # 计算支援角色数量
-        cast_count = sum(1 for agent in agents if get_world_role(agent.profile) == "cast")
+        support_count = sum(
+            1
+            for agent in agents
+            if get_world_role(agent.profile) in set(self._semantics.support_roles)
+        )
 
         notes: list[str] = []
-        if suspicion_score >= 0.6:
-            notes.append("Truman 的怀疑度已进入需要重点观察的区间。")
+        if subject_alert_score >= 0.6:
+            notes.append("主体告警值已进入需要重点观察的区间。")
         if suspicion_trend and suspicion_trend.trend_type == "rapid_rise":
-            notes.append(f"警告：怀疑度正在快速上升（+{suspicion_trend.delta:.2f}）。")
+            notes.append(f"警告：主体告警值正在快速上升（+{suspicion_trend.delta:.2f}）。")
         if rejected_count > 0:
             notes.append("最近存在被拒绝或受阻的动作，可能削弱世界的自然感。")
         if director_count > 0:
             notes.append("最近出现了导演级事件，需要关注连续性修补效果。")
         if truman_isolation_ticks >= 3:
-            notes.append(f"Truman 已经连续 {truman_isolation_ticks} 个 tick 独处，可能感到孤独。")
+            notes.append(f"主体已经连续 {truman_isolation_ticks} 个 tick 独处，可能感到孤独。")
         if not notes:
             notes.append("世界整体保持平稳，暂无明显异常信号。")
 
         return DirectorAssessment(
             run_id=run_id,
             current_tick=current_tick,
-            subject_agent_id=truman.id if truman else None,
-            subject_alert_score=suspicion_score,
-            suspicion_level=self._label_suspicion(suspicion_score),
+            subject_agent_id=subject.id if subject else None,
+            subject_alert_score=subject_alert_score,
+            suspicion_level=self._label_suspicion(subject_alert_score),
             suspicion_trend=suspicion_trend,
             continuity_risk=self._label_continuity(continuity_score),
             focus_agent_ids=focus_agent_ids,
             notes=notes,
             truman_isolation_ticks=truman_isolation_ticks,
             recent_rejections=rejected_count,
-            active_support_count=cast_count,
+            active_support_count=support_count,
         )
 
     def _compute_suspicion_trend(

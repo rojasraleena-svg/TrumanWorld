@@ -13,7 +13,7 @@ from app.scenario.truman_world.rules import (
     filter_world_for_role,
 )
 from app.scenario.truman_world.seed import TrumanWorldSeedBuilder
-from app.scenario.truman_world.state import TrumanWorldStateUpdater
+from app.scenario.truman_world.state import TrumanWorldStateUpdater, build_alert_state_semantics
 from app.scenario.types import AgentProfile, ScenarioGuidance
 
 if TYPE_CHECKING:
@@ -35,7 +35,14 @@ class TrumanWorldScenario(Scenario):
         self.session = session
         self.scenario_id = scenario_id
         self.coordinator = TrumanWorldCoordinator(session, scenario_id=scenario_id)
-        self.state_updater = TrumanWorldStateUpdater(session) if session is not None else None
+        self.state_updater = (
+            TrumanWorldStateUpdater(
+                session,
+                semantics=build_alert_state_semantics(scenario_id),
+            )
+            if session is not None
+            else None
+        )
         self.seed_builder = (
             TrumanWorldSeedBuilder(session, scenario_id=scenario_id) if session is not None else None
         )
@@ -122,4 +129,4 @@ class TrumanWorldScenario(Scenario):
         if self.state_updater is None:
             msg = "TrumanWorldScenario.update_state_from_events requires a database session"
             raise RuntimeError(msg)
-        await self.state_updater.persist_truman_suspicion(run_id, events)
+        await self.state_updater.persist_subject_alert(run_id, events)

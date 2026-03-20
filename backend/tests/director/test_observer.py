@@ -1,4 +1,4 @@
-from app.director.observer import DirectorObserver
+from app.director.observer import DirectorObserver, DirectorObserverSemantics
 from app.store.models import Agent, Event
 
 
@@ -61,3 +61,70 @@ def test_director_observer_assesses_truman_world_state():
     assert assessment.continuity_risk in {"watch", "elevated", "critical"}
     assert assessment.focus_agent_ids[0] == "truman-1"
     assert assessment.notes
+
+
+def test_director_observer_uses_semantics_for_subject_support_and_alert_metric():
+    observer = DirectorObserver(
+        DirectorObserverSemantics(
+            subject_role="protagonist",
+            support_roles=["ally", "cast"],
+            alert_metric="anomaly_score",
+        )
+    )
+    agents = [
+        Agent(
+            id="hero-1",
+            run_id="run-2",
+            name="Hero",
+            occupation="resident",
+            profile={"world_role": "protagonist"},
+            status={"anomaly_score": 0.74},
+            personality={},
+            current_plan={},
+        ),
+        Agent(
+            id="ally-1",
+            run_id="run-2",
+            name="Ally",
+            occupation="friend",
+            profile={"world_role": "ally"},
+            status={},
+            personality={},
+            current_plan={},
+        ),
+        Agent(
+            id="cast-1",
+            run_id="run-2",
+            name="Cast",
+            occupation="neighbor",
+            profile={"world_role": "cast"},
+            status={},
+            personality={},
+            current_plan={},
+        ),
+    ]
+    events = [
+        Event(
+            id="evt-10",
+            run_id="run-2",
+            tick_no=2,
+            event_type="move_rejected",
+            actor_agent_id="hero-1",
+            payload={"agent_id": "hero-1"},
+        )
+    ]
+
+    assessment = observer.assess(
+        run_id="run-2",
+        current_tick=2,
+        agents=agents,
+        events=events,
+        previous_suspicion_score=0.42,
+    )
+
+    assert assessment.subject_agent_id == "hero-1"
+    assert assessment.subject_alert_score == 0.74
+    assert assessment.active_support_count == 2
+    assert assessment.suspicion_level == "alerted"
+    assert assessment.focus_agent_ids[0] == "hero-1"
+    assert any("主体告警值" in note for note in assessment.notes)

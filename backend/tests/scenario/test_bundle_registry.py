@@ -76,6 +76,70 @@ def test_bundle_registry_returns_bundle_by_id(tmp_path):
     assert bundle.manifest.name == "Truman World"
 
 
+def test_bundle_registry_loads_scenario_semantics_and_capabilities(tmp_path):
+    scenarios_root = tmp_path / "scenarios"
+    bundle_root = scenarios_root / "hero_world"
+    bundle_root.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: hero_world",
+                "name: Hero World",
+                "version: 1",
+                "adapter: truman_world",
+                "semantics:",
+                "  subject_role: protagonist",
+                "  support_roles:",
+                "    - cast",
+                "    - ally",
+                "  alert_metric: anomaly_score",
+                "capabilities:",
+                "  director: true",
+                "  alert_tracking: false",
+                "  scene_guidance: true",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    bundle = ScenarioBundleRegistry(scenarios_root).get_bundle("hero_world")
+
+    assert bundle is not None
+    assert bundle.semantics.subject_role == "protagonist"
+    assert bundle.semantics.support_roles == ["cast", "ally"]
+    assert bundle.semantics.alert_metric == "anomaly_score"
+    assert bundle.capabilities.director is True
+    assert bundle.capabilities.alert_tracking is False
+    assert bundle.capabilities.scene_guidance is True
+
+
+def test_bundle_registry_uses_empty_defaults_when_semantics_and_capabilities_missing(tmp_path):
+    scenarios_root = tmp_path / "scenarios"
+    bundle_root = scenarios_root / "open_world"
+    bundle_root.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: open_world",
+                "name: Open World",
+                "version: 1",
+                "adapter: open_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    bundle = ScenarioBundleRegistry(scenarios_root).get_bundle("open_world")
+
+    assert bundle is not None
+    assert bundle.semantics.subject_role is None
+    assert bundle.semantics.support_roles == []
+    assert bundle.semantics.alert_metric is None
+    assert bundle.capabilities.director is None
+    assert bundle.capabilities.alert_tracking is None
+    assert bundle.capabilities.scene_guidance is None
+
+
 def test_bundle_registry_prefers_bundle_agents_directory(tmp_path, monkeypatch):
     scenarios_root = tmp_path / "scenarios"
     bundle_root = scenarios_root / "truman_world"

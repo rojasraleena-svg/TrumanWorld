@@ -55,6 +55,7 @@ class DirectorContext:
     current_tick: int
     assessment: DirectorAssessment
     agents: list[dict[str, Any]]
+    support_roles: list[str] | None
     recent_events: list[dict[str, Any]]
     recent_interventions: list[dict[str, Any]]
     world_time: str
@@ -101,18 +102,26 @@ class DirectorAgent:
         if not self._enabled:
             return None
 
-        cast_agents = [a for a in context.agents if get_world_role(a.get("profile")) == "cast"]
-        if not cast_agents or context.assessment.subject_agent_id is None:
+        support_agents = self._select_support_agents(context)
+        if not support_agents or context.assessment.subject_agent_id is None:
             return None
 
-        prompt = self._build_decision_prompt(context, cast_agents, recent_goals)
+        prompt = self._build_decision_prompt(context, support_agents, recent_goals)
 
         try:
             response = await self._call_llm(prompt)
-            return self._parse_response(response, context, cast_agents)
+            return self._parse_response(response, context, support_agents)
         except Exception as exc:
             logger.warning(f"DirectorAgent LLM decision failed: {exc}")
             return None
+
+    def _select_support_agents(self, context: DirectorContext) -> list[dict[str, Any]]:
+        support_roles = set(context.support_roles or ["cast"])
+        return [
+            agent
+            for agent in context.agents
+            if get_world_role(agent.get("profile")) in support_roles
+        ]
 
     def _build_decision_prompt(
         self,
