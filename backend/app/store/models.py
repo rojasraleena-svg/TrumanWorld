@@ -4,6 +4,7 @@ from sqlalchemy import JSON, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infra.db import Base
+from app.scenario.bundle_registry import resolve_default_scenario_id
 
 
 class SimulationRun(Base):
@@ -13,7 +14,7 @@ class SimulationRun(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="draft")
-    scenario_type: Mapped[str] = mapped_column(String(30), default="truman_world")
+    scenario_type: Mapped[str] = mapped_column(String(30), default=resolve_default_scenario_id)
     current_tick: Mapped[int] = mapped_column(Integer, default=0)
     tick_minutes: Mapped[int] = mapped_column(Integer, default=5)
     world_seed: Mapped[int | None] = mapped_column(Integer)
