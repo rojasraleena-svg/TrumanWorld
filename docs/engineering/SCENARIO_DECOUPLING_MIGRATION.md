@@ -166,6 +166,47 @@ plan:
 
 这些问题当前主要影响命名一致性和 DSL 完整度，不再构成场景主流程的结构性耦合。
 
+## 当前残留的边界
+
+仓库里继续出现 `Truman` / `TrumanWorld` / `suspicion_score` 时，需要先判断它属于哪一层，再决定是否清理。
+
+### 1. 场景内容层
+
+这类残留是当前 `narrative_world` 默认场景本身的世界观内容，不属于平台耦合：
+
+- `scenarios/narrative_world/agents/*/prompt.md`
+- `scenarios/narrative_world/agents/truman/initial.yml`
+- `scenarios/narrative_world/scenario.yml` 中的 `alert_metric: suspicion_score`
+
+这些内容只有在更换默认场景设定时才应修改，不应因为“去 Truman 化”而机械删除。
+
+### 2. 品牌与产品文案层
+
+这类残留是项目品牌、产品标题或历史定位文案，不属于运行时结构耦合：
+
+- `frontend/app/layout.tsx`
+- `frontend/components/app-shell.tsx`
+- `frontend/components/world-opening-animation.tsx`
+- `frontend/public/logo*.svg`
+- `backend/app/main.py`
+- `docs/README.md`
+
+这部分是否修改，取决于产品是否决定连品牌名称一起迁移；在此之前不应与运行时重构混在同一个清扫步骤里。
+
+### 3. 历史与兼容层
+
+这类残留属于有意保留的历史记录或兼容输入：
+
+- Alembic migration history
+- 用于断言旧字段不存在的测试
+- `status.suspicion_score` 兼容输入
+- 旧产品/参考文档中的历史说明
+
+这里应继续遵守两条原则：
+
+- 只保留读取兼容，不再新增新的写入路径
+- 只在历史、测试、迁移说明中出现，不再作为主实现和主示例
+
 ## 仍然保留旧名的地方
 
 以下旧名仍可能在仓库中被搜索到，但它们属于预期保留：
