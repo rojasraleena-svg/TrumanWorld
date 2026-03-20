@@ -125,23 +125,24 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       </nav>
 
-      {/* 展开按钮 - 参考 ChatGPT 风格，侧边栏折叠时显示在左边缘 */}
+      {/* 展开按钮 - 轻量贴边入口，尽量不遮挡主视图 */}
       {isCollapsed && (
         <button
           type="button"
           onClick={() => setIsCollapsed(false)}
-          className="absolute left-0 top-1/2 z-50 flex h-12 w-6 -translate-y-1/2 items-center justify-center rounded-r-lg border border-l-0 border-slate-200 bg-white/90 text-slate-400 shadow-xs backdrop-blur-sm transition-all hover:w-7 hover:bg-white hover:text-slate-600"
+          className="absolute left-3 top-[88px] z-50 flex h-8 w-8 items-center justify-center rounded-full border border-white/70 bg-white/72 text-slate-400 shadow-sm shadow-slate-900/8 backdrop-blur-md transition-all hover:scale-105 hover:bg-white/92 hover:text-slate-600 active:scale-95"
           title="展开侧边栏"
+          aria-label="展开侧边栏"
         >
-          {/* 双竖线图标 - 参考 ChatGPT */}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-            <path d="M9 6v12M15 6v12" />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+            <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M5 5.5v13" strokeLinecap="round" opacity="0.45" />
           </svg>
         </button>
       )}
 
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex justify-end border-b border-white/60 bg-white/55 px-6 py-3 backdrop-blur-sm">
+      <div className="relative flex flex-1 flex-col overflow-hidden">
+        <div className="absolute right-4 top-4 z-50">
           <DemoAccessControl />
         </div>
         {children}
