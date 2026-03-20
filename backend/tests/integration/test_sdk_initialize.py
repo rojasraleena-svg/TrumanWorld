@@ -39,7 +39,7 @@ def build_live_options() -> ClaudeAgentOptions:
         settings,
         max_turns=1,
         max_budget_usd=0.05,
-        model=settings.agent_model,
+        model=settings.llm_model,
         cwd=str(settings.project_root),
         permission_mode="bypassPermissions",
     )
@@ -59,7 +59,7 @@ async def test_claude_sdk_client_initialize() -> None:
         elapsed = time.perf_counter() - started_at
         pytest.fail(
             "Claude SDK initialize failed "
-            f"after {elapsed:.2f}s with model={settings.agent_model!r}, "
+            f"after {elapsed:.2f}s with model={settings.llm_model!r}, "
             f"base_url={settings.anthropic_base_url!r}: {exc}"
         )
     finally:

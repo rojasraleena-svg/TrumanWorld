@@ -58,7 +58,7 @@ TRUMANWORLD_DEMO_ADMIN_PASSWORD=换成你自己的强密码
 ```env
 TRUMANWORLD_AGENT_BACKEND=claude_sdk
 TRUMANWORLD_ANTHROPIC_API_KEY=你的_key
-TRUMANWORLD_AGENT_MODEL=你的模型名
+TRUMANWORLD_LLM_MODEL=你的模型名
 TRUMANWORLD_DIRECTOR_BACKEND=claude_sdk
 TRUMANWORLD_DIRECTOR_AGENT_MODEL=你的导演模型名
 ```
@@ -190,7 +190,7 @@ railway variable set --service backend \
 ```bash
 railway variable set --service backend \
   TRUMANWORLD_AGENT_BACKEND=claude_sdk \
-  TRUMANWORLD_AGENT_MODEL='your-model' \
+  TRUMANWORLD_LLM_MODEL='your-model' \
   TRUMANWORLD_DIRECTOR_BACKEND=claude_sdk \
   TRUMANWORLD_DIRECTOR_AGENT_MODEL='your-director-model'
 ```
@@ -301,7 +301,7 @@ bash scripts/railway-bootstrap.sh
 FRONTEND_DOMAIN=your-frontend.up.railway.app \
 ENABLE_CLAUDE=true \
 TRUMANWORLD_ANTHROPIC_API_KEY=your_key \
-TRUMANWORLD_AGENT_MODEL=your-model \
+TRUMANWORLD_LLM_MODEL=your-model \
 TRUMANWORLD_DIRECTOR_AGENT_MODEL=your-director-model \
 bash scripts/railway-bootstrap.sh
 ```

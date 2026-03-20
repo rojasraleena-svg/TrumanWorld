@@ -146,7 +146,7 @@ class ClaudeSdkAgentBackend:
             self._settings,
             max_turns=4,
             max_budget_usd=0.05,
-            model=self._settings.agent_model,
+            model=self._settings.llm_model,
             cwd=str(self._settings.project_root),
             system_prompt=build_system_prompt(),
         )

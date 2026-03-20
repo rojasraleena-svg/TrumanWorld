@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from app.cognition.registry import CognitionRegistry
 from app.cognition.types import DirectorDecisionInvocation
 from app.director.observer import DirectorAssessment
@@ -47,8 +49,8 @@ async def test_langgraph_director_backend_proposes_plan() -> None:
     settings = Settings(
         agent_backend="heuristic",
         director_backend="langgraph",
-        langgraph_model="claude-test",
-        langgraph_api_key="langgraph-key",
+        llm_model="claude-test",
+        llm_api_key="langgraph-key",
     )
     backend = LangGraphDirectorBackend(settings=settings, text_model=FakeTextModel())
     invocation = DirectorDecisionInvocation(
@@ -228,8 +230,8 @@ async def test_langgraph_director_backend_uses_context_support_roles() -> None:
     settings = Settings(
         agent_backend="heuristic",
         director_backend="langgraph",
-        langgraph_model="claude-test",
-        langgraph_api_key="langgraph-key",
+        llm_model="claude-test",
+        llm_api_key="langgraph-key",
     )
     backend = LangGraphDirectorBackend(settings=settings, text_model=FakeTextModel())
     invocation = DirectorDecisionInvocation(
@@ -273,3 +275,30 @@ async def test_langgraph_director_backend_uses_context_support_roles() -> None:
 
     assert result is not None
     assert result.target_agent_ids == ["ally-1"]
+
+
+def test_langgraph_director_backend_builds_openai_model_from_langgraph_settings() -> None:
+    from app.cognition.langgraph.director_backend import LangGraphDirectorBackend
+
+    settings = Settings(
+        agent_backend="heuristic",
+        director_backend="langgraph",
+        llm_provider="openai",
+        llm_model="gpt-4.1-mini",
+        llm_api_key="openai-key",
+        llm_base_url="https://example.invalid/v1",
+    )
+    captured: dict = {}
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs) -> None:
+            captured.update(kwargs)
+
+    with patch("langchain_openai.ChatOpenAI", FakeChatOpenAI):
+        backend = LangGraphDirectorBackend(settings=settings)
+
+    assert backend._text_model is not None
+    assert captured["model"] == "gpt-4.1-mini"
+    assert captured["api_key"] == "openai-key"
+    assert captured["base_url"] == "https://example.invalid/v1"
+    assert captured["temperature"] == 0

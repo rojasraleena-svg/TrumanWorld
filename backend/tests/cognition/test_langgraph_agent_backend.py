@@ -48,10 +48,9 @@ async def test_langgraph_backend_falls_back_to_rest_without_directive() -> None:
     backend = LangGraphAgentBackend(
         settings=Settings(
             agent_backend="langgraph",
-            langgraph_model=None,
-            langgraph_api_key=None,
-            langgraph_base_url=None,
-            agent_model=None,
+            llm_model=None,
+            llm_api_key=None,
+            llm_base_url=None,
             anthropic_api_key=None,
             anthropic_base_url=None,
         )
@@ -632,9 +631,9 @@ def test_langgraph_backend_builds_default_model_from_langgraph_settings() -> Non
 
     settings = Settings(
         agent_backend="langgraph",
-        langgraph_model="claude-sonnet-test",
-        langgraph_api_key="langgraph-key",
-        langgraph_base_url="https://proxy.invalid/anthropic",
+        llm_model="claude-sonnet-test",
+        llm_api_key="langgraph-key",
+        llm_base_url="https://proxy.invalid/anthropic",
     )
     captured: dict = {}
 
@@ -657,7 +656,7 @@ def test_langgraph_backend_builds_default_model_from_shared_env_fields() -> None
 
     settings = Settings(
         agent_backend="langgraph",
-        agent_model="shared-agent-model",
+        llm_model="shared-agent-model",
         anthropic_api_key="shared-anthropic-key",
         anthropic_base_url="https://shared.invalid/anthropic",
     )
@@ -674,3 +673,67 @@ def test_langgraph_backend_builds_default_model_from_shared_env_fields() -> None
     assert captured["model"] == "shared-agent-model"
     assert captured["api_key"] == "shared-anthropic-key"
     assert captured["base_url"] == "https://shared.invalid/anthropic"
+
+
+def test_langgraph_backend_builds_openai_model_from_langgraph_settings() -> None:
+    from app.cognition.langgraph.agent_backend import LangGraphAgentBackend
+
+    settings = Settings(
+        agent_backend="langgraph",
+        llm_provider="openai",
+        llm_model="gpt-4.1-mini",
+        llm_api_key="openai-key",
+        llm_base_url="https://example.invalid/v1",
+    )
+    captured: dict = {}
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs) -> None:
+            captured.update(kwargs)
+
+    with patch("langchain_openai.ChatOpenAI", FakeChatOpenAI):
+        backend = LangGraphAgentBackend(settings=settings)
+
+    assert backend._decision_model is not None
+    assert captured["model"] == "gpt-4.1-mini"
+    assert captured["api_key"] == "openai-key"
+    assert captured["base_url"] == "https://example.invalid/v1"
+    assert captured["temperature"] == 0
+
+
+async def test_langgraph_backend_uses_plain_text_prompt_for_openai_provider() -> None:
+    from app.cognition.langgraph.agent_backend import LangGraphAgentBackend
+
+    settings = Settings(
+        agent_backend="langgraph",
+        llm_provider="openai",
+        langgraph_reactor_prompt_cache_enabled=True,
+    )
+
+    class FakeTextModel:
+        def __init__(self) -> None:
+            self.prompts: list[object] = []
+
+        async def ainvoke(self, prompt: object):
+            self.prompts.append(prompt)
+            return """
+            {
+              "action_type": "rest"
+            }
+            """
+
+    model = FakeTextModel()
+    backend = LangGraphAgentBackend(settings=settings, decision_model=model)
+    invocation = AgentActionInvocation(
+        agent_id="alice",
+        prompt="Pick the next action.",
+        context={"world": {"current_goal": "rest"}},
+        max_turns=2,
+        max_budget_usd=0.1,
+        allowed_actions=["move", "talk", "work", "rest"],
+    )
+
+    result = await backend.decide_action(invocation)
+
+    assert result.action_type == "rest"
+    assert isinstance(model.prompts[0], str)

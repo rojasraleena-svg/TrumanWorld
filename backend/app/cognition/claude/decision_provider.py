@@ -144,7 +144,7 @@ class ClaudeSDKDecisionProvider(AgentDecisionProvider):
             self.settings,
             max_turns=invocation.max_turns,
             max_budget_usd=budget,
-            model=self.settings.agent_model,
+            model=self.settings.llm_model,
             cwd=str(self.settings.project_root),
             system_prompt=build_system_prompt(),
             resume=session_id,

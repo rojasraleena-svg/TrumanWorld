@@ -28,11 +28,11 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     anthropic_base_url: str | None = None
     agent_backend: Literal["heuristic", "claude_sdk", "langgraph"] = "heuristic"
-    agent_model: str | None = None
     agent_budget_usd: float = 1.0
-    langgraph_model: str | None = None
-    langgraph_api_key: str | None = None
-    langgraph_base_url: str | None = None
+    llm_provider: Literal["anthropic", "openai"] = "anthropic"
+    llm_model: str | None = None
+    llm_api_key: str | None = None
+    llm_base_url: str | None = None
     langgraph_reactor_structured_enabled: bool = False
     langgraph_reactor_prompt_cache_enabled: bool = True
     langgraph_reactor_max_concurrency: int = 4
@@ -78,10 +78,9 @@ class Settings(BaseSettings):
             "database_url",
             "anthropic_api_key",
             "anthropic_base_url",
-            "agent_model",
-            "langgraph_model",
-            "langgraph_api_key",
-            "langgraph_base_url",
+            "llm_model",
+            "llm_api_key",
+            "llm_base_url",
             "anthropic_model",
             "claude_sdk_home_dir",
             "director_agent_model",
@@ -102,14 +101,19 @@ class Settings(BaseSettings):
                     "TRUMANWORLD_DATABASE_URL must be set in non-development environments"
                 )
 
-        if self.agent_model is None and self.anthropic_model is not None:
-            self.agent_model = self.anthropic_model
-        if self.langgraph_model is None and self.agent_model is not None:
-            self.langgraph_model = self.agent_model
-        if self.langgraph_api_key is None and self.anthropic_api_key is not None:
-            self.langgraph_api_key = self.anthropic_api_key
-        if self.langgraph_base_url is None and self.anthropic_base_url is not None:
-            self.langgraph_base_url = self.anthropic_base_url
+        if self.llm_model is None:
+            self.llm_model = self.anthropic_model
+        if self.llm_provider == "anthropic":
+            if self.anthropic_api_key is None:
+                self.anthropic_api_key = self.llm_api_key
+            if self.anthropic_base_url is None:
+                self.anthropic_base_url = self.llm_base_url
+        if self.llm_api_key is None:
+            if self.llm_provider == "anthropic":
+                self.llm_api_key = self.anthropic_api_key
+        if self.llm_base_url is None:
+            if self.llm_provider == "anthropic":
+                self.llm_base_url = self.anthropic_base_url
         if self.claude_sdk_home_dir is None:
             self.claude_sdk_home_dir = self.project_root / ".claude-sdk-home"
         return self

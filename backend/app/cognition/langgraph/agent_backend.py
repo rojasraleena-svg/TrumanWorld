@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import json
-import sys
-import types
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -17,6 +15,7 @@ from app.cognition.errors import (
     UpstreamApiUnavailableError,
     is_upstream_api_unavailable_error,
 )
+from app.cognition.langgraph.model_factory import build_langgraph_chat_model
 from app.cognition.protocols import ChatModelProtocol, StructuredModelProtocol
 from app.cognition.types import (
     AgentActionInvocation,
@@ -32,19 +31,6 @@ if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
 
 logger = get_logger(__name__)
-
-try:
-    import langchain_anthropic as _langchain_anthropic  # type: ignore[import-not-found]
-except ModuleNotFoundError:
-    _langchain_anthropic = types.ModuleType("langchain_anthropic")
-
-    class _MissingChatAnthropic:
-        def __init__(self, *args, **kwargs) -> None:
-            msg = "langchain_anthropic is not installed"
-            raise ModuleNotFoundError(msg)
-
-    _langchain_anthropic.ChatAnthropic = _MissingChatAnthropic
-    sys.modules["langchain_anthropic"] = _langchain_anthropic
 
 
 class _StructuredDecision(BaseModel):
@@ -278,25 +264,7 @@ class LangGraphAgentBackend:
         return result
 
     def _build_default_model(self) -> BaseChatModel | None:
-        if not self._settings.langgraph_model or not self._settings.langgraph_api_key:
-            return None
-
-        from langchain_anthropic import ChatAnthropic
-
-        model_kwargs: dict[str, Any] = {
-            "model": self._settings.langgraph_model,
-            "api_key": self._settings.langgraph_api_key,
-            "temperature": 0,
-        }
-        if self._settings.langgraph_base_url:
-            model_kwargs["base_url"] = self._settings.langgraph_base_url
-        try:
-            return ChatAnthropic(**model_kwargs)
-        except ModuleNotFoundError:
-            logger.warning(
-                "langchain_anthropic is unavailable; LangGraph backend will use fallback mode"
-            )
-            return None
+        return build_langgraph_chat_model(self._settings)
 
     def decision_concurrency_limit(self) -> int | None:
         limit = self._settings.langgraph_reactor_max_concurrency
@@ -404,6 +372,8 @@ class LangGraphAgentBackend:
     def _build_reactor_messages(
         self, invocation: AgentActionInvocation
     ) -> list[HumanMessage] | str:
+        if self._settings.llm_provider != "anthropic":
+            return self._build_text_json_prompt(invocation)
         if not self._settings.langgraph_reactor_prompt_cache_enabled:
             return self._build_text_json_prompt(invocation)
 

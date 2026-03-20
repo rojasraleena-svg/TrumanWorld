@@ -59,7 +59,7 @@ class AgentConnectionPool:
             self.settings,
             max_turns=3,
             max_budget_usd=self.settings.agent_budget_usd,
-            model=self.settings.agent_model,
+            model=self.settings.llm_model,
             cwd=str(self.settings.project_root),
             system_prompt=build_system_prompt(),
             permission_mode="bypassPermissions",
