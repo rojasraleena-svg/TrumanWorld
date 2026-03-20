@@ -28,7 +28,6 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     anthropic_base_url: str | None = None
     agent_backend: Literal["heuristic", "claude_sdk", "langgraph"] = "heuristic"
-    agent_model: str | None = None
     agent_budget_usd: float = 1.0
     llm_provider: Literal["anthropic", "openai"] = "anthropic"
     llm_model: str | None = None
@@ -79,7 +78,6 @@ class Settings(BaseSettings):
             "database_url",
             "anthropic_api_key",
             "anthropic_base_url",
-            "agent_model",
             "llm_model",
             "llm_api_key",
             "llm_base_url",
@@ -103,12 +101,8 @@ class Settings(BaseSettings):
                     "TRUMANWORLD_DATABASE_URL must be set in non-development environments"
                 )
 
-        if self.agent_model is None and self.llm_model is not None:
-            self.agent_model = self.llm_model
-        if self.agent_model is None and self.anthropic_model is not None:
-            self.agent_model = self.anthropic_model
         if self.llm_model is None:
-            self.llm_model = self.agent_model
+            self.llm_model = self.anthropic_model
         if self.llm_provider == "anthropic":
             if self.anthropic_api_key is None:
                 self.anthropic_api_key = self.llm_api_key

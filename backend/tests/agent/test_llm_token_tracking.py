@@ -149,7 +149,7 @@ class TestPlannerTokenTracking:
         # Create mock settings
         mock_settings = MagicMock(spec=Settings)
         mock_settings.agent_backend = "claude_sdk"
-        mock_settings.agent_model = "claude-sonnet-4-20250514"
+        mock_settings.llm_model = "claude-sonnet-4-20250514"
         mock_settings.anthropic_api_key = "test-key"
         mock_settings.anthropic_base_url = None
         mock_settings.project_root = tmp_path
@@ -239,7 +239,7 @@ class TestReflectorTokenTracking:
         # Create mock settings
         mock_settings = MagicMock(spec=Settings)
         mock_settings.agent_backend = "claude_sdk"
-        mock_settings.agent_model = "claude-sonnet-4-20250514"
+        mock_settings.llm_model = "claude-sonnet-4-20250514"
         mock_settings.anthropic_api_key = "test-key"
         mock_settings.anthropic_base_url = None
         mock_settings.project_root = tmp_path
@@ -327,7 +327,7 @@ class TestFreeTextBypassesPool:
         from app.infra.settings import Settings
 
         settings = MagicMock(spec=Settings)
-        settings.agent_model = "claude-sonnet-4-20250514"
+        settings.llm_model = "claude-sonnet-4-20250514"
         settings.project_root = tmp_path
         settings.anthropic_api_key = "test-key"
         settings.anthropic_base_url = None
@@ -362,7 +362,7 @@ class TestFreeTextBypassesPool:
         from app.infra.settings import Settings
 
         settings = MagicMock(spec=Settings)
-        settings.agent_model = "claude-sonnet-4-20250514"
+        settings.llm_model = "claude-sonnet-4-20250514"
         settings.project_root = tmp_path
         settings.anthropic_api_key = "test-key"
         settings.anthropic_base_url = None

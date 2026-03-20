@@ -17,7 +17,7 @@ def test_settings_support_langgraph_specific_model_config() -> None:
 def test_settings_backfill_langgraph_config_from_existing_anthropic_fields() -> None:
     settings = Settings(
         agent_backend="langgraph",
-        agent_model="agent-fallback-model",
+        llm_model="agent-fallback-model",
         anthropic_api_key="anthropic-key",
         anthropic_base_url="https://anthropic-proxy.invalid",
     )
@@ -57,7 +57,7 @@ def test_settings_backfill_claude_sdk_fields_from_anthropic_llm_settings() -> No
         llm_base_url="https://anthropic-proxy.invalid",
     )
 
-    assert settings.agent_model == "claude-sonnet-test"
+    assert settings.llm_model == "claude-sonnet-test"
     assert settings.anthropic_api_key == "anthropic-key"
     assert settings.anthropic_base_url == "https://anthropic-proxy.invalid"
 
@@ -71,6 +71,6 @@ def test_settings_do_not_backfill_claude_sdk_fields_from_openai_llm_settings() -
         llm_base_url="https://example.invalid/v1",
     )
 
-    assert settings.agent_model == "gpt-4.1-mini"
+    assert settings.llm_model == "gpt-4.1-mini"
     assert settings.anthropic_api_key is None
     assert settings.anthropic_base_url is None

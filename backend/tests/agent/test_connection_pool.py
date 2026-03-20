@@ -60,7 +60,7 @@ def pool() -> AgentConnectionPool:
         project_root="/tmp/trumanworld-test",
         anthropic_api_key="test-key",
         anthropic_base_url="https://example.invalid",
-        agent_model="fake-model",
+        llm_model="fake-model",
         agent_budget_usd=2.5,
     )
     return AgentConnectionPool(settings, max_connections=2, idle_timeout_seconds=10)

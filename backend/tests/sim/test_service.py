@@ -493,7 +493,7 @@ async def test_simulation_service_runs_tick_with_langgraph_backend(
     db_session, tmp_path, monkeypatch
 ):
     monkeypatch.setenv("TRUMANWORLD_AGENT_BACKEND", "langgraph")
-    monkeypatch.setenv("TRUMANWORLD_AGENT_MODEL", "langgraph-smoke-model")
+    monkeypatch.setenv("TRUMANWORLD_LLM_MODEL", "langgraph-smoke-model")
     monkeypatch.setenv("TRUMANWORLD_ANTHROPIC_API_KEY", "langgraph-smoke-key")
     get_settings.cache_clear()
     try:

@@ -51,7 +51,6 @@ async def test_langgraph_backend_falls_back_to_rest_without_directive() -> None:
             llm_model=None,
             llm_api_key=None,
             llm_base_url=None,
-            agent_model=None,
             anthropic_api_key=None,
             anthropic_base_url=None,
         )
@@ -657,7 +656,7 @@ def test_langgraph_backend_builds_default_model_from_shared_env_fields() -> None
 
     settings = Settings(
         agent_backend="langgraph",
-        agent_model="shared-agent-model",
+        llm_model="shared-agent-model",
         anthropic_api_key="shared-anthropic-key",
         anthropic_base_url="https://shared.invalid/anthropic",
     )

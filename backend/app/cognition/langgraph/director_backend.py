@@ -78,7 +78,6 @@ class LangGraphDirectorBackend:
         model_name = (
             self._settings.director_agent_model
             or self._settings.llm_model
-            or self._settings.agent_model
         )
         return build_langgraph_chat_model(self._settings, model_name=model_name)
 
