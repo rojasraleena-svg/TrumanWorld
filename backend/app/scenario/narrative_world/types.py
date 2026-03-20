@@ -1,4 +1,4 @@
-"""TrumanWorld-specific types.
+"""Narrative-world specific types.
 
 Generic types (AgentProfile, ScenarioGuidance, get_world_role, get_agent_config_id,
 build_agent_profile, merge_agent_profile) now live in app.scenario.types.
@@ -31,7 +31,7 @@ __all__ = [
 
 
 # ---------------------------------------------------------------------------
-# TrumanWorld-private: Director guidance
+# Narrative-world private: Director guidance
 # ---------------------------------------------------------------------------
 
 
@@ -44,7 +44,7 @@ def merge_scenario_agent_profile(
     profile: Mapping[str, Any] | None,
     guidance: DirectorGuidance | None = None,
 ) -> AgentProfile:
-    """Merge a profile dict with optional TrumanWorld DirectorGuidance."""
+    """Merge a profile dict with optional narrative-world DirectorGuidance."""
     from typing import cast as _cast
 
     base = _cast("AgentProfile", dict(profile or {}))

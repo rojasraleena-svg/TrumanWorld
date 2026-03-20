@@ -152,7 +152,7 @@ def build_role_context(
 
 
 def build_world_common_knowledge(scenario_id: str = "narrative_world") -> dict[str, Any]:
-    """Build world common knowledge shared by all agents in TrumanWorld.
+    """Build world common knowledge shared by all agents in the narrative world.
 
     This defines the shared understanding of how the world works,
     including daily rhythms, location purposes, and social norms.

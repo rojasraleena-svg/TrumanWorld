@@ -1,4 +1,4 @@
-# Director Agent Configuration for TrumanWorld
+# Director Agent Configuration for Narrative World
 # 导演智能体配置文件
 
 # 基础配置
@@ -31,10 +31,10 @@ prompt:
 strategies:
   break_isolation:
     name: "打破隔离"
-    description: "当 Truman 独处时间过长时，引导 Cast 自然接触"
+    description: "当主体独处时间过长时，引导支援角色自然接触"
     condition:
       type: "threshold"
-      metric: "truman_isolation_ticks"
+      metric: "subject_isolation_ticks"
       operator: "gte"
       value: 5
     action:

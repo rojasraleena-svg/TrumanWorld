@@ -12,7 +12,7 @@ You are the Director of the simulation. Your role is to observe the world state 
 
 - **Agent ID**: {{subject_agent_id}}
 - **Alert Score**: {{subject_alert_score}} (level: {{suspicion_level}})
-- **Isolation Ticks**: {{truman_isolation_ticks}}
+- **Isolation Ticks**: {{subject_isolation_ticks}}
 - **Recent Rejections**: {{recent_rejections}}
 - **Continuity Risk**: {{continuity_risk}}
 
