@@ -8,8 +8,8 @@ import { fetchApiResult, getInternalApiBaseUrl, type ApiResult } from "@/lib/api
 import type { RunSummary } from "@/lib/types";
 
 export const metadata: Metadata = {
-  title: "Truman World",
-  description: "观察、记录、注入事件——AI 居民们不知道自己是 AI | 楚门的世界 AI 版",
+  title: "Narrative World",
+  description: "观察、记录、注入事件，管理一个可持续运行的 AI 社会模拟世界",
   icons: {
     icon: "/icon.svg",
   },

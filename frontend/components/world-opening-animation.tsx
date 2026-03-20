@@ -87,7 +87,7 @@ export function WorldOpeningAnimation({ isVisible, onComplete, runName, mode = "
             >
               <Image
                 src="/logo.svg"
-                alt="Truman World"
+                alt="Narrative World"
                 width={256}
                 height={256}
                 className="h-full w-full"
@@ -106,7 +106,7 @@ export function WorldOpeningAnimation({ isVisible, onComplete, runName, mode = "
               <TypewriterText
                 text={
                   mode === "enter"
-                    ? "欢迎来到 Truman World"
+                    ? "欢迎来到 Narrative World"
                     : runName ? `世界 "${runName}" 已创建` : "新世界已创建"
                 }
                 className="text-2xl font-medium text-white"
@@ -122,7 +122,7 @@ export function WorldOpeningAnimation({ isVisible, onComplete, runName, mode = "
               transition={{ delay: 0.8 }}
               className="absolute bottom-8"
             >
-              <p className="text-xs text-slate-500">Truman World</p>
+              <p className="text-xs text-slate-500">Narrative World</p>
             </motion.div>
           )}
         </motion.div>

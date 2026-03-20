@@ -56,10 +56,10 @@ export function AppShell({ children }: AppShellProps) {
         <div className="flex items-center justify-between border-b border-white/60 px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-md shadow-slate-900/10">
-              <Image src="/logo.svg" alt="Truman World Logo" width={36} height={36} priority />
+              <Image src="/logo.svg" alt="Narrative World Logo" width={36} height={36} priority />
             </div>
             <div className="overflow-hidden">
-              <h1 className="text-sm font-semibold text-ink">Truman World</h1>
+              <h1 className="text-sm font-semibold text-ink">Narrative World</h1>
               <p className="text-[11px] text-slate-400">你就是导演</p>
             </div>
           </div>

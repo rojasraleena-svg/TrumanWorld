@@ -1,1 +1,1 @@
-"""AI Truman World backend package."""
+"""Narrative World backend package."""

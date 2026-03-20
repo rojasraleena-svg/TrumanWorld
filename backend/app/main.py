@@ -52,18 +52,18 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     settings = get_settings()
 
-    info(f"Starting AI Truman World API in {settings.app_env} mode")
+    info(f"Starting Narrative World API in {settings.app_env} mode")
     info(f"Log level: {settings.log_level}")
     info(f"CORS allowed origins: {settings.cors_allowed_origins}")
 
     app = FastAPI(
-        title="AI Truman World API",
+        title="Narrative World API",
         version="0.1.0",
         lifespan=lifespan,
         description="""
-## 楚门的世界 AI 版 - 你是导演
+## Narrative World - 你是导演
 
-AI 居民们不知道自己是 AI。你只能观察、记录、注入事件——**不能操控任何人的想法**。
+你只能观察、记录、注入事件——**不能操控任何人的想法**。
 
 ### 核心功能
 
