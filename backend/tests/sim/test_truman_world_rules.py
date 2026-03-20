@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-from app.scenario.truman_world.rules import (
+from app.scenario.narrative_world.rules import (
     build_perception_context_for_agent,
     build_role_context,
     build_runtime_role_semantics,
