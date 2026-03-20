@@ -31,7 +31,7 @@ class DirectorPlanner:
     - soft_check_in: 高怀疑度时的温和互动
     - preemptive_comfort: 怀疑度快速上升时的预防性干预
     - keep_scene_natural: 连续性风险时的场景维护
-    - break_isolation: 打破 Truman 长时间独处
+    - break_isolation: 打破主体长时间独处
     - rejection_recovery: 处理连续被拒绝的场景
 
     实验性功能：当 director_backend != heuristic 时，优先使用 LLM 智能决策

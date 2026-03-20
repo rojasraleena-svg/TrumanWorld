@@ -255,7 +255,7 @@ class StrategyExecutor:
         )
         reason_map = {
             "subject_isolation_ticks": f"主体已经连续独处较长时间，触发 '{config_name}' 策略",
-            "truman_isolation_ticks": f"Truman 已经连续独处较长时间，触发 '{config_name}' 策略",
+            "truman_isolation_ticks": f"主体已经连续独处较长时间，触发 '{config_name}' 策略",
             "suspicion_trend": f"怀疑度趋势为 {value}，触发 '{config_name}' 策略",
             "suspicion_level": f"怀疑度等级为 {value}，触发 '{config_name}' 策略",
             "continuity_risk": f"连续性风险为 {value}，触发 '{config_name}' 策略",

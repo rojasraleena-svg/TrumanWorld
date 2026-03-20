@@ -254,8 +254,8 @@ class DirectorAgent:
                     "target_agent_names": ["Alice"],
                     "priority": "normal",
                     "urgency": "advisory",
-                    "reasoning": "Truman has been isolated for several ticks. A natural encounter would help maintain engagement.",
-                    "message_hint": "You happen to be going to the same location as Truman. Keep it natural, don't force interaction.",
+                    "reasoning": "The subject has been isolated for several ticks. A natural encounter would help maintain engagement.",
+                    "message_hint": "You happen to be going to the same location as the subject. Keep it natural, don't force interaction.",
                     "strategy": "Natural encounter to break isolation",
                     "cooldown_ticks": 4,
                 }
