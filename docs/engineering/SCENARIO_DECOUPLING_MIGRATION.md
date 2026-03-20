@@ -137,7 +137,7 @@ spawn:
   goal: greet
 status:
   energy: 0.8
-  suspicion_score: 0.2
+  alert_score: 0.2
 plan:
   default: patrol
 ```
@@ -147,7 +147,7 @@ plan:
 - `spawn.location` 优先于 `initial_location`
 - `spawn.goal` 优先于 `initial_goal`
 - `status.<alert_metric>` 优先作为主体告警输入
-- `status.alert_score` 次之
+- `status.alert_score` 是推荐的通用输入名
 - `status.suspicion_score` 仍是兼容输入字段
 - seed 会根据 `scenario.yml` 的 `semantics.alert_metric` 把最终值写入对应状态字段
 
@@ -161,7 +161,6 @@ plan:
 以下部分仍然保留兼容层或旧 DSL 形态，需要后续继续收口：
 
 - `status.suspicion_score` 仍作为兼容输入字段存在
-- `get_latest_suspicion_score()` 等旧访问器仍保留兼容 wrapper
 - `plan.morning/daytime/evening` 仍然是默认保留计划字段
 - 产品品牌文案和历史参考文档仍大量使用 `TrumanWorld`
 

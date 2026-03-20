@@ -440,7 +440,7 @@ async def test_narrative_world_adapter_seed_supports_spawn_aliases(
             [
                 "status:",
                 "  energy: 0.9",
-                "  suspicion_score: 0.25",
+                "  alert_score: 0.25",
                 "spawn:",
                 "  location: workplace",
                 "  goal: greet",

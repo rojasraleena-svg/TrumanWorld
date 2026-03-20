@@ -166,9 +166,7 @@ class NarrativeWorldSeedBuilder:
             status_extras = initial.status.model_extra or {}
             alert_value = status_extras.get(semantics.alert_metric)
             if alert_value is None:
-                alert_value = status_extras.get("alert_score")
-            if alert_value is None:
-                alert_value = initial.status.suspicion_score
+                alert_value = initial.status.alert_score
 
             status = {
                 "energy": initial.status.energy,

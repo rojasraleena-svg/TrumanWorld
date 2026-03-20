@@ -48,7 +48,17 @@ class InitialStatusConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     energy: float = Field(default=0.75, ge=0.0, le=1.0)
-    suspicion_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    alert_score: float = Field(default=0.0, ge=0.0, le=1.0)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_alert_aliases(cls, data):
+        if not isinstance(data, dict):
+            return data
+        normalized = dict(data)
+        if "alert_score" not in normalized and "suspicion_score" in normalized:
+            normalized["alert_score"] = normalized["suspicion_score"]
+        return normalized
 
 
 class InitialPlanConfig(BaseModel):

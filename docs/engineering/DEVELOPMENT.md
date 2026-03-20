@@ -286,7 +286,7 @@ spawn:
   goal: greet
 status:
   energy: 0.8
-  suspicion_score: 0.1
+  alert_score: 0.1
 plan:
   default: patrol
 ```
@@ -295,6 +295,7 @@ plan:
 
 - `spawn.location` 优先于 `initial_location`
 - `spawn.goal` 优先于 `initial_goal`
+- `status.alert_score` 是推荐输入名
 - `status.suspicion_score` 仍然是兼容输入名
 - seed 会根据 `semantics.alert_metric` 把它写成对应状态字段
 

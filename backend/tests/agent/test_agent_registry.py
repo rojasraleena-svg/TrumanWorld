@@ -87,7 +87,7 @@ def test_initial_config_loader_supports_spawn_aliases(tmp_path: Path):
             [
                 "status:",
                 "  energy: 0.9",
-                "  suspicion_score: 0.2",
+                "  alert_score: 0.2",
                 "plan:",
                 "  default: patrol",
                 "spawn:",
@@ -101,8 +101,25 @@ def test_initial_config_loader_supports_spawn_aliases(tmp_path: Path):
     config = InitialConfigLoader().load(initial_path)
 
     assert config.status.energy == 0.9
-    assert config.status.suspicion_score == 0.2
+    assert config.status.alert_score == 0.2
     assert config.spawn.location == "workplace"
     assert config.spawn.goal == "greet"
     assert config.initial_location is None
     assert config.initial_goal is None
+
+
+def test_initial_config_loader_normalizes_legacy_suspicion_score_alias(tmp_path: Path):
+    initial_path = tmp_path / "initial.yml"
+    initial_path.write_text(
+        "\n".join(
+            [
+                "status:",
+                "  suspicion_score: 0.2",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = InitialConfigLoader().load(initial_path)
+
+    assert config.status.alert_score == 0.2
