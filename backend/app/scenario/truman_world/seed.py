@@ -236,6 +236,3 @@ class NarrativeWorldSeedBuilder:
         if relationships:
             self.session.add_all(relationships)
         await self.session.commit()
-
-
-TrumanWorldSeedBuilder = NarrativeWorldSeedBuilder

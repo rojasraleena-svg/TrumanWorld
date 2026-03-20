@@ -405,6 +405,3 @@ class NarrativeWorldCoordinator:
             )
 
         return None
-
-
-TrumanWorldCoordinator = NarrativeWorldCoordinator

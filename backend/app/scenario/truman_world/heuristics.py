@@ -69,6 +69,3 @@ def build_narrative_world_decision(
         )
 
     return RuntimeDecision(action_type="rest")
-
-
-build_truman_world_decision = build_narrative_world_decision
