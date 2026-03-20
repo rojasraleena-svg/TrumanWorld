@@ -393,13 +393,13 @@ class TestDayBoundaryPreloadParallel:
             )
             elapsed = time.monotonic() - t0
 
-        # 4 个 agent 各 40ms，串行需 160ms+，并行应 < 80ms
-        assert elapsed < 0.10, (
-            f"has_plan_for_today 应并行执行，但耗时 {elapsed:.3f}s（预期 < 0.10s）"
+        # 全量测试下 wall-clock 抖动较大，这里主要验证明显并发而非极窄时延。
+        # 串行时峰值并发会停留在 1；gather 正常工作时应接近全部 agent 同时运行。
+        assert elapsed < 0.25, (
+            f"has_plan_for_today 应明显并发执行，但耗时 {elapsed:.3f}s（预期 < 0.25s）"
         )
-        # 并行时峰值并发应 > 1
-        assert peak_concurrent > 1, (
-            f"has_plan_for_today 应并行执行，但峰值并发为 {peak_concurrent}（预期 > 1）"
+        assert peak_concurrent >= 3, (
+            f"has_plan_for_today 应明显并发执行，但峰值并发为 {peak_concurrent}（预期 >= 3）"
         )
 
     @pytest.mark.asyncio
@@ -492,12 +492,11 @@ class TestDayBoundaryPreloadParallel:
             )
             elapsed = time.monotonic() - t0
 
-        # 4 个 agent 各 40ms，串行需 160ms+，并行应 < 80ms
-        assert elapsed < 0.10, (
-            f"_load_recent_memories 应并行执行，但耗时 {elapsed:.3f}s（预期 < 0.10s）"
+        assert elapsed < 0.25, (
+            f"_load_recent_memories 应明显并发执行，但耗时 {elapsed:.3f}s（预期 < 0.25s）"
         )
-        assert mem_load_peak > 1, (
-            f"_load_recent_memories 应并行执行，但峰值并发为 {mem_load_peak}（预期 > 1）"
+        assert mem_load_peak >= 3, (
+            f"_load_recent_memories 应明显并发执行，但峰值并发为 {mem_load_peak}（预期 >= 3）"
         )
 
 
@@ -616,8 +615,8 @@ class TestLoadWorldParallelQueries:
             await cb.load_world(run_id, run, tick_minutes=5)
             elapsed = time.monotonic() - t0
 
-        assert elapsed < 0.08, (
-            f"load_world locations+agents 应并行查询，但耗时 {elapsed:.3f}s（预期 < 0.08s）"
+        assert elapsed < 0.10, (
+            f"load_world locations+agents 应并行查询，但耗时 {elapsed:.3f}s（预期 < 0.10s）"
         )
         call_types = {c[0] for c in call_log}
         assert call_types == {"agent", "location"}

@@ -67,6 +67,30 @@ class Settings(BaseSettings):
         ]
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_empty_strings(cls, data):
+        if not isinstance(data, dict):
+            return data
+        normalized = dict(data)
+        for field_name in (
+            "demo_admin_password",
+            "database_url",
+            "anthropic_api_key",
+            "anthropic_base_url",
+            "agent_model",
+            "langgraph_model",
+            "langgraph_api_key",
+            "langgraph_base_url",
+            "anthropic_model",
+            "claude_sdk_home_dir",
+            "director_agent_model",
+        ):
+            value = normalized.get(field_name)
+            if isinstance(value, str) and not value.strip():
+                normalized[field_name] = None
+        return normalized
+
     @model_validator(mode="after")
     def normalize_agent_settings(self) -> "Settings":
         # 数据库 URL 验证：开发环境提供默认值，生产环境必须显式配置

@@ -7,9 +7,9 @@ from app.scenario.bundle_registry import get_scenario_bundle, resolve_default_sc
 
 @dataclass
 class ScenarioRuntimeConfig:
-    subject_role: str = "subject"
-    support_roles: list[str] = field(default_factory=list)
-    alert_metric: str = "alert_score"
+    subject_role: str = "truman"
+    support_roles: list[str] = field(default_factory=lambda: ["cast"])
+    alert_metric: str = "suspicion_score"
     subject_alert_tracking: bool = True
 
     def support_role_set(self) -> set[str]:

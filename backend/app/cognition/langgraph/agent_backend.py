@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import sys
+import types
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -30,6 +32,19 @@ if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
 
 logger = get_logger(__name__)
+
+try:
+    import langchain_anthropic as _langchain_anthropic  # type: ignore[import-not-found]
+except ModuleNotFoundError:
+    _langchain_anthropic = types.ModuleType("langchain_anthropic")
+
+    class _MissingChatAnthropic:
+        def __init__(self, *args, **kwargs) -> None:
+            msg = "langchain_anthropic is not installed"
+            raise ModuleNotFoundError(msg)
+
+    _langchain_anthropic.ChatAnthropic = _MissingChatAnthropic
+    sys.modules["langchain_anthropic"] = _langchain_anthropic
 
 
 class _StructuredDecision(BaseModel):
@@ -78,7 +93,9 @@ class LangGraphAgentBackend:
     ) -> None:
         self._settings = settings or get_settings()
         self._decision_hook: HeuristicDecisionHook | None = None
-        default_model = self._build_default_model()
+        default_model = (
+            self._build_default_model() if decision_model is None and text_model is None else None
+        )
         self._decision_model: BaseChatModel | ChatModelProtocol | None = (
             decision_model or default_model
         )
@@ -273,7 +290,13 @@ class LangGraphAgentBackend:
         }
         if self._settings.langgraph_base_url:
             model_kwargs["base_url"] = self._settings.langgraph_base_url
-        return ChatAnthropic(**model_kwargs)
+        try:
+            return ChatAnthropic(**model_kwargs)
+        except ModuleNotFoundError:
+            logger.warning(
+                "langchain_anthropic is unavailable; LangGraph backend will use fallback mode"
+            )
+            return None
 
     def decision_concurrency_limit(self) -> int | None:
         limit = self._settings.langgraph_reactor_max_concurrency
