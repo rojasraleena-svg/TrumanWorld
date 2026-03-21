@@ -67,17 +67,28 @@ class ConversationScheduler:
             target_session_id = session_by_participant.get(target.id)
             if target_session_id is not None:
                 session = session_by_id[target_session_id]
-                if actor.id not in session.participant_ids:
-                    session.participant_ids.append(actor.id)
-                    session.turn_order.append(actor.id)
-                    occupied_agents.add(actor.id)
-                    session_by_participant[actor.id] = session.id
-                assignments[actor.id] = ConversationAssignment(
-                    agent_id=actor.id,
-                    conversation_id=session.id,
-                    role="listener",
-                    reason="conversation_joiner",
-                )
+                # If actor is already the active speaker in this session (e.g., Lin
+                # continues talking to Mei across ticks), keep them as speaker so their
+                # talk intent is not wrongly rejected.
+                if session.active_speaker_id == actor.id:
+                    assignments[actor.id] = ConversationAssignment(
+                        agent_id=actor.id,
+                        conversation_id=session.id,
+                        role="speaker",
+                        reason="active_speaker_continues",
+                    )
+                else:
+                    if actor.id not in session.participant_ids:
+                        session.participant_ids.append(actor.id)
+                        session.turn_order.append(actor.id)
+                        occupied_agents.add(actor.id)
+                        session_by_participant[actor.id] = session.id
+                    assignments[actor.id] = ConversationAssignment(
+                        agent_id=actor.id,
+                        conversation_id=session.id,
+                        role="listener",
+                        reason="conversation_joiner",
+                    )
                 continue
 
             if target.id in occupied_agents:
