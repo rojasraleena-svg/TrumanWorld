@@ -544,7 +544,6 @@ function EventCard({ event }: EventCardProps) {
   const meta = getEventMeta(event.event_type);
   const description = describeTimelineEvent(event);
   const explanations = getEventExplanations(event);
-  const actorName = event.payload.actor_name;
   // 移动事件显示目的地，其他事件显示当前所在位置
   const locationName =
     event.event_type === "move"
@@ -575,40 +574,30 @@ function EventCard({ event }: EventCardProps) {
         </span>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {typeof actorName === "string" && actorName && (
-          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
-            <span className="h-1 w-1 rounded-full bg-slate-400" />
-            {actorName}
-          </span>
-        )}
         {typeof locationName === "string" && locationName && (
           <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
             <span className="h-1 w-1 rounded-full bg-rose-400" />
             {locationName}
           </span>
         )}
+        {explanations.map((item, idx) => (
+          <span
+            key={`${item.kind}-${idx}`}
+            className={`inline-flex max-w-full items-center rounded-full px-2 py-0.5 text-[10px] leading-4 ${
+              item.tone === "rose"
+                ? "border border-rose-100 bg-rose-50 text-rose-700"
+                : item.tone === "amber"
+                  ? "border border-amber-100 bg-amber-50 text-amber-700"
+                  : "border border-sky-100 bg-sky-50 text-sky-700"
+            }`}
+          >
+            {item.text}
+          </span>
+        ))}
         <span className="ml-auto text-[10px] text-slate-400">
           重要度 {event.importance ?? 0}
         </span>
       </div>
-      {explanations.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {explanations.map((item, idx) => (
-            <span
-              key={`${item.kind}-${idx}`}
-              className={`rounded-full px-2 py-0.5 text-[10px] ${
-                item.tone === "rose"
-                  ? "border border-rose-100 bg-rose-50 text-rose-700"
-                  : item.tone === "amber"
-                    ? "border border-amber-100 bg-amber-50 text-amber-700"
-                    : "border border-sky-100 bg-sky-50 text-sky-700"
-              }`}
-            >
-              {item.text}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

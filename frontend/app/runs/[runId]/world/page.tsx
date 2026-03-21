@@ -42,17 +42,11 @@ export default function WorldPage() {
       <div className="flex shrink-0 items-center justify-between border-b border-white/40 bg-white/55 px-6 py-3 backdrop-blur-sm">
         <div className="flex items-center gap-6">
           <div>
-            <div className="flex flex-wrap items-center gap-2 text-[11px]">
-              <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 font-medium text-sky-700">
-                {scenarioName}
-              </span>
-              {world.run.scenario_type && (
-                <span className="font-mono text-slate-400">{world.run.scenario_type}</span>
-              )}
-            </div>
             <div className="mt-0.5 flex items-baseline gap-3">
               <h1 className="text-xl font-semibold text-ink">{world.run.name ?? "Run"}</h1>
-              <span className="text-sm text-slate-500">地图与实时事件</span>
+              <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-medium text-sky-700">
+                {scenarioName}
+              </span>
             </div>
           </div>
         </div>
