@@ -25,12 +25,19 @@
 - 主体附近的异常风险
 - 临时关闭、停电、活动等环境变化
 - cast/support 角色的自然行为约束
+- 最小治理系统的留痕与升级
 
 这意味着第一阶段不需要优先建模：
 
 - 商品交易
 - 许可制度
 - 复杂组织治理
+
+这也意味着当前默认世界仍然明确不包含：
+
+- 独立资产与所有权制度
+- 工资、物资、库存、债务或罚款账户
+- 完整执法机构与审批链
 
 ## 3. 第一阶段最值得资产化的内容
 
@@ -205,6 +212,10 @@ values:
   violation_intervention_bonus: 0.2
   soft_risk_intervention_bonus: 0.05
   strong_signal_intervention_bonus: 0.15
+  repeat_observation_bonus_per_record: 0.0
+  repeat_observation_bonus_per_warning: 0.0
+  repeat_observation_intervention_bonus_per_record: 0.0
+  repeat_warning_intervention_bonus_per_warning: 0.0
   record_attention_delta: 0.02
   warn_attention_delta: 0.05
   block_attention_delta: 0.15
@@ -217,6 +228,13 @@ values:
 ```
 
 ## 7. Narrative World 第一阶段建议规则示例
+
+当前与这些规则共同落地的治理能力还包括：
+
+- `record_only` 不再只是 event payload 字段，而会形成独立治理记录
+- agent 会在后续 tick 中带着 `observation_count / warning_count`
+- 再犯会提高 observation / intervention score
+- director 已经可以查看 Narrative World 的治理历史
 
 当前代码中已经落地的最小规则包括：
 

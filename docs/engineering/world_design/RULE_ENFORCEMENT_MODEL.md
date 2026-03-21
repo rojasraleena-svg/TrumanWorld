@@ -18,10 +18,13 @@ world 里的“审核”不应直接等于硬性规则命中。
 当前实现状态：
 
 - 目前已实现第 1 层、第 2 层和第 3 层的最小版
+- 当前已实现 `allow / record_only / warn / block`
 - `soft_risk` 当前会继续执行，并进入 `warn`
 - `impossible` 当前直接映射为 `block`
 - `violates_rule` 当前会根据 policy 与治理信号决定 `warn` 或 `block`
 - `warn / block` 当前已可写入最小长期状态
+- `record_only / warn / block` 当前已进入独立治理 ledger
+- agent 与 director 当前都已可查询治理历史
 - 治理状态已经开始影响 relationship 后果
 - `governance_execution.reason` 与纯 `rule_evaluation.reason` 当前都已进入最小长期记忆闭环
 
@@ -81,10 +84,12 @@ world 里的“审核”不应直接等于硬性规则命中。
 当前最小实现已经覆盖：
 
 - `warning_count`
+- `observation_count`
 - `governance_attention_score`
 - `current_risks`
 - agent memories 中的治理反馈与规则反馈
 - relationship 侧的最小后果扩散
+- `governance_records` 审计记录
 
 ## 3. 为什么不能只做硬规则
 
@@ -109,6 +114,8 @@ world 里的“审核”不应直接等于硬性规则命中。
 - `制度违规 -> 最小长期后果写入` 已实现
 - `制度违规 -> relationship 后果扩散` 已实现（最小版）
 - `制度违规 -> 规则反馈写入长期记忆` 已实现（最小版）
+- `制度违规 -> 独立治理审计记录` 已实现（最小版）
+- `制度违规 -> director 运营视图可见` 已实现（最小版）
 - `制度违规 -> 更完整长期后果扩散` 尚未实现
 
 ## 4. 资产化建议
@@ -142,6 +149,7 @@ world 里的“审核”不应直接等于硬性规则命中。
 - relationship 后果参数仍未完整迁入 `policies`
 - 记忆写入规则仍未抽成独立可配置 policy
 - 动态 overlay 目前主要覆盖 world effects，到更细粒度执行调参还不完整
+- director 视图当前仍是查询与筛选层，不是完整治理分析面板
 
 ### 4.3 选择性执法的实现分层
 
@@ -168,6 +176,12 @@ world 里的“审核”不应直接等于硬性规则命中。
 
 - 当前仓库先实现第一阶段
 - 不要在治理语义尚未稳定时先引入执法 agent
+
+当前判断：
+
+- 这个判断仍然成立
+- 当前代码已经足以支持继续做平台级治理，不需要为了“像社会治理”而过早引入执法 agent
+- 更合理的顺序仍然是先把治理历史、后果扩散和治理分析能力做扎实
 
 ## 4.4 第一阶段选择性执法的最小输入
 
@@ -248,6 +262,42 @@ governance_execution:
 - `matched_signals` 保持解释链兼容
 
 这样未来即便改成执法 agent，也仍可以要求它输出同一份结构，再交给平台持久化。
+
+当前已落地的附加持久化：
+
+```yaml
+governance_record:
+  id: string
+  run_id: string
+  agent_id: string
+  tick_no: int
+  source_event_id: string | null
+  location_id: string | null
+  action_type: string
+  decision: record_only | warn | block
+  reason: string | null
+  observed: true | false
+  observation_score: 0.0
+  intervention_score: 0.0
+  metadata: {}
+```
+
+这意味着当前治理链路已经有两层留痕：
+
+- event payload 中的即时解释
+- governance ledger 中的独立审计记录
+
+但仍然没有：
+
+- 执法主体
+- 审批流
+- 司法/复核流
+- 经济处罚账户
+
+因此当前更准确的表述是：
+
+- 已进入“最小治理系统”
+- 尚未进入“真实社会治理系统”
 
 ## 5. 对智能体能力的意义
 

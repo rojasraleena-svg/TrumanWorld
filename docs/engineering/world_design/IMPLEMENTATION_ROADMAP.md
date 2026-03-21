@@ -20,8 +20,18 @@
 - 已补上 agent detail API 与 director console 对 `world_rules_summary` 的最小展示链路
 - 已补上会话连续性状态在 runtime context 中的最小暴露，并增加重复提议保护
 - 已补上规则反馈写入长期记忆的最小闭环
+- 已补上独立治理记录模型 `governance_records`
+- 已补上 agent API 与 director API 对治理历史的查询能力
+- 已补上 director console 对治理历史的最小运营视图
+- 已补上基于 `observation_count / warning_count` 的再犯升级逻辑
 - 阶段 5 关系后果层已进入最小实现阶段
 - 阶段 6 心智模型层已完成文档设计，待启动实施
+
+当前明确边界：
+
+- 当前世界已具备“规则可见化 + 选择性治理 + 治理留痕 + 再犯升级 + director 运营可见性”
+- 当前世界仍未进入“机构化社会治理”阶段
+- 当前 agent 仍然没有独立资产、库存、所有权、收入或罚款账户模型
 
 ## 2. 推荐阶段
 
@@ -117,17 +127,17 @@
 
 当前明确未实现：
 
-- 选择性执法
-- 观测概率 / 巡查概率
-- 更细的长期处罚或违规记录持久化
+- 执法 agent
+- 更完整的程序层治理（申诉、复核、豁免、差别权限）
+- 更细的长期处罚与跨机构协同
 - 政府或治理 agent
 - 更细的 policy overlay 与运行时动态调度
 
 下一步建议顺序：
 
-1. 先在无执法 agent 的前提下实现平台级选择性执法
-2. 把执行语义抽成可替换的 enforcement provider 接口
-3. 等治理语义稳定后，再评估是否引入执法 agent
+1. 先继续维持无执法 agent 的平台级治理语义
+2. 把执行语义逐步抽成可替换的 enforcement provider 接口
+3. 在 director 运营视图稳定后，再评估是否引入执法 agent
 
 ### 阶段 4.5：治理后果层
 
@@ -143,17 +153,21 @@
 
 - 已有 `governance_consequences.py`
 - 当前会把 `warn / block` 写回 actor 自身的运行时 `status`
-- 当前已落地的状态字段包括 `warning_count` 与 `governance_attention_score`
+- 当前已落地的状态字段包括 `observation_count`、`warning_count` 与 `governance_attention_score`
 - `warn` 与 `block` 会通过 policy 参数以不同强度提升 `governance_attention_score`
 - `governance_attention_score` 已支持按天衰减
 - `governance_attention_score` 已开始驱动 agent context 中的 `current_risks`
 - 显著的 `warn / block` 当前也已写入 agent 长期记忆
+- `record_only / warn / block` 当前都已进入独立 `governance_records` ledger
+- `governance_records` 当前已可从 agent API 与 director API 查询
+- director console 当前已可查看治理历史并按决策类型过滤
+- 再犯升级当前已开始读取 `observation_count / warning_count`
 
 当前明确未实现：
 
-- 持久化层面的独立违规记录模型
 - 治理后果对 relationship / reputation / economy 的外溢
 - 更复杂的恢复机制与多因子衰减
+- 跨机构治理后果与程序性治理状态
 
 ### 阶段 5：关系后果层
 
@@ -258,6 +272,37 @@
 - rejected / accepted event payload 已可附带 `rule_evaluation`
 - rejected / accepted event payload 已可附带 `governance_execution`
 - timeline payload 已可透传 `rule_evaluation / governance_execution`
+- agent detail API 已可透传 `world_rules_summary`
+- agent governance records API 已可透传治理 ledger
+- director governance records API 已可透传 run 级治理 ledger
+- director console 已有治理历史最小视图
+
+## 4. 当前完成度判断
+
+如果按“像不像一个真实社会治理系统”来衡量，当前大致处于：
+
+- 已经不只是规则校验器
+- 已经是一个有观察、留痕、升级、解释和运营视图的最小治理系统
+- 但仍远未达到真实社会治理中的机构层、程序层和经济层
+
+目前已经能表达：
+
+- 同样的违规不一定每次都被同等处理
+- 治理结果会跨 tick 留痕
+- 累犯会提高后续被观察和被介入的概率
+- 导演可以从个人与 run 两个视角追踪治理历史
+
+目前还不能表达：
+
+- 谁在执法、谁有权限、谁负责复核
+- 罚款、停业、资产冻结、配给限制等经济性后果
+- 机构之间的分工与治理冲突
+
+结论：
+
+- 当前 agent 没有自己的资产
+- 当前 agent 没有真实所有权与可结算账户
+- 当前治理更接近“叙事世界中的平台级秩序维护”，而不是“完整社会治理仿真”
 - context event formatting 已补 `rule_feedback_reason / governance_feedback_reason`
 - agent detail API 已返回 `world_rules_summary`
 - 前端 agent detail 共享面板已展示 `world_rules_summary`
