@@ -52,28 +52,45 @@
 
 ### 2.3 运行时更新
 
-当前运行时只有一条自动关系更新路径：
+当前运行时仍主要围绕社交事件更新关系，但已经不再是“无条件加分”的最初版本。
+
+当前自动关系更新路径为：
 
 - 当发生 `talk` / `speech` 事件时
 - 对参与双方分别执行一次增量更新
 
-默认增量为：
+当前默认基础增量仍是：
 
 - `familiarity +0.1`
 - `trust +0.05`
 - `affinity +0.05`
 
+但这个基础增量已经会被上下文继续调制：
+
+- `policy.social_boost_locations` 可小幅提升 `affinity`
+- `policy.sensitive_locations` 会削弱 `trust / affinity`
+- `policy.talk_risk_after_hour` 会在晚时段削弱 `trust / affinity`
+- `rule_evaluation.decision == soft_risk` 会进一步削弱关系增益
+- `governance_execution.warn / block` 会进一步削弱关系增益
+- actor 或 target 的 `governance_attention_score` 升高时，也会继续压低关系增益
+
+当前每次关系更新还会把解释结果写回 event payload 的 `relationship_impact`，包括：
+
+- `familiarity_delta / trust_delta / affinity_delta`
+- `modifiers`
+- `summary`
+- `rule_decision / rule_reason / governance_decision / governance_reason`
+
 ### 2.4 当前局限
 
 当前实现仍是最小版本，主要局限包括：
 
-- 只有正向增长，没有负向下降
+- 仍然没有真正的负向 delta，当前只是把正向增益削弱到接近 0
 - 没有时间衰减
-- 增量是硬编码常量
-- 增量不读取 `policy`
-- 增量不经过 `rules` / `enforcement`
-- perception 主要只消费 `familiarity`
-- `relation_type` 目前更像标签，不是稳定语义层
+- 基础增量与阈值仍主要是硬编码常量，没有完全 policy 化
+- 当前只覆盖 `talk / speech`，还没有扩展到冲突、帮助、失信等事件
+- perception 虽然已经派生 `relationship_level`，但更细的暴露边界仍比较粗
+- `relation_type` 仍更像 seed 标签，不是完整稳定语义层
 
 ## 3. 与 world design 的关系
 
@@ -180,6 +197,12 @@ relationship 不单独构成一套世界制度。
 - 失信先伤 `trust`
 - 长期疏离可缓慢降低 `affinity`
 
+当前实际代码状态：
+
+- 已实现“风险或治理削弱关系增益”
+- 尚未实现“关系值出现明确负向扣减”
+- 因此目前更准确地说是 `growth suppression`，而不是完整的负向演化模型
+
 ### 5.3 时间衰减
 
 关系不应永久只涨不跌。
@@ -207,6 +230,15 @@ relationship 不单独构成一套世界制度。
 
 - 在 `cafe`、`plaza` 中的自然社交可获得更高 `affinity` 增益
 - 在深夜或敏感区域的异常接触不一定增进关系，甚至可能带来负反馈
+
+当前已落地的最小调制项：
+
+- `policy.social_boost_locations`
+- `policy.sensitive_locations`
+- `policy.talk_risk_after_hour`
+- `rule_evaluation.decision / risk_level / reason`
+- `governance_execution.decision / reason`
+- actor / target 的 `governance_attention_score`
 
 ## 6. 与规则和政策的边界
 
@@ -252,10 +284,25 @@ relationship 原始数值不一定直接暴露给 agent。
 - 保留当前三维数值模型
 - 明确保留有向边
 - 支持 seed 初始关系
-- 支持正负向事件驱动更新
-- 支持轻量时间衰减
+- 支持事件驱动更新
 - 支持基于 `policy` 的增益或惩罚调制
 - 在 perception 中派生 `relationship_level`
+
+当前已完成：
+
+- 保留三维数值模型
+- 保留有向边
+- 支持 seed 初始关系
+- 已支持最小 `policy / rule / governance / attention` 调制
+- 已在 runtime context 中派生 `relationship_level`
+- 已把关系变化解释写回 `relationship_impact`
+
+当前仍未完成：
+
+- 真正的负向事件驱动扣减
+- 时间衰减
+- 增量参数的完整 policy 化
+- 更复杂的双边非对称后果模型
 
 第一阶段不建议做：
 
@@ -268,12 +315,12 @@ relationship 原始数值不一定直接暴露给 agent。
 
 按优先级，当前最值得先修的点是：
 
-1. 取消“只有 `talk/speech` 一律加分”的唯一更新路径
-2. 引入至少一类负向事件对 `trust` / `affinity` 的扣减
+1. 从“只覆盖 `talk/speech`”扩展到更多事件类型，如帮助、冲突、失信
+2. 引入至少一类真正的负向关系扣减，而不只是削弱正向增长
 3. 引入最小时间衰减
-4. 让 relationship 更新读取 `policy` 上下文
-5. 在 perception 中补 `relationship_level`
-6. 避免运行时更新无条件覆盖已有 `relation_type`
+4. 把当前硬编码增量与阈值继续搬进 `policy`
+5. 继续扩展 `relationship_impact` 与 memory / director 的联动
+6. 避免后续运行时演化无条件覆盖已有 `relation_type`
 
 ## 10. 默认结论
 

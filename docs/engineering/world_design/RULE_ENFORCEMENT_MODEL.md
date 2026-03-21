@@ -23,6 +23,7 @@ world 里的“审核”不应直接等于硬性规则命中。
 - `violates_rule` 当前会根据 policy 与治理信号决定 `warn` 或 `block`
 - `warn / block` 当前已可写入最小长期状态
 - 治理状态已经开始影响 relationship 后果
+- `governance_execution.reason` 与纯 `rule_evaluation.reason` 当前都已进入最小长期记忆闭环
 
 ## 2. 三层职责
 
@@ -77,6 +78,14 @@ world 里的“审核”不应直接等于硬性规则命中。
 - location 或 policy 状态变化
 - timeline 审计信息
 
+当前最小实现已经覆盖：
+
+- `warning_count`
+- `governance_attention_score`
+- `current_risks`
+- agent memories 中的治理反馈与规则反馈
+- relationship 侧的最小后果扩散
+
 ## 3. 为什么不能只做硬规则
 
 如果所有不合法行为都直接 `blocked`：
@@ -99,6 +108,7 @@ world 里的“审核”不应直接等于硬性规则命中。
 - `制度违规 -> 进入治理执行层` 已实现
 - `制度违规 -> 最小长期后果写入` 已实现
 - `制度违规 -> relationship 后果扩散` 已实现（最小版）
+- `制度违规 -> 规则反馈写入长期记忆` 已实现（最小版）
 - `制度违规 -> 更完整长期后果扩散` 尚未实现
 
 ## 4. 资产化建议
@@ -126,6 +136,12 @@ world 里的“审核”不应直接等于硬性规则命中。
 
 - `rules` 负责定性
 - `policies` 负责执行环境
+
+当前还未完全做到的部分：
+
+- relationship 后果参数仍未完整迁入 `policies`
+- 记忆写入规则仍未抽成独立可配置 policy
+- 动态 overlay 目前主要覆盖 world effects，到更细粒度执行调参还不完整
 
 ## 5. 对智能体能力的意义
 
