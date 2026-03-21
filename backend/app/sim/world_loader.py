@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING
 
 from app.scenario.bundle_registry import resolve_sleep_config_for_scenario
 from app.sim.agent_snapshot_builder import build_agent_relationship_contexts, build_agent_snapshots
-from app.sim.context import get_run_world_effects, get_run_world_time
+from app.sim.context import get_run_world_effects, get_run_world_time, load_active_conversations
 from app.sim.location_utils import resolve_agent_location_id
 from app.sim.types import AgentDecisionSnapshot
 from app.sim.world import AgentState, LocationState, WorldState
-from app.store.repositories import AgentRepository, LocationRepository, RunRepository
+from app.store.repositories import AgentRepository, EventRepository, LocationRepository, RunRepository
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -91,6 +91,11 @@ async def load_tick_data(
         run_id=run_id,
         agents=agents,
     )
+    active_conversations = await load_active_conversations(
+        event_repo=EventRepository(session),
+        run_id=run_id,
+        current_tick=run.current_tick or 0,
+    )
 
     world = WorldState(
         current_time=get_run_world_time(run),
@@ -100,6 +105,7 @@ async def load_tick_data(
         agents=agent_states,
         world_effects=get_run_world_effects(run),
         relationship_contexts=relationship_contexts,
+        active_conversations=active_conversations,
         **resolve_sleep_config_for_scenario(run.scenario_type),
     )
 

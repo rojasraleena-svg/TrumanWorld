@@ -974,3 +974,102 @@ async def test_run_tick_isolated_advances_when_one_agent_falls_back():
     finally:
         await engine.dispose()
         shutil.rmtree(tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_run_tick_isolated_reuses_conversation_id_across_adjacent_ticks():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    run_id = "run-isolated-conversation-continuity"
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        run = SimulationRun(
+            id=run_id,
+            name="isolated-conversation-continuity",
+            status="running",
+            current_tick=0,
+            tick_minutes=5,
+        )
+        cafe = Location(
+            id="loc-cafe-iso-continuity",
+            run_id=run_id,
+            name="Cafe",
+            location_type="cafe",
+            capacity=4,
+        )
+        alice = Agent(
+            id="alice-iso-continuity",
+            run_id=run_id,
+            name="Alice",
+            occupation="resident",
+            home_location_id=cafe.id,
+            current_location_id=cafe.id,
+            personality={},
+            profile={},
+            status={},
+            current_plan={},
+        )
+        bob = Agent(
+            id="bob-iso-continuity",
+            run_id=run_id,
+            name="Bob",
+            occupation="resident",
+            home_location_id=cafe.id,
+            current_location_id=cafe.id,
+            personality={},
+            profile={},
+            status={},
+            current_plan={},
+        )
+        session.add_all([run, cafe, alice, bob])
+        await session.commit()
+
+    service = SimulationService.create_for_scheduler(
+        AgentRuntime(registry=AgentRegistry(Path(tempfile.mkdtemp())), backend=HeuristicAgentBackend())
+    )
+
+    try:
+        await service.run_tick_isolated(
+            run_id,
+            engine,
+            [
+                ActionIntent(
+                    agent_id="alice-iso-continuity",
+                    action_type="talk",
+                    target_agent_id="bob-iso-continuity",
+                    payload={"message": "First tick"},
+                )
+            ],
+        )
+        await service.run_tick_isolated(
+            run_id,
+            engine,
+            [
+                ActionIntent(
+                    agent_id="bob-iso-continuity",
+                    action_type="talk",
+                    target_agent_id="alice-iso-continuity",
+                    payload={"message": "Second tick"},
+                )
+            ],
+        )
+
+        async with AsyncSession(engine, expire_on_commit=False) as session:
+            timeline_events, _total = await EventRepository(session).list_timeline_events(
+                run_id,
+                order_desc=False,
+            )
+            conversation_started = [
+                event for event in timeline_events if event.event_type == "conversation_started"
+            ]
+            speeches = [event for event in timeline_events if event.event_type == "speech"]
+
+            assert len(conversation_started) == 1
+            assert len(speeches) == 2
+            conversation_id = conversation_started[0].payload["conversation_id"]
+            assert speeches[0].payload["conversation_id"] == conversation_id
+            assert speeches[1].payload["conversation_id"] == conversation_id
+    finally:
+        await engine.dispose()

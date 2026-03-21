@@ -70,7 +70,8 @@ class ContextBuilder:
             run_id=run_id,
             agents=list(agents),
         )
-        active_conversations = await self._load_active_conversations(
+        active_conversations = await load_active_conversations(
+            event_repo=self.event_repo,
             run_id=run_id,
             current_tick=run.current_tick or 0,
         )
@@ -124,103 +125,27 @@ class ContextBuilder:
         run_id: str,
         current_tick: int,
     ) -> dict[str, ActiveConversationState]:
-        if current_tick <= 0:
-            return {}
-
-        recent_events, _total = await self.event_repo.list_timeline_api_rows(
+        return await load_active_conversations(
+            event_repo=self.event_repo,
             run_id=run_id,
-            tick_from=max(0, current_tick - 3),
-            tick_to=current_tick,
-            event_type="speech,listen,conversation_started,conversation_joined",
-            limit=100,
-            order_desc=False,
+            current_tick=current_tick,
         )
-
-        speech_history: dict[str, list[tuple[int, str, str]]] = {}
-        conversations: dict[str, ActiveConversationState] = {}
-        for event in recent_events:
-            payload = event.payload or {}
-            conversation_id = payload.get("conversation_id")
-            if not isinstance(conversation_id, str) or not conversation_id:
-                continue
-            participant_ids = payload.get("participant_ids")
-            if not isinstance(participant_ids, list):
-                continue
-            normalized_participants = [pid for pid in participant_ids if isinstance(pid, str)]
-            if len(normalized_participants) < 2:
-                continue
-
-            speaker_agent_id = payload.get("speaker_agent_id")
-            if not isinstance(speaker_agent_id, str) or not speaker_agent_id:
-                speaker_agent_id = event.actor_agent_id
-            if not isinstance(speaker_agent_id, str) or not speaker_agent_id:
-                continue
-
-            message = payload.get("message")
-            if isinstance(message, str) and message.strip() and event.event_type == "speech":
-                speech_history.setdefault(conversation_id, []).append(
-                    (event.tick_no, speaker_agent_id, message.strip())
-                )
-
-            existing = conversations.get(conversation_id)
-            if existing is None:
-                conversations[conversation_id] = ActiveConversationState(
-                    id=conversation_id,
-                    location_id=event.location_id or "",
-                    participant_ids=normalized_participants,
-                    active_speaker_id=speaker_agent_id,
-                    last_tick_no=event.tick_no,
-                )
-                continue
-
-            existing.location_id = event.location_id or existing.location_id
-            existing.participant_ids = normalized_participants
-            existing.active_speaker_id = speaker_agent_id
-            existing.last_tick_no = max(existing.last_tick_no, event.tick_no)
-
-        for conversation_id, conversation in conversations.items():
-            history = speech_history.get(conversation_id, [])
-            if not history:
-                continue
-            history.sort(key=lambda item: item[0], reverse=True)
-            _tick_no, _speaker_id, latest_message = history[0]
-            conversation.last_message_summary = latest_message
-            if self._looks_like_proposal_or_question(latest_message):
-                conversation.last_proposal = latest_message
-            if self._looks_like_question(latest_message):
-                conversation.open_question = latest_message
-            conversation.repeat_count = self._repeat_count(history)
-
-        return {cid: conv for cid, conv in conversations.items() if conv.location_id}
 
     @staticmethod
     def _repeat_count(history: list[tuple[int, str, str]]) -> int:
-        if not history:
-            return 0
-        _tick_no, speaker_id, latest_message = history[0]
-        normalized_latest = ContextBuilder._normalize_conversation_text(latest_message)
-        count = 0
-        for _tick_no, current_speaker_id, message in history:
-            if current_speaker_id != speaker_id:
-                break
-            if ContextBuilder._normalize_conversation_text(message) != normalized_latest:
-                break
-            count += 1
-        return count
+        return _repeat_count(history)
 
     @staticmethod
     def _normalize_conversation_text(text: str) -> str:
-        return "".join(text.split()).strip("，。！？,.!?：:;；\"'“”‘’").lower()
+        return _normalize_conversation_text(text)
 
     @staticmethod
     def _looks_like_question(message: str) -> bool:
-        return any(token in message for token in ("？", "?", "要不要", "可以吗", "方便吗", "吗"))
+        return _looks_like_question(message)
 
     @staticmethod
     def _looks_like_proposal_or_question(message: str) -> bool:
-        return ContextBuilder._looks_like_question(message) or any(
-            token in message for token in ("一起", "先花十分钟", "要不", "不如")
-        )
+        return _looks_like_proposal_or_question(message)
 
     def build_agent_world_context(
         self,
@@ -238,23 +163,7 @@ class ContextBuilder:
         relationship_context: dict[str, dict[str, object]] | None = None,
         recent_events: list[dict] | None = None,
     ) -> dict:
-        """Build context dict for agent decision making.
-
-        Args:
-            world: Current world state
-            current_goal: Agent's current goal
-            current_location_id: Agent's current location
-            home_location_id: Agent's home location
-            nearby_agent_id: ID of nearby agent for interaction
-            current_status: Agent's current status dict
-            subject_alert_score: Primary subject alert score when enabled
-            world_role: Agent's scenario role
-            director_guidance: Director guidance payload
-            workplace_location_id: Agent workplace location when known
-
-        Returns:
-            Context dict for agent runtime
-        """
+        """Build context dict for agent decision making."""
         return build_agent_world_context(
             agent_id=None,
             world=world,
@@ -272,16 +181,7 @@ class ContextBuilder:
         )
 
     def find_nearby_agent(self, world: WorldState, agent_id: str, location_id: str) -> str | None:
-        """Find a nearby agent at the same location.
-
-        Args:
-            world: Current world state
-            agent_id: The agent looking for nearby agents
-            location_id: The location to search
-
-        Returns:
-            ID of a nearby agent, or None if none found
-        """
+        """Find a nearby agent at the same location."""
         return self._find_nearby_agent_impl(world, agent_id, location_id)
 
     @staticmethod
@@ -324,6 +224,111 @@ class ContextBuilder:
         location_states: dict[str, LocationState],
     ) -> dict:
         return format_event_for_context(evt, agent_states, location_states)
+
+
+async def load_active_conversations(
+    *,
+    event_repo: EventRepository,
+    run_id: str,
+    current_tick: int,
+) -> dict[str, ActiveConversationState]:
+    if current_tick <= 0:
+        return {}
+
+    recent_events, _total = await event_repo.list_timeline_api_rows(
+        run_id=run_id,
+        tick_from=max(0, current_tick - 3),
+        tick_to=current_tick,
+        event_type="speech,listen,conversation_started,conversation_joined",
+        limit=100,
+        order_desc=False,
+    )
+
+    speech_history: dict[str, list[tuple[int, str, str]]] = {}
+    conversations: dict[str, ActiveConversationState] = {}
+    for event in recent_events:
+        payload = event.payload or {}
+        conversation_id = payload.get("conversation_id")
+        if not isinstance(conversation_id, str) or not conversation_id:
+            continue
+        participant_ids = payload.get("participant_ids")
+        if not isinstance(participant_ids, list):
+            continue
+        normalized_participants = [pid for pid in participant_ids if isinstance(pid, str)]
+        if len(normalized_participants) < 2:
+            continue
+
+        speaker_agent_id = payload.get("speaker_agent_id")
+        if not isinstance(speaker_agent_id, str) or not speaker_agent_id:
+            speaker_agent_id = event.actor_agent_id
+        if not isinstance(speaker_agent_id, str) or not speaker_agent_id:
+            continue
+
+        message = payload.get("message")
+        if isinstance(message, str) and message.strip() and event.event_type == "speech":
+            speech_history.setdefault(conversation_id, []).append(
+                (event.tick_no, speaker_agent_id, message.strip())
+            )
+
+        existing = conversations.get(conversation_id)
+        if existing is None:
+            conversations[conversation_id] = ActiveConversationState(
+                id=conversation_id,
+                location_id=event.location_id or "",
+                participant_ids=normalized_participants,
+                active_speaker_id=speaker_agent_id,
+                last_tick_no=event.tick_no,
+            )
+            continue
+
+        existing.location_id = event.location_id or existing.location_id
+        existing.participant_ids = normalized_participants
+        existing.active_speaker_id = speaker_agent_id
+        existing.last_tick_no = max(existing.last_tick_no, event.tick_no)
+
+    for conversation_id, conversation in conversations.items():
+        history = speech_history.get(conversation_id, [])
+        if not history:
+            continue
+        history.sort(key=lambda item: item[0], reverse=True)
+        _tick_no, _speaker_id, latest_message = history[0]
+        conversation.last_message_summary = latest_message
+        if _looks_like_proposal_or_question(latest_message):
+            conversation.last_proposal = latest_message
+        if _looks_like_question(latest_message):
+            conversation.open_question = latest_message
+        conversation.repeat_count = _repeat_count(history)
+
+    return {cid: conv for cid, conv in conversations.items() if conv.location_id}
+
+
+def _repeat_count(history: list[tuple[int, str, str]]) -> int:
+    if not history:
+        return 0
+    _tick_no, speaker_id, latest_message = history[0]
+    normalized_latest = _normalize_conversation_text(latest_message)
+    count = 0
+    for _tick_no, current_speaker_id, message in history:
+        if current_speaker_id != speaker_id:
+            break
+        if _normalize_conversation_text(message) != normalized_latest:
+            break
+        count += 1
+    return count
+
+
+def _normalize_conversation_text(text: str) -> str:
+    return "".join(text.split()).strip("，。！？,.!?：:;；\"'“”‘’").lower()
+
+
+def _looks_like_question(message: str) -> bool:
+    return any(token in message for token in ("？", "?", "要不要", "可以吗", "方便吗", "吗"))
+
+
+def _looks_like_proposal_or_question(message: str) -> bool:
+    return _looks_like_question(message) or any(
+        token in message for token in ("一起", "先花十分钟", "要不", "不如")
+    )
 
 
 def get_run_world_time(run: SimulationRun) -> datetime:
