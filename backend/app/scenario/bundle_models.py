@@ -56,12 +56,21 @@ class ScenarioCapabilities(BaseModel):
         return normalized
 
 
+class ScenarioModules(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    fallback_policy: str | None = None
+    seed_policy: str | None = None
+    state_update_policy: str | None = None
+
+
 class ScenarioBundle(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     manifest: ScenarioManifest
     semantics: ScenarioSemantics = Field(default_factory=ScenarioSemantics)
     capabilities: ScenarioCapabilities = Field(default_factory=ScenarioCapabilities)
+    modules: ScenarioModules = Field(default_factory=ScenarioModules)
     root: Path
     manifest_path: Path
 

@@ -7,14 +7,14 @@ from app.agent.context_builder import ScenarioContextHooks
 from app.scenario.base import Scenario
 from app.scenario.bundle_registry import get_scenario_bundle
 from app.scenario.bundle_world.coordinator import BundleWorldCoordinator
+from app.scenario.bundle_world.module_registry import get_bundle_world_module_registry
 from app.scenario.bundle_world.rules import (
     build_role_context,
     build_scene_guidance,
     build_world_common_knowledge,
     filter_world_for_role,
 )
-from app.scenario.bundle_world.seed import BundleWorldSeedBuilder
-from app.scenario.bundle_world.state import BundleWorldStateUpdater, build_alert_state_semantics
+from app.scenario.bundle_world.state import build_alert_state_semantics
 from app.scenario.runtime_config import build_scenario_runtime_config
 from app.scenario.types import AgentProfile, ScenarioGuidance
 
@@ -36,15 +36,28 @@ class BundleWorldScenario(Scenario):
         self.scenario_id = scenario_id
         bundle = get_scenario_bundle(scenario_id)
         capabilities = bundle.capabilities if bundle is not None else None
+        modules = bundle.modules if bundle is not None else None
         self.runtime_config = build_scenario_runtime_config(scenario_id)
+        self.module_ids = {
+            "fallback_policy": modules.fallback_policy if modules is not None else None,
+            "seed_policy": modules.seed_policy if modules is not None else None,
+            "state_update_policy": modules.state_update_policy if modules is not None else None,
+        }
         self.subject_alert_tracking_enabled = (
             capabilities.subject_alert_tracking
             if capabilities is not None and capabilities.subject_alert_tracking is not None
             else True
         )
+        module_registry = get_bundle_world_module_registry()
         self.coordinator = BundleWorldCoordinator(session, scenario_id=scenario_id)
+        self.fallback_policy = module_registry.build_fallback_policy(
+            self.module_ids["fallback_policy"] or "social_default",
+            scenario_id=scenario_id,
+            semantics=self.runtime_config,
+        )
         self.state_updater = (
-            BundleWorldStateUpdater(
+            module_registry.build_state_update_policy(
+                self.module_ids["state_update_policy"] or "alert_tracking",
                 session,
                 semantics=build_alert_state_semantics(scenario_id),
             )
@@ -52,7 +65,13 @@ class BundleWorldScenario(Scenario):
             else None
         )
         self.seed_builder = (
-            BundleWorldSeedBuilder(session, scenario_id=scenario_id) if session is not None else None
+            module_registry.build_seed_policy(
+                self.module_ids["seed_policy"] or "standard_bundle_seed",
+                session,
+                scenario_id=scenario_id,
+            )
+            if session is not None
+            else None
         )
 
     def with_session(self, session: AsyncSession | None) -> BundleWorldScenario:
@@ -60,7 +79,7 @@ class BundleWorldScenario(Scenario):
 
     def configure_runtime(self, agent_runtime: AgentRuntime) -> None:
         agent_runtime.configure_allowed_actions(self.allowed_actions())
-        self.coordinator.configure_runtime(agent_runtime)
+        self.fallback_policy.configure_runtime(agent_runtime)
         self.configure_agent_context(agent_runtime.context_builder)
 
     def configure_agent_context(self, context_builder) -> None:
@@ -115,7 +134,7 @@ class BundleWorldScenario(Scenario):
         scenario_state: dict | None = None,
         scenario_guidance: ScenarioGuidance | None = None,
     ):
-        return self.coordinator.fallback_intent(
+        return self.fallback_policy.fallback_intent(
             agent_id=agent_id,
             current_location_id=current_location_id,
             home_location_id=home_location_id,

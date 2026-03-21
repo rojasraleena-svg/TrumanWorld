@@ -9,6 +9,7 @@ from app.scenario.bundle_models import (
     ScenarioBundle,
     ScenarioCapabilities,
     ScenarioManifest,
+    ScenarioModules,
     ScenarioSemantics,
 )
 
@@ -62,6 +63,7 @@ class ScenarioBundleRegistry:
             manifest = ScenarioManifest.model_validate(raw)
             semantics = ScenarioSemantics.model_validate(raw.get("semantics", {}))
             capabilities = ScenarioCapabilities.model_validate(raw.get("capabilities", {}))
+            modules = ScenarioModules.model_validate(raw.get("modules", {}))
         except Exception as exc:
             msg = f"Invalid scenario manifest: {manifest_path}"
             raise ValueError(msg) from exc
@@ -70,6 +72,7 @@ class ScenarioBundleRegistry:
             manifest=manifest,
             semantics=semantics,
             capabilities=capabilities,
+            modules=modules,
             root=manifest_path.parent,
             manifest_path=manifest_path,
         )

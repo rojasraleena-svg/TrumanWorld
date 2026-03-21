@@ -7,6 +7,7 @@ from app.agent.context_builder import ContextBuilder
 from app.agent.registry import AgentRegistry
 from app.agent.runtime import AgentRuntime
 from app.scenario.factory import create_scenario
+from app.scenario.bundle_world import module_registry as bundle_module_registry
 from app.scenario.open_world.scenario import OpenWorldScenario
 from app.scenario.bundle_world.scenario import BundleWorldScenario
 from app.scenario.bundle_world.seed import BundleWorldSeedBuilder
@@ -192,6 +193,78 @@ def test_narrative_world_scenario_defaults_subject_alert_tracking_enabled():
     scenario = BundleWorldScenario()
 
     assert scenario.subject_alert_tracking_enabled is True
+
+
+@pytest.mark.asyncio
+async def test_bundle_world_scenario_assembles_modules_from_manifest(
+    db_session, tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    class CustomFallbackPolicy:
+        def __init__(self, *, scenario_id: str, semantics) -> None:
+            self.scenario_id = scenario_id
+            self.semantics = semantics
+
+        def configure_runtime(self, agent_runtime) -> None:
+            return None
+
+        def fallback_intent(self, **kwargs):
+            return None
+
+    class CustomSeedPolicy:
+        def __init__(self, session, *, scenario_id: str) -> None:
+            self.session = session
+            self.scenario_id = scenario_id
+
+        async def seed_demo_run(self, run) -> None:
+            return None
+
+    class CustomStateUpdatePolicy:
+        def __init__(self, session, *, semantics) -> None:
+            self.session = session
+            self.semantics = semantics
+
+        async def persist_subject_alert(self, run_id: str, events: list[Event]) -> None:
+            return None
+
+    bundle_module_registry.get_bundle_world_module_registry().register_fallback_policy(
+        "custom_fallback", CustomFallbackPolicy
+    )
+    bundle_module_registry.get_bundle_world_module_registry().register_seed_policy(
+        "custom_seed", CustomSeedPolicy
+    )
+    bundle_module_registry.get_bundle_world_module_registry().register_state_update_policy(
+        "custom_state", CustomStateUpdatePolicy
+    )
+
+    bundle_root = tmp_path / "scenarios" / "hero_world"
+    bundle_root.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: hero_world",
+                "name: Hero World",
+                "version: 1",
+                "adapter: bundle_world",
+                "modules:",
+                "  fallback_policy: custom_fallback",
+                "  seed_policy: custom_seed",
+                "  state_update_policy: custom_state",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    scenario = BundleWorldScenario(db_session, scenario_id="hero_world")
+
+    assert scenario.module_ids["fallback_policy"] == "custom_fallback"
+    assert scenario.module_ids["seed_policy"] == "custom_seed"
+    assert scenario.module_ids["state_update_policy"] == "custom_state"
+    assert isinstance(scenario.fallback_policy, CustomFallbackPolicy)
+    assert isinstance(scenario.seed_builder, CustomSeedPolicy)
+    assert isinstance(scenario.state_updater, CustomStateUpdatePolicy)
 
 
 @pytest.mark.asyncio

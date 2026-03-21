@@ -114,6 +114,34 @@ def test_bundle_registry_loads_scenario_semantics_and_capabilities(tmp_path):
     assert bundle.capabilities.scene_guidance is True
 
 
+def test_bundle_registry_loads_module_selection_from_manifest(tmp_path):
+    scenarios_root = tmp_path / "scenarios"
+    bundle_root = scenarios_root / "hero_world"
+    bundle_root.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: hero_world",
+                "name: Hero World",
+                "version: 1",
+                "adapter: bundle_world",
+                "modules:",
+                "  fallback_policy: social_default",
+                "  seed_policy: standard_bundle_seed",
+                "  state_update_policy: alert_tracking",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    bundle = ScenarioBundleRegistry(scenarios_root).get_bundle("hero_world")
+
+    assert bundle is not None
+    assert bundle.modules.fallback_policy == "social_default"
+    assert bundle.modules.seed_policy == "standard_bundle_seed"
+    assert bundle.modules.state_update_policy == "alert_tracking"
+
+
 def test_bundle_registry_uses_empty_defaults_when_semantics_and_capabilities_missing(tmp_path):
     scenarios_root = tmp_path / "scenarios"
     bundle_root = scenarios_root / "open_world"
