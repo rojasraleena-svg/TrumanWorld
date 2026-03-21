@@ -240,9 +240,9 @@ export function WorldHealthPanel({ metrics, runId, world }: WorldHealthPanelProp
           <StatItem icon="🚶" value={metrics.recentMoveCount} label="移动" />
           <StatItem
             icon="⚠️"
-            value={metrics.recentRejectionCount}
-            label="异常"
-            highlight={metrics.recentRejectionCount > 0}
+            value={metrics.rejectionCount}
+            label="拒绝动作"
+            highlight={metrics.rejectionCount > 0}
           />
         </div>
       </div>

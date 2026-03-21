@@ -45,7 +45,7 @@ export interface WorldHealthMetrics {
 
   recentTalkCount: number;
   recentMoveCount: number;
-  recentRejectionCount: number;
+  rejectionCount: number;
 }
 
 export interface StoryEvent {
@@ -157,6 +157,7 @@ export function calculateWorldHealthMetrics(
   const subjectAgent = agents.find((a) => a.id === world.subject_agent_id);
   const subjectAlertScore =
     (subjectAgent?.status?.alert_score as number | undefined) ??
+    (subjectAgent?.status?.anomaly_score as number | undefined) ??
     (subjectAgent?.status?.suspicion_score as number | undefined) ??
     0;
   const subjectAlert = subjectAlertScore * 100;
@@ -204,7 +205,11 @@ export function calculateWorldHealthMetrics(
       world.daily_stats?.talk_count ??
       events.filter((e) => e.event_type === EVENT_TALK || e.event_type === EVENT_SPEECH).length,
     recentMoveCount: world.daily_stats?.move_count ?? events.filter((e) => e.event_type === EVENT_MOVE).length,
-    recentRejectionCount: world.daily_stats?.rejection_count ?? events.filter((e) => e.event_type === "move_rejected" || e.event_type === "talk_rejected").length,
+    rejectionCount:
+      world.daily_stats?.rejection_count ??
+      events.filter(
+        (e) => e.event_type === "move_rejected" || e.event_type === "talk_rejected",
+      ).length,
   };
 }
 

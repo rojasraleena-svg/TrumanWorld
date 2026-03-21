@@ -1,7 +1,13 @@
-import { aggregateStoryChapters } from "@/lib/world-insights";
+import {
+  aggregateStoryChapters,
+  calculateWorldHealthMetrics,
+} from "@/lib/world-insights";
 import type { WorldSnapshot } from "@/lib/types";
 
-function buildWorld(events: WorldSnapshot["recent_events"]): WorldSnapshot {
+function buildWorld(
+  events: WorldSnapshot["recent_events"],
+  overrides: Partial<WorldSnapshot> = {},
+): WorldSnapshot {
   return {
     run: {
       id: "run-1",
@@ -42,6 +48,7 @@ function buildWorld(events: WorldSnapshot["recent_events"]): WorldSnapshot {
       },
     ],
     recent_events: events,
+    ...overrides,
   };
 }
 
@@ -108,5 +115,53 @@ describe("aggregateStoryChapters", () => {
       type: "warning",
       description: "1 次风险社交",
     });
+  });
+});
+
+describe("calculateWorldHealthMetrics", () => {
+  it("uses anomaly_score for subject alert when alert_score is missing", () => {
+    const metrics = calculateWorldHealthMetrics(
+      buildWorld([], {
+        subject_agent_id: "alice",
+        locations: [
+          {
+            id: "cafe",
+            name: "咖啡店",
+            location_type: "cafe",
+            x: 0,
+            y: 0,
+            capacity: 10,
+            occupants: [
+              {
+                id: "alice",
+                name: "Alice",
+                status: { anomaly_score: 0.15 },
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(metrics.subjectAlert).toBe(15);
+  });
+
+  it("exposes rejection counts from daily stats", () => {
+    const metrics = calculateWorldHealthMetrics(
+      buildWorld([], {
+        daily_stats: {
+          talk_count: 12,
+          move_count: 8,
+          rejection_count: 27,
+          total_input_tokens: 0,
+          total_output_tokens: 0,
+          total_reasoning_tokens: 0,
+          total_cache_read_tokens: 0,
+          total_cache_creation_tokens: 0,
+        },
+      }),
+    );
+
+    expect(metrics.rejectionCount).toBe(27);
   });
 });
