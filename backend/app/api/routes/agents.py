@@ -7,12 +7,15 @@ from app.api.errors import api_error
 from app.api.schemas.simulation import (
     COMMON_RESPONSES,
     AgentDetailResponse,
+    AgentEconomicStateResponse,
+    AgentEconomicSummaryResponse,
     AgentEventResponse,
     AgentGovernanceRecordsResponse,
     AgentMemoryResponse,
     AgentRelationshipResponse,
     AgentsListResponse,
     AgentSummaryResponse,
+    EconomicEffectLogResponse,
     GovernanceRecordResponse,
     WorldRulesSummaryResponse,
 )
@@ -22,6 +25,8 @@ from app.scenario.types import get_agent_config_id
 from app.sim.context import ContextBuilder as SimulationContextBuilder
 from app.store.repositories import (
     AgentRepository,
+    AgentEconomicStateRepository,
+    EconomicEffectLogRepository,
     GovernanceRecordRepository,
     LocationRepository,
     RunRepository,
@@ -310,6 +315,94 @@ async def get_agent_governance_records(
             for record in records
         ],
         total=len(records),
+    )
+
+
+@router.get(
+    "/{agent_id}/economic-summary",
+    response_model=AgentEconomicSummaryResponse,
+    summary="获取 Agent 经济摘要",
+    description="获取指定 agent 的经济状态和最近经济效果记录。",
+    responses={
+        **COMMON_RESPONSES,
+        200: {
+            "description": "Agent 经济摘要",
+            "model": AgentEconomicSummaryResponse,
+        },
+    },
+)
+async def get_agent_economic_summary(
+    run_id: UUID,
+    agent_id: str,
+    effect_limit: int = Query(20, ge=1, le=100, description="返回经济效果记录上限"),
+    session: AsyncSession = Depends(get_db_session),
+) -> AgentEconomicSummaryResponse:
+    logger.debug(f"Getting agent economic summary: run_id={run_id}, agent_id={agent_id}")
+    run_repo = RunRepository(session)
+    run = await run_repo.get(str(run_id))
+    if run is None:
+        raise api_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Run not found",
+            code="RUN_NOT_FOUND",
+            context={"run_id": str(run_id)},
+        )
+
+    agent_repo = AgentRepository(session)
+    agent = await agent_repo.get(agent_id)
+    if agent is None or agent.run_id != str(run_id):
+        raise api_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Agent not found",
+            code="AGENT_NOT_FOUND",
+            context={"run_id": str(run_id), "agent_id": agent_id},
+        )
+
+    econ_repo = AgentEconomicStateRepository(session)
+    effect_log_repo = EconomicEffectLogRepository(session)
+
+    econ_state = await econ_repo.get_for_agent(str(run_id), agent_id)
+    recent_effects = await effect_log_repo.get_recent_logs(
+        str(run_id), agent_id, limit=effect_limit
+    )
+
+    economic_state_response = None
+    if econ_state:
+        economic_state_response = AgentEconomicStateResponse(
+            agent_id=agent_id,
+            agent_name=agent.name,
+            cash=econ_state.cash,
+            employment_status=econ_state.employment_status,
+            food_security=econ_state.food_security,
+            housing_security=econ_state.housing_security,
+            work_restriction_until_tick=econ_state.work_restriction_until_tick,
+            last_income_tick=econ_state.last_income_tick,
+            metadata=econ_state.metadata_json or {},
+        )
+
+    return AgentEconomicSummaryResponse(
+        run_id=str(run_id),
+        agent_id=agent_id,
+        economic_state=economic_state_response,
+        recent_effects=[
+            EconomicEffectLogResponse(
+                id=effect.id,
+                run_id=effect.run_id,
+                agent_id=effect.agent_id,
+                case_id=effect.case_id,
+                tick_no=effect.tick_no,
+                effect_type=effect.effect_type,
+                cash_delta=effect.cash_delta,
+                food_security_delta=effect.food_security_delta,
+                housing_security_delta=effect.housing_security_delta,
+                employment_status_before=effect.employment_status_before,
+                employment_status_after=effect.employment_status_after,
+                reason=effect.reason,
+                metadata=effect.metadata_json or {},
+                created_at=effect.created_at,
+            )
+            for effect in recent_effects
+        ],
     )
 
 

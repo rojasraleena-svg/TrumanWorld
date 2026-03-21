@@ -391,6 +391,109 @@ class DirectorGovernanceRecordsResponse(BaseModel):
     total: int = Field(0, description="返回记录数", ge=0)
 
 
+# ============================================================================
+# Governance Cases & Restrictions
+# ============================================================================
+
+
+class GovernanceCaseResponse(BaseModel):
+    id: str = Field(..., description="案件 ID")
+    run_id: str = Field(..., description="运行 ID")
+    agent_id: str = Field(..., description="Agent ID")
+    agent_name: str | None = Field(None, description="Agent 名称")
+    status: str = Field(..., description="案件状态")
+    opened_tick: int = Field(..., description="开案 tick")
+    last_updated_tick: int = Field(..., description="最后更新 tick")
+    primary_reason: str = Field(..., description="主要原因")
+    severity: str = Field(..., description="严重程度")
+    record_count: int = Field(..., description="关联记录数")
+    active_restriction_count: int = Field(..., description="活跃限制数")
+    metadata: dict = Field(default_factory=dict, description="附加元数据")
+    created_at: datetime = Field(..., description="创建时间")
+
+
+class GovernanceCasesResponse(BaseModel):
+    run_id: str = Field(..., description="运行 ID")
+    cases: list[GovernanceCaseResponse] = Field(default_factory=list, description="治理案件列表")
+    total: int = Field(0, description="返回案件数", ge=0)
+
+
+class GovernanceRestrictionResponse(BaseModel):
+    id: str = Field(..., description="限制 ID")
+    run_id: str = Field(..., description="运行 ID")
+    agent_id: str = Field(..., description="Agent ID")
+    agent_name: str | None = Field(None, description="Agent 名称")
+    case_id: str | None = Field(None, description="关联案件 ID")
+    restriction_type: str = Field(..., description="限制类型")
+    status: str = Field(..., description="限制状态")
+    scope_type: str = Field(..., description="范围类型")
+    scope_value: str | None = Field(None, description="范围值")
+    reason: str | None = Field(None, description="限制原因")
+    start_tick: int = Field(..., description="开始 tick")
+    end_tick: int | None = Field(None, description="结束 tick")
+    severity: str = Field(..., description="严重程度")
+    metadata: dict = Field(default_factory=dict, description="附加元数据")
+    created_at: datetime = Field(..., description="创建时间")
+
+
+class GovernanceRestrictionsResponse(BaseModel):
+    run_id: str = Field(..., description="运行 ID")
+    restrictions: list[GovernanceRestrictionResponse] = Field(
+        default_factory=list, description="治理限制列表"
+    )
+    total: int = Field(0, description="返回限制数", ge=0)
+
+
+# ============================================================================
+# Agent Economic State
+# ============================================================================
+
+
+class AgentEconomicStateResponse(BaseModel):
+    agent_id: str = Field(..., description="Agent ID")
+    agent_name: str | None = Field(None, description="Agent 名称")
+    cash: float = Field(..., description="现金余额")
+    employment_status: str = Field(..., description="就业状态")
+    food_security: float = Field(..., description="食品安全 (0-1)")
+    housing_security: float = Field(..., description="住房安全 (0-1)")
+    work_restriction_until_tick: int | None = Field(None, description="工作限制截止 tick")
+    last_income_tick: int | None = Field(None, description="最后收入 tick")
+    metadata: dict = Field(default_factory=dict, description="附加元数据")
+
+
+class AgentEconomicSummaryResponse(BaseModel):
+    run_id: str = Field(..., description="运行 ID")
+    agent_id: str = Field(..., description="Agent ID")
+    economic_state: AgentEconomicStateResponse | None = Field(None, description="经济状态")
+    recent_effects: list["EconomicEffectLogResponse"] = Field(
+        default_factory=list, description="最近经济效果"
+    )
+
+
+class EconomicEffectLogResponse(BaseModel):
+    id: str = Field(..., description="日志 ID")
+    run_id: str = Field(..., description="运行 ID")
+    agent_id: str = Field(..., description="Agent ID")
+    case_id: str | None = Field(None, description="关联案件 ID")
+    tick_no: int = Field(..., description="触发 tick")
+    effect_type: str = Field(..., description="效果类型")
+    cash_delta: float = Field(..., description="现金变化")
+    food_security_delta: float = Field(..., description="食品安全变化")
+    housing_security_delta: float = Field(..., description="住房安全变化")
+    employment_status_before: str | None = Field(None, description="变化前就业状态")
+    employment_status_after: str | None = Field(None, description="变化后就业状态")
+    reason: str | None = Field(None, description="原因")
+    metadata: dict = Field(default_factory=dict, description="附加元数据")
+    created_at: datetime = Field(..., description="创建时间")
+
+
+class EconomicEffectLogsResponse(BaseModel):
+    run_id: str = Field(..., description="运行 ID")
+    agent_id: str | None = Field(None, description="Agent ID (可选)")
+    logs: list[EconomicEffectLogResponse] = Field(default_factory=list, description="经济效果日志")
+    total: int = Field(0, description="返回日志数", ge=0)
+
+
 class AgentDetailResponse(BaseModel):
     run_id: str = Field(..., description="运行 ID")
     agent_id: str = Field(..., description="Agent ID")

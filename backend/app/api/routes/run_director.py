@@ -17,6 +17,10 @@ from app.api.schemas.simulation import (
     DirectorMemoriesResponse,
     DirectorMemoryResponse,
     DirectorObservationResponse,
+    GovernanceCaseResponse,
+    GovernanceCasesResponse,
+    GovernanceRestrictionResponse,
+    GovernanceRestrictionsResponse,
     StatusResponse,
 )
 from app.director.service import DirectorEventService
@@ -25,7 +29,9 @@ from app.sim.service import SimulationService
 from app.store.repositories import (
     AgentRepository,
     DirectorMemoryRepository,
+    GovernanceCaseRepository,
     GovernanceRecordRepository,
+    GovernanceRestrictionRepository,
     LocationRepository,
 )
 
@@ -268,3 +274,123 @@ async def inject_director_event(
             context={"run_id": str(run_id), "event_type": payload.event_type},
         ) from exc
     return StatusResponse(run_id=str(run_id), status="queued")
+
+
+@router.get(
+    "/{run_id}/director/cases",
+    response_model=GovernanceCasesResponse,
+    summary="获取导演治理案件",
+    description="获取 run 级治理案件列表，支持按 agent 或 status 过滤。",
+    responses={
+        **COMMON_RESPONSES,
+        200: {"description": "导演治理案件", "model": GovernanceCasesResponse},
+    },
+)
+async def get_director_governance_cases(
+    run_id: UUID,
+    agent_id: str | None = Query(None, description="按 agent 过滤"),
+    status: str | None = Query(None, description="按案件状态过滤"),
+    limit: int = Query(50, ge=1, le=200),
+    session: AsyncSession = Depends(get_db_session),
+) -> GovernanceCasesResponse:
+    await get_required_run(session, run_id)
+
+    agent_repo = AgentRepository(session)
+    case_repo = GovernanceCaseRepository(session)
+
+    agents, cases = await asyncio.gather(
+        agent_repo.list_names_for_run(str(run_id)),
+        case_repo.list_for_run(
+            str(run_id),
+            agent_id=agent_id,
+            status=status,
+            limit=limit,
+        ),
+    )
+
+    agent_name_map = {agent.id: agent.name for agent in agents}
+
+    return GovernanceCasesResponse(
+        run_id=str(run_id),
+        cases=[
+            GovernanceCaseResponse(
+                id=case.id,
+                run_id=case.run_id,
+                agent_id=case.agent_id,
+                agent_name=agent_name_map.get(case.agent_id),
+                status=case.status,
+                opened_tick=case.opened_tick,
+                last_updated_tick=case.last_updated_tick,
+                primary_reason=case.primary_reason,
+                severity=case.severity,
+                record_count=case.record_count,
+                active_restriction_count=case.active_restriction_count,
+                metadata=case.metadata_json or {},
+                created_at=case.created_at,
+            )
+            for case in cases
+        ],
+        total=len(cases),
+    )
+
+
+@router.get(
+    "/{run_id}/director/restrictions",
+    response_model=GovernanceRestrictionsResponse,
+    summary="获取导演治理限制",
+    description="获取 run 级活跃治理限制列表，支持按 agent 或 restriction_type 过滤。",
+    responses={
+        **COMMON_RESPONSES,
+        200: {"description": "导演治理限制", "model": GovernanceRestrictionsResponse},
+    },
+)
+async def get_director_governance_restrictions(
+    run_id: UUID,
+    agent_id: str | None = Query(None, description="按 agent 过滤"),
+    restriction_type: str | None = Query(None, description="按限制类型过滤"),
+    status: str | None = Query(None, description="按限制状态过滤 (active/expired/lifted)"),
+    limit: int = Query(50, ge=1, le=200),
+    session: AsyncSession = Depends(get_db_session),
+) -> GovernanceRestrictionsResponse:
+    await get_required_run(session, run_id)
+
+    agent_repo = AgentRepository(session)
+    restriction_repo = GovernanceRestrictionRepository(session)
+
+    agents, restrictions = await asyncio.gather(
+        agent_repo.list_names_for_run(str(run_id)),
+        restriction_repo.list_for_run(
+            str(run_id),
+            agent_id=agent_id,
+            restriction_type=restriction_type,
+            status=status,
+            limit=limit,
+        ),
+    )
+
+    agent_name_map = {agent.id: agent.name for agent in agents}
+
+    return GovernanceRestrictionsResponse(
+        run_id=str(run_id),
+        restrictions=[
+            GovernanceRestrictionResponse(
+                id=restriction.id,
+                run_id=restriction.run_id,
+                agent_id=restriction.agent_id,
+                agent_name=agent_name_map.get(restriction.agent_id),
+                case_id=restriction.case_id,
+                restriction_type=restriction.restriction_type,
+                status=restriction.status,
+                scope_type=restriction.scope_type,
+                scope_value=restriction.scope_value,
+                reason=restriction.reason,
+                start_tick=restriction.start_tick,
+                end_tick=restriction.end_tick,
+                severity=restriction.severity,
+                metadata=restriction.metadata_json or {},
+                created_at=restriction.created_at,
+            )
+            for restriction in restrictions
+        ],
+        total=len(restrictions),
+    )
