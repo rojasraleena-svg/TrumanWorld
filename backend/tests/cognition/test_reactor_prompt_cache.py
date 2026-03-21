@@ -16,6 +16,7 @@ class TestReactorPromptCache:
         return LangGraphAgentBackend(
             settings=Settings(
                 agent_backend="langgraph",
+                llm_provider="anthropic",
                 langgraph_reactor_prompt_cache_enabled=True,
             )
         )
@@ -26,6 +27,7 @@ class TestReactorPromptCache:
         return LangGraphAgentBackend(
             settings=Settings(
                 agent_backend="langgraph",
+                llm_provider="anthropic",
                 langgraph_reactor_prompt_cache_enabled=False,
             )
         )

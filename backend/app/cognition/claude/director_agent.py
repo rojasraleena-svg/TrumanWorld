@@ -70,9 +70,7 @@ class DirectorAgent:
         self._enabled = self._config.enabled and self.settings.director_backend == "claude_sdk"
         self._decision_interval = self._config.decision_interval
         self._model = (
-            self._config.llm.model
-            or self.settings.director_agent_model
-            or self.settings.llm_model
+            self._config.llm.model or self.settings.director_agent_model or self.settings.llm_model
         )
 
     def is_enabled(self) -> bool:
@@ -88,9 +86,7 @@ class DirectorAgent:
         self._enabled = self._config.enabled and self.settings.director_backend == "claude_sdk"
         self._decision_interval = self._config.decision_interval
         self._model = (
-            self._config.llm.model
-            or self.settings.director_agent_model
-            or self.settings.llm_model
+            self._config.llm.model or self.settings.director_agent_model or self.settings.llm_model
         )
         logger.debug("DirectorAgent configuration reloaded")
 

@@ -1,3 +1,5 @@
+import pytest
+
 from app.infra.settings import Settings
 
 
@@ -57,7 +59,12 @@ def test_settings_support_openai_llm_provider() -> None:
     assert settings.llm_session_cache_enabled is True
 
 
-def test_settings_backfill_claude_sdk_fields_from_anthropic_llm_settings() -> None:
+def test_settings_backfill_claude_sdk_fields_from_anthropic_llm_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("TRUMANWORLD_ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("TRUMANWORLD_ANTHROPIC_BASE_URL", raising=False)
+
     settings = Settings(
         agent_backend="claude_sdk",
         llm_provider="anthropic",
@@ -71,7 +78,12 @@ def test_settings_backfill_claude_sdk_fields_from_anthropic_llm_settings() -> No
     assert settings.anthropic_base_url == "https://anthropic-proxy.invalid"
 
 
-def test_settings_do_not_backfill_claude_sdk_fields_from_openai_llm_settings() -> None:
+def test_settings_do_not_backfill_claude_sdk_fields_from_openai_llm_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("TRUMANWORLD_ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("TRUMANWORLD_ANTHROPIC_BASE_URL", raising=False)
+
     settings = Settings(
         agent_backend="claude_sdk",
         llm_provider="openai",

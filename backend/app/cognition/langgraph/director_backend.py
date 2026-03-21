@@ -75,10 +75,7 @@ class LangGraphDirectorBackend:
         )
 
     def _build_default_model(self) -> BaseChatModel | None:
-        model_name = (
-            self._settings.director_agent_model
-            or self._settings.llm_model
-        )
+        model_name = self._settings.director_agent_model or self._settings.llm_model
         return build_langgraph_chat_model(self._settings, model_name=model_name)
 
     def _extract_text_content(self, response: object) -> str:

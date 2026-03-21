@@ -40,11 +40,7 @@ class LlmCallCollector:
                 )
         return (
             int(usage.get("cache_read_input_tokens", 0) or 0),
-            int(
-                usage.get("cache_creation_input_tokens", 0)
-                or usage.get("cache_creation", 0)
-                or 0
-            ),
+            int(usage.get("cache_creation_input_tokens", 0) or usage.get("cache_creation", 0) or 0),
         )
 
     def build_callback(
