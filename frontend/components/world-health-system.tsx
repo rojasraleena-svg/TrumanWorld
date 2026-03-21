@@ -440,7 +440,7 @@ function ComponentStatusCard({
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
       <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-slate-800">{label}</div>
+        <div className="text-[13px] font-semibold text-slate-800">{label}</div>
         <span
           className={`rounded-full px-2.5 py-1 text-xs font-medium ${
             unavailable ? "bg-slate-100 text-slate-500" : "bg-emerald-50 text-emerald-700"
@@ -475,7 +475,7 @@ function StatusStat({
       }`}
     >
       <div className="text-[11px] text-slate-500">{label}</div>
-      <div className="mt-1 text-sm font-semibold text-slate-800">{value}</div>
+      <div className="mt-1 text-[15px] font-semibold text-slate-800">{value}</div>
     </div>
   );
 }
@@ -499,7 +499,7 @@ function MiniStatusChip({
   return (
     <div className={`rounded-lg border px-2.5 py-2 ${toneClasses}`}>
       <div className="text-[10px] opacity-70">{label}</div>
-      <div className="mt-1 text-sm font-semibold">{value}</div>
+      <div className="mt-1 text-[15px] font-semibold">{value}</div>
       {hint ? <div className="mt-0.5 text-[10px] opacity-60">{hint}</div> : null}
     </div>
   );
@@ -539,12 +539,12 @@ function NavItem({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm transition ${
+      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[13px] transition ${
         active ? toneClasses[tone].active : toneClasses[tone].inactive
       }`}
     >
       <div className="flex items-center gap-2.5">
-        <span className="text-base">{icon}</span>
+        <span className="text-[15px]">{icon}</span>
         <span className="font-medium">{label}</span>
       </div>
       <span

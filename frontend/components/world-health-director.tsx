@@ -383,12 +383,12 @@ function NavItem({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm transition ${
+      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[13px] transition ${
         active ? toneClasses[tone].active : toneClasses[tone].inactive
       }`}
     >
       <div className="flex items-center gap-2.5">
-        <span className="text-base">{icon}</span>
+        <span className="text-[15px]">{icon}</span>
         <span className="font-medium">{label}</span>
       </div>
       <span
@@ -509,7 +509,7 @@ function DirectorObservationCard({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-xs font-medium uppercase tracking-wider text-slate-400">导演观察</div>
-          <div className="mt-1 text-base font-semibold text-slate-900">当前世界信号</div>
+          <div className="mt-1 text-[15px] font-semibold text-slate-900">当前世界信号</div>
         </div>
         <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${alertTone}`}>
           {observation.subject_alert_tracking_enabled ? "主体告警已启用" : "主体告警未启用"}
