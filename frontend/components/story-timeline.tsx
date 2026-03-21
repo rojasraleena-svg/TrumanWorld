@@ -50,7 +50,7 @@ export function StoryTimeline({ chapters, onExpand }: StoryTimelineProps) {
       <div className="flex shrink-0 items-center justify-between">
         <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">📖 今日故事线</h2>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400">{chapters.length} 个时段</span>
+          <span className="text-[11px] text-slate-400">{chapters.length} 个时段</span>
           {onExpand && (
             <button
               type="button"
@@ -113,12 +113,12 @@ function ChapterCard({
         className="flex w-full items-center justify-between p-2.5 text-left"
       >
         <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-lg">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-[15px]">
             {chapter.periodIcon}
           </span>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-ink">{chapter.periodName}</span>
-            <span className="text-xs text-slate-400">{chapter.timeLabel}</span>
+            <span className="text-[13px] font-medium text-ink">{chapter.periodName}</span>
+            <span className="text-[11px] text-slate-400">{chapter.timeLabel}</span>
           </div>
         </div>
 
@@ -227,6 +227,8 @@ interface CompactEventItemProps {
 function CompactEventItem({ event }: CompactEventItemProps) {
   // 根据类型决定展示样式
   const isLowImportance = event.type === "work" || event.type === "rest";
+  const visibleExplanations =
+    event.explanations?.filter((explanation) => explanation.kind === "risk") ?? [];
 
   const typeClasses = {
     social: "border-l-rose-300 bg-rose-50/30",
@@ -253,9 +255,9 @@ function CompactEventItem({ event }: CompactEventItemProps) {
       <span className="text-sm">{event.icon}</span>
       <div className="min-w-0 flex-1">
         <p className="text-xs text-slate-700 leading-tight">{event.description}</p>
-        {event.explanations && event.explanations.length > 0 && (
+        {visibleExplanations.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1">
-            {event.explanations.map((explanation, index) => (
+            {visibleExplanations.map((explanation, index) => (
               <span
                 key={`${event.id}-explanation-${index}`}
                 className={`rounded-full px-1.5 py-0.5 text-[10px] ${
@@ -301,7 +303,7 @@ export function StoryTimelineCompact({
   if (allEvents.length === 0) {
     return (
       <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-        <p className="text-sm text-slate-500">暂无故事数据</p>
+        <p className="text-[13px] text-slate-500">暂无故事数据</p>
       </div>
     );
   }
@@ -309,15 +311,15 @@ export function StoryTimelineCompact({
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-slate-500">最新动态</span>
-        <span className="text-xs text-slate-400">
+        <span className="text-[11px] font-medium text-slate-500">最新动态</span>
+        <span className="text-[11px] text-slate-400">
           {chapters[0]?.periodIcon} {chapters[0]?.periodName}
         </span>
       </div>
       <div className="mt-2 space-y-2">
         {allEvents.map((event) => (
-          <div key={event.id} className="flex items-center gap-2 text-sm">
-            <span>{event.icon}</span>
+          <div key={event.id} className="flex items-center gap-2 text-[13px]">
+            <span className="text-[14px]">{event.icon}</span>
             <span className="flex-1 truncate text-slate-700">
               {event.description}
             </span>

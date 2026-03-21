@@ -131,7 +131,7 @@ export function WorldCanvas({ runId }: Props) {
             highlightedLocationId={highlightedLocationId}
             onLocationClick={(locationId) => {
               setHighlightedLocationId(locationId);
-              replaceSearchParams({ loc: locationId });
+              replaceSearchParams({ modal: "location", loc: locationId });
             }}
             onAgentClick={(agentId) => {
               replaceSearchParams({ modal: "agent", agent: agentId });
@@ -190,7 +190,7 @@ export function WorldCanvas({ runId }: Props) {
                     </p>
                     <div className="mt-2 space-y-1.5">
                       {selectedLocationHeadlineEvents.map((event) => (
-                        <div key={event.id} className="flex items-start gap-2 text-sm text-slate-600">
+                        <div key={event.id} className="flex items-start gap-2 text-[13px] text-slate-600">
                           <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-moss/50" />
                           <span className="line-clamp-2">
                             {describeWorldEvent(event, agentNameMap, locationNameMap)}
@@ -218,7 +218,7 @@ export function WorldCanvas({ runId }: Props) {
                           configId={agent.config_id}
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-ink group-hover:text-moss">{agent.name}</p>
+                          <p className="truncate text-[13px] font-medium text-ink group-hover:text-moss">{agent.name}</p>
                           <p className="truncate text-xs text-slate-500">{formatGoal(agent.current_goal)}</p>
                         </div>
                         <span className="text-[10px] uppercase tracking-[0.18em] text-slate-400">

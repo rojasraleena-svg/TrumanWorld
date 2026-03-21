@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ScrollArea } from "@/components/scroll-area";
 import { useModal } from "@/lib/hooks";
@@ -52,7 +53,7 @@ export function Modal({
     closeOnBackdrop,
   });
 
-  return (
+  const modal = (
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -108,6 +109,12 @@ export function Modal({
       )}
     </AnimatePresence>
   );
+
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(modal, document.body);
 }
 
 export function WorkspaceModalShell({
