@@ -92,6 +92,23 @@
 
 而不是全都物理拦截。
 
+### 3.5 关系网络的叙事化演化
+
+`narrative_world` 不是纯制度世界，它本质上还是一个持续运转的人际场。
+
+因此第一阶段关系设计不应只回答“谁认识谁”，还应回答：
+
+- 哪些日常接触会自然升温
+- 哪些互动会造成疏离或不信任
+- 哪些地点和时段会放大社交效果
+- 主体附近的异常互动为什么会带来负面后果
+
+这部分适合：
+
+- 关系状态本身存入 relationship 数据
+- 变化条件由 `rules.yml` 与 `policies/default.yml` 共同约束
+- 变化原因通过 event payload / memory / timeline 解释
+
 ## 4. Narrative World 第一阶段建议 facts
 
 在平台 facts 基础上，这个场景最常用的应该是：
@@ -100,6 +117,8 @@
 - `actor.location_id`
 - `actor.workplace_id`
 - `target_agent.role`
+- `target_agent.relationship_level`
+- `target_agent.familiarity`
 - `target_location.id`
 - `target_location.type`
 - `target_location.capacity_remaining`
@@ -108,6 +127,8 @@
 - `policy.power_outage_locations`
 - `policy.sensitive_locations`
 - `policy.subject_protection_bias`
+- `policy.social_boost_locations`
+- `policy.talk_risk_after_hour`
 
 ## 5. Narrative World 第一阶段建议规则
 
@@ -135,6 +156,24 @@
 
 这些更适合走 `soft_risk`。
 
+### 5.4 关系演化类
+
+`narrative_world` 中的关系变化应被视为“行为后果”的一部分，而不是和世界规则完全脱钩。
+
+第一阶段建议至少支持以下倾向：
+
+- 白天、公共、自然的日常对话，通常小幅提升 `familiarity`
+- 在 `cafe`、`plaza` 等社交增强地点的自然互动，可额外提升 `affinity`
+- 持续可靠、照料式或帮助式互动，可提升 `trust`
+- 深夜、敏感区域、主体附近的异常互动，不一定提升关系，必要时应转为 `soft_risk`
+- 明显冲突、操控、失信、强行引导，应允许降低 `trust` 或 `affinity`
+
+第一阶段默认不追求复杂社会学模型，但应避免：
+
+- 任何 `talk` 一律加分
+- 所有地点和时段的社交效果完全相同
+- 主体附近的异常行为既提高风险又提高亲密度
+
 ## 6. Narrative World 第一阶段建议 policy values
 
 建议 `policies/default.yml` 最小包含：
@@ -155,6 +194,9 @@ values:
   subject_protection_bias: high
   continuity_protection_level: high
   talk_risk_after_hour: 23
+  relationship_decay_per_day:
+    affinity: 0.02
+    trust: 0.0
   social_boost_locations:
     plaza: 0.2
     cafe: 0.3
@@ -217,6 +259,13 @@ values:
 - 平台裁决优先级细节
 - 所有治理参数全集
 
+补充建议：
+
+- agent 看到的是派生后的 `relationship_level`
+- 只有熟人以上关系才稳定暴露职业等信息
+- 密友或家人可获得更高置信度的背景信息
+- 原始 `trust` / `affinity` 数值不应直接作为 agent-facing 接口
+
 ## 9. 当前最适合的实现路径
 
 对 `narrative_world`，最值得先做的是：
@@ -224,7 +273,8 @@ values:
 1. 补 `constitution.md`
 2. 补 `rules.yml`
 3. 补 `policies/default.yml`
-4. 先让 timeline/event payload 能解释规则和治理结果
+4. 把 relationship 变化从持久化硬编码迁到“规则/治理/后果”链路
+5. 先让 timeline/event payload 能解释规则和治理结果
 
 这样能最快把抽象设计落到当前默认场景上。
 
@@ -236,5 +286,6 @@ values:
 - 时间段风险
 - 主体保护偏置
 - 异常行为的治理处理
+- 叙事化关系演化
 
 这几块最符合当前项目形态，也最容易验证价值。

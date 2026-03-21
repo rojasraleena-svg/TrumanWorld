@@ -60,6 +60,17 @@
 
 第一阶段不必实现完整政府组织模拟。
 
+### 阶段 5：关系后果层
+
+目标：
+
+- 把 relationship 明确归入后果层，而不是继续散落在持久化细节中
+- 让关系更新读取规则裁决结果与 `policy` 上下文
+- 支持正向、负向和时间衰减三类变化
+- 在 perception / prompt / API 中暴露派生后的 `relationship_level`
+
+这一阶段重点不是做复杂社交图，而是让“关系为什么变化”可解释、可调参、可与场景一致。
+
 ## 3. 当前仓库的建议切入点
 
 ### 3.1 Bundle 侧
@@ -77,11 +88,19 @@
 - 在 `backend/app/sim/` 下引入最小 rule evaluation
 - 保留 `ActionResolver` 的底层执行职责
 - 后续再补治理执行器
+- 不再把 relationship 演化语义只写在持久化提交逻辑里
 
 ### 3.4 API / Timeline 侧
 
 - 在 event payload 中增加规则解释信息
 - 后续统一暴露到 timeline / agent detail
+
+### 3.5 Relationship 侧
+
+- 定义 relationship update policy 的最小接口
+- 支持根据事件类型、地点类型、时段和角色语义调制增量
+- 在 context builder 中派生 `relationship_level`
+- 避免运行时更新无条件覆盖 seed 的 `relation_type`
 
 ## 4. 当前不建议立即做的内容
 

@@ -14,9 +14,10 @@
 6. [POLICY_SCHEMA.md](POLICY_SCHEMA.md) - `policies/default.yml` 第一版 schema 草案
 7. [RULE_ENFORCEMENT_MODEL.md](RULE_ENFORCEMENT_MODEL.md) - 规则、治理执行、后果三层模型
 8. [AGENT_VISIBLE_SUMMARY.md](AGENT_VISIBLE_SUMMARY.md) - agent 侧可见的制度摘要层
-9. [RUNTIME_PACKAGE.md](RUNTIME_PACKAGE.md) - bundle 资产装配成 runtime package 的方式
-10. [NARRATIVE_WORLD_WORLD_DESIGN.md](NARRATIVE_WORLD_WORLD_DESIGN.md) - 当前默认场景的 world design 示例
-11. [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) - 面向当前仓库的落地顺序
+9. [RELATIONSHIP_MODEL.md](RELATIONSHIP_MODEL.md) - 关系网络的状态模型、演化规则与边界
+10. [RUNTIME_PACKAGE.md](RUNTIME_PACKAGE.md) - bundle 资产装配成 runtime package 的方式
+11. [NARRATIVE_WORLD_WORLD_DESIGN.md](NARRATIVE_WORLD_WORLD_DESIGN.md) - 当前默认场景的 world design 示例
+12. [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) - 面向当前仓库的落地顺序
 
 适合放置：
 
