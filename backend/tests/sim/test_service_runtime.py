@@ -5,7 +5,7 @@ import app.director.service as director_service_module
 from app.director.service import DirectorEventService
 from app.infra.settings import get_settings
 from app.scenario.narrative_world.coordinator import NarrativeWorldCoordinator
-from app.scenario.narrative_world.rules import RuntimeRoleSemantics
+from app.scenario.runtime_config import RuntimeRoleSemantics
 from app.sim.action_resolver import ActionIntent
 from app.sim.service import SimulationService
 from app.store.models import Agent, Location, SimulationRun

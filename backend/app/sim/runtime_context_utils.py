@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from app.scenario.narrative_world.rules import RuntimeRoleSemantics
+from app.scenario.runtime_config import ScenarioRuntimeConfig
 from app.scenario.types import ScenarioGuidance, get_world_role
 from app.sim.types import AgentDecisionSnapshot, RuntimeWorldContext
 from app.sim.world_queries import get_agent, get_location, get_location_occupants
@@ -99,9 +99,9 @@ def extract_subject_alert_from_agent_data(
     agent_data: list[AgentDecisionSnapshot],
     world: WorldState,
     *,
-    semantics: RuntimeRoleSemantics | None = None,
+    semantics: ScenarioRuntimeConfig | None = None,
 ) -> float:
-    resolved = semantics or RuntimeRoleSemantics()
+    resolved = semantics or ScenarioRuntimeConfig()
     for agent_snapshot in agent_data:
         profile = agent_snapshot.profile or {}
         if get_world_role(profile) != resolved.subject_role:
@@ -117,9 +117,9 @@ def extract_subject_alert_from_agents(
     agents: list[Agent],
     world: WorldState,
     *,
-    semantics: RuntimeRoleSemantics | None = None,
+    semantics: ScenarioRuntimeConfig | None = None,
 ) -> float:
-    resolved = semantics or RuntimeRoleSemantics()
+    resolved = semantics or ScenarioRuntimeConfig()
     for agent in agents:
         if get_world_role(agent.profile) != resolved.subject_role:
             continue

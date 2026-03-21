@@ -9,7 +9,7 @@ from app.cognition.errors import UpstreamApiUnavailableError
 from app.infra.logging import get_logger
 from app.infra.settings import get_settings
 from app.scenario.base import Scenario
-from app.scenario.narrative_world.rules import build_runtime_role_semantics
+from app.scenario.runtime_config import build_scenario_runtime_config
 from app.scenario.types import get_agent_config_id, get_scenario_guidance, get_world_role
 from app.sim.action_resolver import ActionIntent
 from app.sim.agent_snapshot_builder import build_agent_recent_events
@@ -53,7 +53,7 @@ class TickOrchestrator:
         self.context_builder = context_builder
         self.agent_repo = agent_repo
         scenario_id = getattr(scenario, "scenario_id", "narrative_world")
-        self._runtime_role_semantics = build_runtime_role_semantics(scenario_id)
+        self._runtime_role_semantics = build_scenario_runtime_config(scenario_id)
         self._subject_alert_tracking_enabled = self._runtime_role_semantics.subject_alert_tracking
 
     async def prepare_tick_intents(self, run_id: str, world: WorldState) -> list[ActionIntent]:

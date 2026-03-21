@@ -23,6 +23,8 @@ DEFAULT_NARRATIVE_WORLD_RUNTIME_CONFIG = ScenarioRuntimeConfig(
     subject_alert_tracking=True,
 )
 
+RuntimeRoleSemantics = ScenarioRuntimeConfig
+
 
 def build_scenario_runtime_config(scenario_id: str) -> ScenarioRuntimeConfig:
     bundle = get_scenario_bundle(scenario_id)
@@ -58,3 +60,7 @@ def build_scenario_runtime_config(scenario_id: str) -> ScenarioRuntimeConfig:
             )
         ),
     )
+
+
+def build_runtime_role_semantics(scenario_id: str | None) -> RuntimeRoleSemantics:
+    return build_scenario_runtime_config(scenario_id or resolve_default_scenario_id())

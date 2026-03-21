@@ -9,7 +9,8 @@ from app.scenario.bundle_registry import (
     load_world_config_for_scenario,
     resolve_agents_root_for_scenario,
 )
-from app.scenario.narrative_world.rules import build_runtime_role_semantics, load_world_config
+from app.scenario.narrative_world.rules import load_world_config
+from app.scenario.runtime_config import build_runtime_role_semantics
 from app.scenario.narrative_world.types import build_agent_profile
 from app.sim.context import DEFAULT_WORLD_START_TIME
 from app.store.models import Agent, Location, Relationship

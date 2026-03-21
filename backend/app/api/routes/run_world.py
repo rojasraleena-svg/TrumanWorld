@@ -27,7 +27,7 @@ from app.infra.db import get_db_session
 from app.infra.logging import get_logger
 from app.scenario.bundle_registry import load_ui_config_for_scenario, load_world_config_for_scenario
 from app.scenario.runtime_config import build_scenario_runtime_config
-from app.scenario.narrative_world.types import get_agent_config_id
+from app.scenario.types import get_agent_config_id
 from app.sim.context import DEFAULT_WORLD_START_TIME, get_run_world_time
 from app.store.repositories import (
     AgentRepository,

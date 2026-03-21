@@ -10,8 +10,8 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from app.scenario.narrative_world.rules import RuntimeRoleSemantics
 from app.scenario.bundle_registry import resolve_sleep_config_for_scenario
+from app.scenario.runtime_config import ScenarioRuntimeConfig
 from app.scenario.types import ScenarioGuidance, get_world_role
 from app.sim.event_utils import format_event_for_context
 from app.sim.runtime_context_utils import (
@@ -169,7 +169,7 @@ class ContextBuilder:
         agent_data: list[dict],
         world: WorldState,
         *,
-        semantics: RuntimeRoleSemantics | None = None,
+        semantics: ScenarioRuntimeConfig | None = None,
     ) -> float:
         """Extract the primary subject alert score from agent data."""
         return extract_subject_alert_from_agent_data(agent_data, world, semantics=semantics)
@@ -179,10 +179,10 @@ class ContextBuilder:
         agents: list[Agent],
         world: WorldState,
         *,
-        semantics: RuntimeRoleSemantics | None = None,
+        semantics: ScenarioRuntimeConfig | None = None,
     ) -> float:
         """Extract the primary subject alert score from agent objects."""
-        resolved = semantics or RuntimeRoleSemantics()
+        resolved = semantics or ScenarioRuntimeConfig()
         for agent in agents:
             if get_world_role(agent.profile) != resolved.subject_role:
                 continue

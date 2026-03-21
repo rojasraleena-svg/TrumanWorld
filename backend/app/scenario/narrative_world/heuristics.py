@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.cognition.claude.decision_utils import RuntimeDecision
-from app.scenario.narrative_world.rules import RuntimeRoleSemantics
+from app.scenario.runtime_config import RuntimeRoleSemantics
 from app.sim.types import RuntimeWorldContext
 
 

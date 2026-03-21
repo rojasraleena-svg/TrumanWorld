@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from app.director.manual_planner import ManualDirectorPlanner, ManualDirectorPlannerSemantics
 from app.protocol.simulation import build_director_event_type
-from app.scenario.narrative_world.rules import build_runtime_role_semantics
+from app.scenario.runtime_config import build_scenario_runtime_config
 from app.scenario.types import get_world_role
 from app.sim.context import get_run_world_time
 from app.sim.event_utils import build_event
@@ -18,6 +18,10 @@ from app.store.repositories import (
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+
+def build_runtime_role_semantics(scenario_id: str | None):
+    return build_scenario_runtime_config(scenario_id)
 
 
 class DirectorEventService:

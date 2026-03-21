@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from app.scenario.narrative_world.types import build_director_guidance
-from app.scenario.narrative_world.rules import RuntimeRoleSemantics
+from app.scenario.runtime_config import RuntimeRoleSemantics
 from app.sim.runtime_context_utils import (
     build_agent_world_context,
     extract_subject_alert_from_agent_data,
