@@ -1,5 +1,6 @@
 import type {
   AgentDetails,
+  AgentDetailFilter,
   AgentSummary,
   CreateRunResponse,
   DemoAccessStatus,
@@ -19,6 +20,7 @@ import type {
 
 export type {
   AgentDetails,
+  AgentDetailFilter,
   AgentSummary,
   CreateRunResponse,
   DemoAccessStatus,
@@ -261,14 +263,37 @@ export async function getDirectorObservationResult(
 export async function getAgentResult(
   runId: string,
   agentId: string,
+  filter?: AgentDetailFilter,
 ): Promise<ApiResult<AgentDetails>> {
-  return fetchResult<AgentDetails>(`/runs/${runId}/agents/${agentId}`);
+  const params = buildAgentDetailParams(filter);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return fetchResult<AgentDetails>(`/runs/${runId}/agents/${agentId}${query}`);
 }
 
 export async function listAgentsResult(
   runId: string,
 ): Promise<ApiResult<{ run_id: string; agents: AgentSummary[] }>> {
   return fetchResult<{ run_id: string; agents: AgentSummary[] }>(`/runs/${runId}/agents`);
+}
+
+function buildAgentDetailParams(filter?: AgentDetailFilter): URLSearchParams {
+  const params = new URLSearchParams();
+  if (!filter) return params;
+  if (filter.event_type) params.set("event_type", filter.event_type);
+  if (filter.event_query) params.set("event_query", filter.event_query);
+  if (filter.include_routine_events != null) {
+    params.set("include_routine_events", String(filter.include_routine_events));
+  }
+  if (filter.event_limit != null) params.set("event_limit", String(filter.event_limit));
+  if (filter.memory_type) params.set("memory_type", filter.memory_type);
+  if (filter.memory_category) params.set("memory_category", filter.memory_category);
+  if (filter.memory_query) params.set("memory_query", filter.memory_query);
+  if (filter.min_memory_importance != null) {
+    params.set("min_memory_importance", String(filter.min_memory_importance));
+  }
+  if (filter.related_agent_id) params.set("related_agent_id", filter.related_agent_id);
+  if (filter.memory_limit != null) params.set("memory_limit", String(filter.memory_limit));
+  return params;
 }
 
 export async function listScenariosResult(): Promise<ApiResult<ScenarioSummary[]>> {

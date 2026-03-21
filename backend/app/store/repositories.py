@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import Select, and_, case, delete, or_, select
+from sqlalchemy import Select, String, and_, case, cast, delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.store.models import (
@@ -525,10 +525,37 @@ class AgentRepository:
             for row in result.all()
         ]
 
-    async def list_recent_memories(self, agent_id: str, limit: int = 10) -> Sequence[Memory]:
+    async def list_recent_memories(
+        self,
+        agent_id: str,
+        limit: int = 10,
+        memory_type: str | None = None,
+        memory_category: str | None = None,
+        min_importance: float | None = None,
+        query: str | None = None,
+        related_agent_id: str | None = None,
+    ) -> Sequence[Memory]:
+        filters = [Memory.agent_id == agent_id]
+        if memory_type:
+            filters.append(Memory.memory_type == memory_type)
+        if memory_category:
+            filters.append(Memory.memory_category == memory_category)
+        if min_importance is not None:
+            filters.append(Memory.importance >= min_importance)
+        if related_agent_id:
+            filters.append(Memory.related_agent_id == related_agent_id)
+        if query:
+            pattern = f"%{query.strip()}%"
+            filters.append(
+                or_(
+                    Memory.content.ilike(pattern),
+                    Memory.summary.ilike(pattern),
+                )
+            )
+
         stmt: Select[tuple[Memory]] = (
             select(Memory)
-            .where(Memory.agent_id == agent_id)
+            .where(*filters)
             .order_by(Memory.tick_no.desc(), Memory.created_at.desc())
             .limit(limit)
         )
@@ -540,6 +567,9 @@ class AgentRepository:
         run_id: str,
         agent_id: str,
         limit: int = 10,
+        event_type: str | None = None,
+        query: str | None = None,
+        include_routine_events: bool = True,
         include_director_system_events: bool = False,
         current_location_id: str | None = None,
     ) -> Sequence[Event]:
@@ -594,12 +624,24 @@ class AgentRepository:
             else_=1,
         )
 
+        filters = [Event.run_id == run_id, event_scope]
+        if event_type:
+            filters.append(Event.event_type == event_type)
+        if not include_routine_events:
+            filters.append(Event.event_type.not_in(["work", "rest"]))
+        if query:
+            pattern = f"%{query.strip()}%"
+            filters.append(
+                or_(
+                    Event.event_type.ilike(pattern),
+                    cast(Event.payload, String).ilike(pattern),
+                    cast(Event.location_id, String).ilike(pattern),
+                )
+            )
+
         stmt: Select[tuple[Event]] = (
             select(Event)
-            .where(
-                Event.run_id == run_id,
-                event_scope,
-            )
+            .where(*filters)
             .order_by(event_priority, Event.tick_no.desc(), Event.created_at.desc())
             .limit(limit)
         )

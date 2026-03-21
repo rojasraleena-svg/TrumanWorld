@@ -3,19 +3,14 @@
 import { useEffect, useState } from "react";
 import { Modal } from "@/components/modal";
 import { AgentAvatar } from "@/components/agent-avatar";
+import { AgentSignalsPanel } from "@/components/agent-signals-panel";
 import {
-  formatAgentScore,
-  formatMemoryCategory,
   inferAgentStatus,
-  memoryCategoryBadgeClass,
   relationshipTone,
 } from "@/lib/agent-utils";
 import { getAgentResult } from "@/lib/api";
-import { formatRelativeTime } from "@/lib/time";
 import { useWorld } from "@/components/world-context";
-import { describeAgentEvent } from "@/lib/event-utils";
-import { tickToSimDayTime } from "@/lib/world-utils";
-import type { AgentDetails, AgentRecentEvent, AgentRelationship } from "@/lib/types";
+import type { AgentDetails, AgentRelationship } from "@/lib/types";
 
 // 人格特质中文映射
 const PERSONALITY_LABELS: Record<string, string> = {
@@ -111,8 +106,6 @@ export function AgentDetailModal({ isOpen, onClose, runId, agentId }: AgentDetai
   const personality = agent.personality || {};
   const profile = agent.profile || {};
   const relationships = agent.relationships || [];
-  const memories = agent.memories || [];
-
   return (
     <Modal
       isOpen={isOpen}
@@ -237,126 +230,8 @@ export function AgentDetailModal({ isOpen, onClose, runId, agentId }: AgentDetai
           </div>
         </aside>
 
-        {/* 右侧：行为和记忆 */}
-        <div className="flex min-h-0 flex-1 flex-col gap-4 bg-slate-50/30 p-4">
-          {/* 近期事件 */}
-          <section className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-              <span className="h-4 w-1 rounded-full bg-moss" />
-              近期事件
-              <span className="ml-1 text-xs font-normal text-slate-400">({agent.recent_events.length})</span>
-            </h3>
-            <div className="flex-1 overflow-y-auto pr-1">
-              {agent.recent_events.length === 0 ? (
-                <p className="text-sm text-slate-400">暂无近期事件</p>
-              ) : (
-                <div className="space-y-1">
-                  {agent.recent_events.map((event: AgentRecentEvent) => {
-                    const isLowPriority = event.event_type === "work" || event.event_type === "rest";
-                    const timeLabel = world
-                      ? tickToSimDayTime(
-                          event.tick_no,
-                          world.run.tick_minutes ?? 5,
-                          world.run.current_tick ?? 0,
-                          world.world_clock?.iso
-                        )
-                      : null;
-                    if (isLowPriority) {
-                      return (
-                        <div
-                          key={event.id}
-                          className="flex items-center gap-2 rounded-r border-l-2 border-slate-200 py-1 pl-2 pr-2 text-xs text-slate-500"
-                        >
-                          <span className="flex-1 truncate">{describeAgentEvent(event)}</span>
-                          {timeLabel && <span className="shrink-0 text-slate-400">{timeLabel}</span>}
-                        </div>
-                      );
-                    }
-                    const evtStr = String(event.event_type);
-                    const borderColor =
-                      evtStr.includes("talk") || evtStr.includes("speech") || evtStr.includes("conversation")
-                        ? "border-l-blue-300 bg-blue-50/30"
-                        : evtStr.includes("rejected")
-                          ? "border-l-red-300 bg-red-50/30"
-                          : "border-l-emerald-200 bg-emerald-50/20";
-                    return (
-                      <div
-                        key={event.id}
-                        className={`flex items-start gap-2 rounded-r-lg border-l-2 py-1.5 pl-2.5 pr-2 ${borderColor}`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs leading-tight text-slate-700">{describeAgentEvent(event)}</p>
-                          {event.location_name && (
-                            <p className="mt-0.5 text-[10px] text-slate-400">📍 {event.location_name}</p>
-                          )}
-                        </div>
-                        {timeLabel && (
-                          <span className="shrink-0 text-[10px] text-slate-400">{timeLabel}</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* 记忆 */}
-          <section className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-              <span className="h-4 w-1 rounded-full bg-amber-500" />
-              内部记忆栈
-              <span className="ml-1 text-xs font-normal text-slate-400">({memories.length})</span>
-            </h3>
-            <div className="flex-1 overflow-y-auto pr-1">
-            {memories.length === 0 ? (
-              <p className="text-sm text-slate-400">暂无记忆数据</p>
-            ) : (
-              <div className="space-y-2">
-                {memories.slice(0, 20).map((memory) => {
-                  const importanceScore = formatAgentScore(memory.importance);
-                  const isLowImportance = memory.importance != null && memory.importance < 0.3;
-                  const tooltipText = `事件显著性: ${formatAgentScore(memory.event_importance)} | 主体相关性: ${formatAgentScore(memory.self_relevance)}`;
-                  return (
-                    <div
-                      key={memory.id}
-                      className={`rounded-xl border border-slate-100 p-3 ${isLowImportance ? "bg-slate-50/30 opacity-60" : "bg-slate-50/50"}`}
-                    >
-                      <div className="mb-1.5 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`rounded-full border px-2 py-0.5 text-[10px] ${memoryCategoryBadgeClass(memory.memory_category)}`}
-                          >
-                            {formatMemoryCategory(memory.memory_category)}
-                          </span>
-                          {(memory.streak_count ?? 1) > 1 && (
-                            <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-500">
-                              ×{memory.streak_count}
-                            </span>
-                          )}
-                        </div>
-                        <div className="group relative flex items-center gap-1">
-                          <span className={`text-[10px] font-medium ${memory.importance != null && memory.importance >= 0.7 ? "text-amber-600" : "text-slate-400"}`}>
-                            ★ {importanceScore}
-                          </span>
-                          <div className="absolute right-0 top-5 z-10 hidden whitespace-nowrap rounded-lg bg-slate-800 px-2 py-1 text-[10px] text-white shadow-lg group-hover:block">
-                            {tooltipText}
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-sm text-slate-700">{memory.content}</p>
-                      {memory.created_at && (
-                        <p className="mt-1 text-[10px] text-slate-400">
-                          {formatRelativeTime(memory.created_at)}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            </div>
-          </section>
+        <div className="flex min-h-0 flex-1 flex-col bg-slate-50/30 p-4">
+          <AgentSignalsPanel agent={agent} world={world} compact />
         </div>
       </div>
     </Modal>

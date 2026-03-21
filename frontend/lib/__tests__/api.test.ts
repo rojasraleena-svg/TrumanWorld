@@ -2,6 +2,7 @@ import {
   getRunResult,
   fetchApiResult,
   getTimelineResult,
+  getAgentResult,
   createRunResult,
   startRunResult,
   pauseRunResult,
@@ -116,6 +117,54 @@ describe('API', () => {
         error: 'request_failed',
         status: 500,
       })
+    })
+  })
+
+  describe('getAgentResult', () => {
+    it('includes agent detail filter params in request url', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          run_id: 'run-1',
+          agent_id: 'agent-1',
+          name: 'Alice',
+          recent_events: [],
+          memories: [],
+          relationships: [],
+        }),
+      } as Response)
+
+      await getAgentResult('run-1', 'agent-1', {
+        event_type: 'speech',
+        event_query: 'secret',
+        include_routine_events: false,
+        event_limit: 5,
+        memory_type: 'reflection',
+        memory_category: 'long_term',
+        memory_query: 'bob',
+        min_memory_importance: 0.8,
+        related_agent_id: 'bob',
+        memory_limit: 3,
+      })
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/runs/run-1/agents/agent-1?'),
+        expect.objectContaining({
+          cache: 'no-store',
+        })
+      )
+      const [url] = mockFetch.mock.calls[0]
+      expect(String(url)).toContain('event_type=speech')
+      expect(String(url)).toContain('event_query=secret')
+      expect(String(url)).toContain('include_routine_events=false')
+      expect(String(url)).toContain('event_limit=5')
+      expect(String(url)).toContain('memory_type=reflection')
+      expect(String(url)).toContain('memory_category=long_term')
+      expect(String(url)).toContain('memory_query=bob')
+      expect(String(url)).toContain('min_memory_importance=0.8')
+      expect(String(url)).toContain('related_agent_id=bob')
+      expect(String(url)).toContain('memory_limit=3')
     })
   })
 

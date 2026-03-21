@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.simulation import (
@@ -86,6 +86,16 @@ async def list_agents(
 async def get_agent(
     run_id: UUID,
     agent_id: str,
+    event_type: str | None = Query(None, description="按事件类型过滤"),
+    event_query: str | None = Query(None, description="按事件类型或负载文本模糊匹配"),
+    include_routine_events: bool = Query(True, description="是否包含 work/rest 等例行事件"),
+    event_limit: int = Query(10, ge=1, le=100, description="返回事件条数上限"),
+    memory_type: str | None = Query(None, description="按记忆类型过滤"),
+    memory_category: str | None = Query(None, description="按记忆层级过滤"),
+    memory_query: str | None = Query(None, description="按记忆内容或摘要模糊匹配"),
+    min_memory_importance: float | None = Query(None, ge=0.0, le=1.0, description="最低记忆重要性"),
+    related_agent_id: str | None = Query(None, description="按关联 agent 过滤记忆"),
+    memory_limit: int = Query(10, ge=1, le=100, description="返回记忆条数上限"),
     session: AsyncSession = Depends(get_db_session),
 ) -> AgentDetailResponse:
     logger.debug(f"Getting agent details: run_id={run_id}, agent_id={agent_id}")
@@ -108,8 +118,23 @@ async def get_agent(
     all_locations = await location_repo.list_names_for_run(str(run_id))
     location_name_map = {loc.id: loc.name for loc in all_locations}
 
-    memories = await repo.list_recent_memories(agent_id)
-    recent_events = await repo.list_recent_events(str(run_id), agent_id)
+    memories = await repo.list_recent_memories(
+        agent_id,
+        limit=memory_limit,
+        memory_type=memory_type,
+        memory_category=memory_category,
+        min_importance=min_memory_importance,
+        query=memory_query,
+        related_agent_id=related_agent_id,
+    )
+    recent_events = await repo.list_recent_events(
+        str(run_id),
+        agent_id,
+        limit=event_limit,
+        event_type=event_type,
+        query=event_query,
+        include_routine_events=include_routine_events,
+    )
     relationships = await repo.list_relationships(str(run_id), agent_id)
 
     return AgentDetailResponse(

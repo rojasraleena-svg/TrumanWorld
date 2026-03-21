@@ -310,3 +310,16 @@ export type AgentDetails = {
   memories: AgentMemory[];
   relationships: AgentRelationship[];
 };
+
+export type AgentDetailFilter = {
+  event_type?: string;
+  event_query?: string;
+  include_routine_events?: boolean;
+  event_limit?: number;
+  memory_type?: string;
+  memory_category?: string;
+  memory_query?: string;
+  min_memory_importance?: number;
+  related_agent_id?: string;
+  memory_limit?: number;
+};

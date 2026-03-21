@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AgentAvatar } from "@/components/agent-avatar";
+import { AgentSignalsPanel } from "@/components/agent-signals-panel";
 import {
   formatAgentScore,
   formatMemoryCategory,
@@ -10,14 +11,7 @@ import {
 } from "@/lib/agent-utils";
 import { MetricChip } from "@/components/metric-chip";
 import { getAgentResult, getWorldResult } from "@/lib/api";
-import { describeAgentEvent } from "@/lib/event-utils";
-import { tickToSimDayTime } from "@/lib/world-utils";
-import {
-  EVENT_CONVERSATION_JOINED,
-  EVENT_CONVERSATION_STARTED,
-  EVENT_LISTEN,
-  EVENT_SPEECH,
-} from "@/lib/simulation-protocol";
+import type { AgentDetailFilter } from "@/lib/types";
 
 // 人格特质中文映射
 const PERSONALITY_LABELS: Record<string, string> = {
@@ -51,12 +45,15 @@ export const dynamic = "force-dynamic";
 
 type AgentPageProps = {
   params: Promise<{ runId: string; agentId: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function AgentPage({ params }: AgentPageProps) {
+export default async function AgentPage({ params, searchParams }: AgentPageProps) {
   const { runId, agentId } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const initialFilter = buildInitialFilter(resolvedSearchParams);
   const [agentResult, worldResult] = await Promise.all([
-    getAgentResult(runId, agentId),
+    getAgentResult(runId, agentId, initialFilter),
     getWorldResult(runId),
   ]);
   const agent = agentResult.data;
@@ -236,181 +233,39 @@ export default async function AgentPage({ params }: AgentPageProps) {
               </section>
             </aside>
 
-            <div className="grid gap-6 xl:grid-cols-2">
-              {/* 角色行为流 */}
-              <section className="flex min-h-0 flex-col rounded-[28px] border border-white/70 bg-white/80 p-5 shadow-xs backdrop-blur-sm">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-400">近期事件</p>
-                    <h2 className="mt-1 text-lg font-semibold text-ink">角色行为流</h2>
-                  </div>
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-500">
-                    {agent.recent_events.length} 条
-                  </span>
-                </div>
-            
-                <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
-                  {agent.recent_events.length === 0 ? (
-                    <p className="rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-500">暂无近期事件。</p>
-                  ) : (
-                    agent.recent_events.map((event) => {
-                      const message = event.payload.message as string | undefined;
-                      const isTalk =
-                        event.event_type === "talk" || event.event_type === EVENT_SPEECH;
-                      const isConversationStructure =
-                        event.event_type === EVENT_CONVERSATION_STARTED ||
-                        event.event_type === EVENT_CONVERSATION_JOINED;
-                      const isListen = event.event_type === EVENT_LISTEN;
-                      const isMove = event.event_type === "move";
-                      const isNoise = event.event_type === "work" || event.event_type === "rest";
-                      return (
-                        <article
-                          key={event.id}
-                          className={`rounded-2xl px-3 py-2.5 ${
-                            isTalk
-                              ? "border border-sky-100 bg-sky-50/60"
-                              : isConversationStructure
-                              ? "border border-cyan-100 bg-cyan-50/50"
-                              : isListen
-                              ? "border border-fuchsia-100 bg-fuchsia-50/50"
-                              : isMove
-                              ? "border border-emerald-100 bg-emerald-50/50"
-                              : isNoise
-                              ? "bg-slate-50/70"
-                              : "border border-slate-100 bg-white"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex min-w-0 items-center gap-2">
-                              <span className={`shrink-0 text-[10px] font-medium uppercase tracking-wider ${
-                                isTalk
-                                  ? "text-sky-500"
-                                  : isConversationStructure
-                                  ? "text-cyan-600"
-                                  : isListen
-                                  ? "text-fuchsia-600"
-                                  : isMove
-                                  ? "text-emerald-600"
-                                  : "text-slate-400"
-                              }`}>
-                                {event.event_type}
-                              </span>
-                              <span className={`truncate text-sm ${
-                                isNoise ? "text-slate-400" : "text-ink"
-                              }`}>
-                                {describeAgentEvent(event)}
-                              </span>
-                            </div>
-                            <span className="shrink-0 text-[11px] text-slate-400">
-                                                          T{event.tick_no}
-                                                          {world && (
-                                                            <span className="ml-1 text-slate-300">
-                                                              {tickToSimDayTime(
-                                                                event.tick_no,
-                                                                world.run.tick_minutes ?? 5,
-                                                                world.run.current_tick ?? 0,
-                                                                world.world_clock?.iso,
-                                                              )}
-                                                            </span>
-                                                          )}
-                                                        </span>
-                          </div>
-            
-                          {isTalk && message ? (
-                            <div className="mt-1.5 rounded-xl bg-white/80 px-3 py-2 text-sm italic text-slate-600">
-                              &ldquo;{message}&rdquo;
-                            </div>
-                          ) : null}
-            
-                          {(event.target_name || event.location_name) && !isNoise ? (
-                            <div className="mt-1.5 flex flex-wrap gap-1">
-                              {event.target_name ? (
-                                <span className="rounded-full border border-rose-100 bg-rose-50 px-2 py-0.5 text-[10px] text-rose-600">
-                                  → {event.target_name}
-                                </span>
-                              ) : null}
-                              {event.location_name ? (
-                                <span className="rounded-full border border-slate-100 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-500">
-                                  📍 {event.location_name}
-                                </span>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </article>
-                      );
-                    })
-                  )}
-                </div>
-              </section>
-            
-              {/* 内部记忆栈 */}
-              <section className="flex min-h-0 flex-col rounded-[28px] border border-white/70 bg-white/80 p-5 shadow-xs backdrop-blur-sm">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-400">记忆</p>
-                    <h2 className="mt-1 text-lg font-semibold text-ink">内部记忆栈</h2>
-                  </div>
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-500">
-                    {agent.memories.length} 条
-                  </span>
-                </div>
-            
-                <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
-                  {agent.memories.length === 0 ? (
-                    <p className="rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-500">暂无记忆数据。</p>
-                  ) : (
-                    agent.memories.map((memory) => {
-                      const isLowSignal = (memory.importance ?? 0) === 0;
-                      return (
-                        <article
-                          key={memory.id}
-                          className={`rounded-2xl px-3 py-2.5 ${
-                            isLowSignal ? "bg-slate-50/70" : "border border-violet-100 bg-violet-50/50"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <p className={`text-sm leading-5 ${
-                              isLowSignal ? "text-slate-400" : "text-ink"
-                            }`}>
-                              {memory.content}
-                            </p>
-                            <div className="flex shrink-0 flex-col items-end gap-1">
-                              {!isLowSignal && (
-                                <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] text-violet-600">
-                                  ★ {formatAgentScore(memory.importance)}
-                                </span>
-                              )}
-                              <span
-                                className={`rounded-full border px-2 py-0.5 text-[10px] ${memoryCategoryBadgeClass(memory.memory_category)}`}
-                              >
-                                {formatMemoryCategory(memory.memory_category)}
-                              </span>
-                              {memory.related_agent_name ? (
-                                <span className="rounded-full border border-rose-100 bg-rose-50 px-2 py-0.5 text-[10px] text-rose-600">
-                                  {memory.related_agent_name}
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-slate-500">
-                            {(memory.streak_count ?? 1) > 1 ? (
-                              <span>连续 {memory.streak_count} 次</span>
-                            ) : null}
-                            <span>事件显著性 {formatAgentScore(memory.event_importance)}</span>
-                            <span>主体相关性 {formatAgentScore(memory.self_relevance)}</span>
-                          </div>
-                        </article>
-                      );
-                    })
-                  )}
-                </div>
-              </section>
-            </div>
+            <AgentSignalsPanel agent={agent} world={world} initialFilter={initialFilter} />
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+function firstValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function buildInitialFilter(
+  searchParams: Record<string, string | string[] | undefined>,
+): AgentDetailFilter {
+  const eventLimit = Number(firstValue(searchParams.event_limit));
+  const memoryLimit = Number(firstValue(searchParams.memory_limit));
+  const minMemoryImportance = Number(firstValue(searchParams.min_memory_importance));
+
+  return {
+    event_type: firstValue(searchParams.event_type) || undefined,
+    event_query: firstValue(searchParams.event_query) || undefined,
+    include_routine_events:
+      firstValue(searchParams.include_routine_events) === "false" ? false : undefined,
+    event_limit: Number.isFinite(eventLimit) && eventLimit > 0 ? eventLimit : undefined,
+    memory_type: firstValue(searchParams.memory_type) || undefined,
+    memory_category: firstValue(searchParams.memory_category) || undefined,
+    memory_query: firstValue(searchParams.memory_query) || undefined,
+    min_memory_importance:
+      Number.isFinite(minMemoryImportance) ? minMemoryImportance : undefined,
+    related_agent_id: firstValue(searchParams.related_agent_id) || undefined,
+    memory_limit: Number.isFinite(memoryLimit) && memoryLimit > 0 ? memoryLimit : undefined,
+  };
 }
 
 function StatBar({ label, value }: { label: string; value: number }) {

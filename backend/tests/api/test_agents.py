@@ -245,3 +245,186 @@ async def test_get_agent_returns_404_when_agent_belongs_to_other_run(client, db_
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Agent not found"
+
+
+@pytest.mark.asyncio
+async def test_get_agent_filters_recent_events_and_memories(client, db_session):
+    run_id = "00000000-0000-0000-0000-000000000108"
+    run = SimulationRun(id=run_id, name="demo", status="running")
+    alice = Agent(
+        id="alice-filter",
+        run_id=run_id,
+        name="Alice",
+        occupation="resident",
+        current_location_id="loc-cafe",
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+    bob = Agent(
+        id="bob-filter",
+        run_id=run_id,
+        name="Bob",
+        occupation="resident",
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+    cafe = Location(id="loc-cafe", run_id=run_id, name="Cafe", location_type="cafe", capacity=4)
+    events = [
+        Event(
+            id="event-filter-speech",
+            run_id=run_id,
+            tick_no=8,
+            event_type="speech",
+            actor_agent_id="alice-filter",
+            target_agent_id="bob-filter",
+            location_id="loc-cafe",
+            payload={"message": "Secret meeting tonight"},
+        ),
+        Event(
+            id="event-filter-move",
+            run_id=run_id,
+            tick_no=7,
+            event_type="move",
+            actor_agent_id="alice-filter",
+            location_id="loc-cafe",
+            payload={"reason": "Headed to the cafe"},
+        ),
+        Event(
+            id="event-filter-work",
+            run_id=run_id,
+            tick_no=6,
+            event_type="work",
+            actor_agent_id="alice-filter",
+            location_id="loc-cafe",
+            payload={},
+        ),
+    ]
+    memories = [
+        Memory(
+            id="memory-filter-secret",
+            run_id=run_id,
+            agent_id="alice-filter",
+            tick_no=8,
+            memory_type="episodic",
+            memory_category="long_term",
+            summary="Secret plan",
+            content="Remembered the secret meeting with Bob.",
+            importance=0.9,
+            related_agent_id="bob-filter",
+            metadata_json={},
+        ),
+        Memory(
+            id="memory-filter-routine",
+            run_id=run_id,
+            agent_id="alice-filter",
+            tick_no=7,
+            memory_type="episodic_short",
+            memory_category="short_term",
+            summary="Worked",
+            content="Worked during this tick.",
+            importance=0.1,
+            metadata_json={"event_type": "work"},
+        ),
+    ]
+
+    db_session.add_all([run, cafe, alice, bob, *events, *memories])
+    await db_session.commit()
+
+    response = await client.get(
+        f"/api/runs/{run_id}/agents/alice-filter",
+        params={
+            "event_type": "speech",
+            "event_query": "secret",
+            "include_routine_events": "false",
+            "memory_category": "long_term",
+            "memory_query": "secret",
+            "min_memory_importance": "0.8",
+            "related_agent_id": "bob-filter",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [event["id"] for event in body["recent_events"]] == ["event-filter-speech"]
+    assert [memory["id"] for memory in body["memories"]] == ["memory-filter-secret"]
+
+
+@pytest.mark.asyncio
+async def test_get_agent_filters_by_limits_and_memory_type(client, db_session):
+    run_id = "00000000-0000-0000-0000-000000000109"
+    run = SimulationRun(id=run_id, name="demo", status="running")
+    agent = Agent(
+        id="alice-limit",
+        run_id=run_id,
+        name="Alice",
+        occupation="resident",
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+    events = [
+        Event(
+            id="event-limit-new",
+            run_id=run_id,
+            tick_no=9,
+            event_type="speech",
+            actor_agent_id="alice-limit",
+            payload={"message": "newest"},
+        ),
+        Event(
+            id="event-limit-old",
+            run_id=run_id,
+            tick_no=8,
+            event_type="speech",
+            actor_agent_id="alice-limit",
+            payload={"message": "older"},
+        ),
+    ]
+    memories = [
+        Memory(
+            id="memory-limit-episodic",
+            run_id=run_id,
+            agent_id="alice-limit",
+            tick_no=9,
+            memory_type="episodic",
+            memory_category="medium_term",
+            summary="Conversation",
+            content="Important conversation.",
+            importance=0.8,
+            metadata_json={},
+        ),
+        Memory(
+            id="memory-limit-reflection",
+            run_id=run_id,
+            agent_id="alice-limit",
+            tick_no=8,
+            memory_type="reflection",
+            memory_category="long_term",
+            summary="Reflection",
+            content="Reflected on the day.",
+            importance=0.7,
+            metadata_json={},
+        ),
+    ]
+
+    db_session.add_all([run, agent, *events, *memories])
+    await db_session.commit()
+
+    response = await client.get(
+        f"/api/runs/{run_id}/agents/alice-limit",
+        params={
+            "event_limit": "1",
+            "memory_limit": "1",
+            "memory_type": "reflection",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [event["id"] for event in body["recent_events"]] == ["event-limit-new"]
+    assert [memory["id"] for memory in body["memories"]] == ["memory-limit-reflection"]
