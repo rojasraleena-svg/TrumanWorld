@@ -5,6 +5,7 @@ from time import perf_counter
 from typing import TYPE_CHECKING
 
 from app.agent.runtime import RuntimeContext
+from app.agent.working_memory import build_reactor_working_memory
 from app.cognition.errors import UpstreamApiUnavailableError
 from app.infra.logging import get_logger
 from app.infra.settings import get_settings
@@ -362,6 +363,10 @@ class TickOrchestrator:
             recent_events=recent_events,
         )
         inject_profile_fields_into_context(world_ctx, profile)
+        if runtime_ctx is not None and runtime_ctx.memory_cache is not None:
+            runtime_ctx.memory_cache = runtime_ctx.memory_cache.with_working_memory(
+                build_reactor_working_memory(world_ctx, {"recent": []})
+            )
         intent = await self.agent_runtime.react(
             runtime_agent_id,
             world=world_ctx,

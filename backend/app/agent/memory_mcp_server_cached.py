@@ -123,6 +123,19 @@ MEMORY_TOOLS_DEFS = [
             "required": ["location_id"],
         },
     ),
+    Tool(
+        name="get_working_memory",
+        description="""获取你当前的短时工作记忆。当你需要快速确认眼下对话焦点和待处理项时调用。
+
+使用场景：
+- 想确认这段对话现在聊到哪里了
+- 想知道对方刚提供了什么新信息
+- 想避免重复自己刚说过的提议
+
+参数：
+- 无""",
+        inputSchema={"type": "object", "properties": {}},
+    ),
 ]
 
 
@@ -177,6 +190,15 @@ def create_memory_mcp_server_cached(cache: MemoryCache) -> Server:
                     limit=arguments.get("limit", 5),
                 )
                 return [TextContent(type="text", text=cache.format_for_display(memories))]
+
+            elif name == "get_working_memory":
+                working_memory = cache.get_working_memory()
+                return [
+                    TextContent(
+                        type="text",
+                        text=cache.format_working_memory_for_display(working_memory),
+                    )
+                ]
 
             else:
                 return [TextContent(type="text", text=f"未知工具: {name}")]

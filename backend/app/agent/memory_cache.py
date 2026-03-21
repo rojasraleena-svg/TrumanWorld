@@ -33,6 +33,12 @@ class MemoryCache:
         """
         self._cache = cache_data or {}
 
+    def with_working_memory(self, working_memory: dict[str, Any] | None) -> MemoryCache:
+        merged_cache = dict(self._cache)
+        if working_memory:
+            merged_cache["working_memory"] = dict(working_memory)
+        return MemoryCache(merged_cache)
+
     @staticmethod
     def _memory_score(memory: dict[str, Any]) -> tuple[float, float, int]:
         return (
@@ -142,6 +148,12 @@ class MemoryCache:
 
         return results
 
+    def get_working_memory(self) -> dict[str, Any]:
+        working_memory = self._cache.get("working_memory")
+        if isinstance(working_memory, dict):
+            return dict(working_memory)
+        return {}
+
     def format_for_display(self, memories: list[dict[str, Any]]) -> str:
         """Format memory records for display to agent.
 
@@ -163,4 +175,23 @@ class MemoryCache:
             if mem.get("related_agent_name"):
                 lines.append(f"   相关人物: {mem['related_agent_name']}")
 
+        return "\n".join(lines)
+
+    def format_working_memory_for_display(self, working_memory: dict[str, Any]) -> str:
+        if not working_memory:
+            return "当前没有可用的短时工作记忆。"
+
+        labels = (
+            ("current_focus", "当前话题"),
+            ("latest_other_party_update", "对方最新进展"),
+            ("other_party_intent", "对方意图"),
+            ("conversation_phase", "对话阶段"),
+            ("unresolved_item", "待处理项"),
+            ("repetition_risk", "重复风险"),
+        )
+        lines = ["当前短时工作记忆："]
+        for key, label in labels:
+            value = working_memory.get(key)
+            if isinstance(value, str) and value:
+                lines.append(f"- {label}: {value}")
         return "\n".join(lines)

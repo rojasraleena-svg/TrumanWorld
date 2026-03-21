@@ -238,3 +238,48 @@ def test_memory_cache_with_empty_data():
     cache = MemoryCache({})
     assert cache.search_memories("query") == []
     assert cache.get_recent_memories() == []
+
+
+def test_working_memory_can_be_merged_and_retrieved():
+    cache = MemoryCache(
+        {
+            "short_term": [{"id": "st1", "tick_no": 2}],
+            "all": [{"id": "st1", "tick_no": 2}],
+        }
+    )
+
+    merged = cache.with_working_memory(
+        {
+            "current_focus": "中午一起喝咖啡",
+            "latest_other_party_update": "Bob 刚确认了咖啡馆碰头。",
+            "repetition_risk": "proposal x2",
+        }
+    )
+
+    assert merged.get_recent_memories(category="all", limit=1) == [{"id": "st1", "tick_no": 2}]
+    assert merged.get_working_memory() == {
+        "current_focus": "中午一起喝咖啡",
+        "latest_other_party_update": "Bob 刚确认了咖啡馆碰头。",
+        "repetition_risk": "proposal x2",
+    }
+
+
+def test_format_working_memory_for_display_handles_empty_and_populated_state():
+    cache = MemoryCache()
+
+    assert cache.format_working_memory_for_display({}) == "当前没有可用的短时工作记忆。"
+
+    formatted = cache.format_working_memory_for_display(
+        {
+            "current_focus": "中午一起喝咖啡",
+            "latest_other_party_update": "Bob 刚确认了咖啡馆碰头。",
+            "conversation_phase": "closing",
+            "repetition_risk": "proposal x2",
+        }
+    )
+
+    assert "当前短时工作记忆：" in formatted
+    assert "- 当前话题: 中午一起喝咖啡" in formatted
+    assert "- 对方最新进展: Bob 刚确认了咖啡馆碰头。" in formatted
+    assert "- 对话阶段: closing" in formatted
+    assert "- 重复风险: proposal x2" in formatted

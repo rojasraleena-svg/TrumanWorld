@@ -96,6 +96,37 @@ class PromptLoader:
                 lines.append(f'- 待回应问题: "{open_question}"')
             lines.append("")
 
+        conversation_diagnostics = (
+            _world_ctx.get("conversation_diagnostics") if isinstance(_world_ctx, dict) else None
+        )
+        if conversation_diagnostics and isinstance(conversation_diagnostics, dict):
+            lines.append("# 当前对话判断线索")
+            lines.append("这些线索用于帮助你判断对话下一步该推进什么，而不是机械重复上一句。")
+            conversation_focus = conversation_diagnostics.get("conversation_focus")
+            if isinstance(conversation_focus, str) and conversation_focus:
+                lines.append(f"- 当前话题: {conversation_focus}")
+            latest_new_info = conversation_diagnostics.get("other_party_latest_new_info")
+            if isinstance(latest_new_info, str) and latest_new_info:
+                lines.append(f"- 对方上一轮新增信息: {latest_new_info}")
+            latest_intent = conversation_diagnostics.get("other_party_latest_intent")
+            if isinstance(latest_intent, str) and latest_intent:
+                lines.append(f"- 对方最近意图: {latest_intent}")
+            conversation_phase = conversation_diagnostics.get("conversation_phase")
+            if isinstance(conversation_phase, str) and conversation_phase:
+                lines.append(f"- 当前阶段: {conversation_phase}")
+            repetition = conversation_diagnostics.get("self_recent_repetition")
+            if isinstance(repetition, dict) and repetition.get("is_repeating") is True:
+                repeat_type = repetition.get("type") or "表达"
+                repeat_span = repetition.get("repeat_span")
+                if isinstance(repeat_span, int) and repeat_span > 0:
+                    lines.append(f"- 你最近可能在重复: {repeat_type}（连续 {repeat_span} 轮）")
+                else:
+                    lines.append(f"- 你最近可能在重复: {repeat_type}")
+            unresolved_item = conversation_diagnostics.get("unresolved_item")
+            if isinstance(unresolved_item, str) and unresolved_item:
+                lines.append(f"- 仍待处理的问题: {unresolved_item}")
+            lines.append("")
+
         # 渲染对话历史（如果有）
         recent_events = context.get("recent_events", [])
         if recent_events:

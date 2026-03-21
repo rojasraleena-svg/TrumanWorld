@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.agent.config_loader import AgentConfig
+from app.agent.working_memory import build_reactor_working_memory
 
 WorldFilterHook = Callable[[str, dict[str, Any]], dict[str, Any]]
 RoleContextHook = Callable[[str, dict[str, Any]], dict[str, Any]]
@@ -97,6 +98,12 @@ class ContextBuilder:
         recent_events: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         context = self.build_base_context(agent=agent, world=world, memory=memory)
+        working_memory = build_reactor_working_memory(context["world"], context["memory"])
+        if working_memory:
+            context["memory"] = {
+                **context["memory"],
+                "working_memory": working_memory,
+            }
         context["task"] = "reactor"
         context["event"] = event or {}
         context["recent_events"] = recent_events or []

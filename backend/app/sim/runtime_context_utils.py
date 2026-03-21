@@ -29,6 +29,8 @@ _CLOSING_REPLY_PATTERNS = (
     "回头见",
     "回头再聊",
     "回头再联系",
+    "碰头",
+    "中午见",
     "你先忙",
     "先忙你的",
     "各自忙",
@@ -117,6 +119,7 @@ def build_agent_world_context(
     )
     if conversation_state is not None:
         context["conversation_state"] = conversation_state
+        context["conversation_diagnostics"] = extract_conversation_diagnostics(conversation_state)
 
     if world_role:
         context["world_role"] = world_role
@@ -160,6 +163,30 @@ def extract_active_conversation_state(
             "repeat_count": conversation.repeat_count,
         }
     return None
+
+
+def extract_conversation_diagnostics(
+    conversation_state: dict[str, object],
+) -> dict[str, object]:
+    last_message_summary = _clean_optional_text(conversation_state.get("last_message_summary"))
+    last_proposal = _clean_optional_text(conversation_state.get("last_proposal"))
+    open_question = _clean_optional_text(conversation_state.get("open_question"))
+    repeat_count = conversation_state.get("repeat_count")
+    normalized_repeat_count = repeat_count if isinstance(repeat_count, int) and repeat_count > 0 else 0
+
+    diagnostics: dict[str, object] = {
+        "conversation_focus": last_proposal or open_question or last_message_summary,
+        "other_party_latest_new_info": last_message_summary,
+        "other_party_latest_intent": _infer_conversation_intent(last_message_summary, last_proposal),
+        "conversation_phase": _infer_conversation_phase(last_message_summary, open_question),
+        "self_recent_repetition": {
+            "is_repeating": normalized_repeat_count >= 2,
+            "type": "proposal" if last_proposal else "paraphrase",
+            "repeat_span": normalized_repeat_count,
+        },
+        "unresolved_item": open_question or last_proposal,
+    }
+    return diagnostics
 
 
 def extract_pending_reply(
@@ -230,6 +257,55 @@ def _looks_like_reply_seeking_message(message: str) -> bool:
 def _looks_like_closing_message(message: str) -> bool:
     normalized = re.sub(r"\s+", "", message)
     return any(pattern in normalized for pattern in _CLOSING_REPLY_PATTERNS)
+
+
+def _clean_optional_text(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
+def _infer_conversation_intent(
+    latest_message: str | None,
+    last_proposal: str | None,
+) -> str:
+    if latest_message and _looks_like_coordination_message(latest_message):
+        return "coordination"
+    if latest_message and _looks_like_reply_seeking_message(latest_message):
+        return "question"
+    if last_proposal:
+        return "proposal"
+    return "social"
+
+
+def _infer_conversation_phase(
+    latest_message: str | None,
+    open_question: str | None,
+) -> str:
+    if latest_message and (
+        _looks_like_closing_message(latest_message) or _looks_like_coordination_message(latest_message)
+    ):
+        return "closing"
+    if open_question:
+        return "coordination"
+    return "exploring"
+
+
+def _looks_like_coordination_message(message: str) -> bool:
+    return any(
+        token in message
+        for token in (
+            "中午",
+            "下午",
+            "晚上",
+            "碰头",
+            "见面",
+            "见吧",
+            "咖啡馆",
+            "一起去",
+        )
+    )
 
 
 def inject_profile_fields_into_context(

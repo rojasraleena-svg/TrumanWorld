@@ -45,3 +45,4 @@ class RuntimeWorldContext(ScenarioGuidance, total=False):
     world_time: str
     daily_schedule: dict[str, str]
     conversation_state: dict[str, Any]
+    conversation_diagnostics: dict[str, Any]

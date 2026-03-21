@@ -201,6 +201,76 @@ def test_runtime_prepare_reactor_highlights_pending_reply(runtime: AgentRuntime)
     assert '对方刚才说: "要不要一起去咖啡馆？"' in invocation.prompt
 
 
+def test_runtime_prepare_reactor_highlights_conversation_diagnostics(runtime: AgentRuntime):
+    invocation = runtime.prepare_reactor(
+        "demo_agent",
+        world={
+            "current_goal": "talk",
+            "nearby_agent_id": "bob",
+            "conversation_state": {
+                "conversation_id": "conv-1",
+                "repeat_count": 2,
+                "last_proposal": "要不要一起去喝杯咖啡？",
+                "open_question": "要不要一起去喝杯咖啡？",
+            },
+            "conversation_diagnostics": {
+                "conversation_focus": "中午一起喝咖啡",
+                "other_party_latest_new_info": "对方刚确认了中午在咖啡馆碰头。",
+                "other_party_latest_intent": "coordination",
+                "conversation_phase": "closing",
+                "self_recent_repetition": {
+                    "is_repeating": True,
+                    "type": "proposal",
+                    "repeat_span": 2,
+                },
+                "unresolved_item": "确认中午碰头安排",
+            },
+        },
+    )
+
+    assert "# 当前对话判断线索" in invocation.prompt
+    assert "- 当前话题: 中午一起喝咖啡" in invocation.prompt
+    assert "- 对方上一轮新增信息: 对方刚确认了中午在咖啡馆碰头。" in invocation.prompt
+    assert "- 当前阶段: closing" in invocation.prompt
+    assert "- 你最近可能在重复: proposal（连续 2 轮）" in invocation.prompt
+
+
+def test_runtime_prepare_reactor_builds_conversation_working_memory(runtime: AgentRuntime):
+    invocation = runtime.prepare_reactor(
+        "demo_agent",
+        world={
+            "current_goal": "talk",
+            "nearby_agent_id": "bob",
+            "conversation_diagnostics": {
+                "conversation_focus": "中午一起喝咖啡",
+                "other_party_latest_new_info": "对方刚确认了中午在咖啡馆碰头。",
+                "other_party_latest_intent": "coordination",
+                "conversation_phase": "closing",
+                "self_recent_repetition": {
+                    "is_repeating": True,
+                    "type": "proposal",
+                    "repeat_span": 2,
+                },
+                "unresolved_item": "确认中午碰头安排",
+            },
+        },
+        memory={
+            "recent_memories": [{"content": "昨天和 Bob 在咖啡馆聊过天。"}],
+        },
+    )
+
+    working_memory = invocation.context["memory"]["working_memory"]
+    assert working_memory["current_focus"] == "中午一起喝咖啡"
+    assert working_memory["latest_other_party_update"] == "对方刚确认了中午在咖啡馆碰头。"
+    assert working_memory["other_party_intent"] == "coordination"
+    assert working_memory["conversation_phase"] == "closing"
+    assert working_memory["unresolved_item"] == "确认中午碰头安排"
+    assert working_memory["repetition_risk"] == "proposal x2"
+    assert invocation.context["memory"]["recent_memories"] == [
+        {"content": "昨天和 Bob 在咖啡馆聊过天。"}
+    ]
+
+
 def test_runtime_prepare_reflector(runtime: AgentRuntime):
     invocation = runtime.prepare_reflector(
         "demo_agent",
