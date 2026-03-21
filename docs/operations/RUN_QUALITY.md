@@ -9,7 +9,7 @@
 
 当前阶段的重点不再是继续拆架构，而是确认：
 
-- `NarrativeWorldScenario` 能否稳定运行
+- `BundleWorldScenario` 能否稳定运行
 - 世界是否能长期保持自然、连续、不过度机械
 - Truman 是否像主角，而不是普通居民
 - Cast 是否既自然又围绕 Truman
@@ -221,9 +221,9 @@
 建议接下来优先做三件事：
 
 1. 建一个固定的长跑评估脚本或流程
-2. 给 `NarrativeWorldScenario` 增加质量观测输出
+2. 给 `BundleWorldScenario` 增加质量观测输出
 3. 基于真实运行结果调 Truman / Cast / 时间节律
 
 一句话：
 
-> 当前阶段的主任务不是“继续设计”，而是“证明 NarrativeWorldScenario 可以稳定、高质量地运行”。
+> 当前阶段的主任务不是“继续设计”，而是“证明 BundleWorldScenario 可以稳定、高质量地运行”。

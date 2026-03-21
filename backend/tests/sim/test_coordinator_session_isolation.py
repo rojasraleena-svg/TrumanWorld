@@ -1,4 +1,4 @@
-"""TDD: 测试 NarrativeWorldCoordinator.build_director_plan 不在 read_session 中写 DB
+"""TDD: 测试 bundle-world coordinator build_director_plan 不在 read_session 中写 DB
 
 Bug 描述:
     _build_auto_plan 在 read_session 上下文内调用 director_memory_repo.create()（写操作），

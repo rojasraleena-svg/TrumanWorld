@@ -190,7 +190,7 @@ TrumanWorld/
 ```text
 backend/app/scenario/
   base.py
-  narrative_world/
+  bundle_world/
     scenario.py
     coordinator.py
     heuristics.py
@@ -230,7 +230,7 @@ backend/app/scenario/
 id: harbor_mystery
 name: Harbor Mystery
 version: 1
-adapter: narrative_world
+adapter: bundle_world
 
 semantics:
   subject_role: protagonist

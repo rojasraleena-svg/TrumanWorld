@@ -26,7 +26,7 @@ backend/app/
 ├── sim/           # tick 编排、world state、调度与持久化主流程
 ├── agent/         # Agent runtime、prompt、provider、连接池
 ├── store/         # SQLAlchemy models、repository、持久化
-├── scenario/      # 题材抽象层（narrative_world / open_world）
+├── scenario/      # 题材抽象层（bundle_world / open_world）
 ├── director/      # 观察、策略、计划、干预记忆
 ├── infra/         # settings、logging、db
 └── protocol/      # 协议定义
@@ -77,7 +77,8 @@ backend/app/
 
 补充说明：
 
-- `narrative_world` 已经是默认运行时 adapter 与默认场景 bundle
+- `bundle_world` 是当前默认的 bundle-driven 运行时实现
+- `narrative_world` 现在只表示默认场景 bundle id，不再是后端实现目录
 - 仓库中仍可见的 `TrumanWorld` 文案，当前主要属于品牌层、默认场景内容层或历史文档层，而不再是运行时主路径耦合
 
 ## 6. 阅读顺序建议

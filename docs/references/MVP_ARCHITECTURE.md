@@ -64,7 +64,7 @@ MVP 推荐架构：
 当前后端已经在 `sim / agent / director` 之外补了一层 `scenario`：
 
 - `backend/app/scenario/base.py`
-- `backend/app/scenario/narrative_world/scenario.py`
+- `backend/app/scenario/bundle_world/scenario.py`
 - `backend/app/scenario/open_world/scenario.py`
 
 这一层的职责是：
@@ -83,7 +83,7 @@ MVP 推荐架构：
 
 目前已经落地两个 scenario：
 
-- `NarrativeWorldScenario`
+- `BundleWorldScenario`
 - `OpenWorldScenario`
 
 其中 `OpenWorldScenario` 是一个最小示例，用来验证这套抽象不是只服务 Truman world。
@@ -208,7 +208,7 @@ backend/app/
 
 当前已实现：
 
-- `NarrativeWorldScenario` - Narrative World 规则
+- `BundleWorldScenario` - Bundle-driven world 规则
 - `OpenWorldScenario` - 最小示例
 
 ### `director` (新增)
