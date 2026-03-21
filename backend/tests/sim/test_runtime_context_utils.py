@@ -7,7 +7,7 @@ from app.sim.runtime_context_utils import (
     extract_subject_alert_from_agent_data,
 )
 from app.sim.types import AgentDecisionSnapshot
-from app.sim.world import ActiveConversationState, AgentState, LocationState, WorldState
+from app.sim.world import ActiveConversationState, AgentState, InteractionEdgeState, LocationState, WorldState
 
 
 def _build_world() -> WorldState:
@@ -559,6 +559,60 @@ def test_build_agent_world_context_includes_conversation_diagnostics_for_active_
     assert diagnostics["conversation_phase"] == "closing"
     assert diagnostics["self_recent_repetition"]["is_repeating"] is True
     assert diagnostics["self_recent_repetition"]["repeat_span"] == 2
+
+
+def test_build_agent_world_context_prefers_partner_interaction_edge_diagnostics():
+    world = _build_world()
+    world.current_tick = 6
+    world.active_conversations = {
+        "conv-1": ActiveConversationState(
+            id="conv-1",
+            location_id="cafe",
+            participant_ids=["alice", "bob"],
+            active_speaker_id="bob",
+            last_tick_no=5,
+            last_message_summary="那我们中午在咖啡馆碰头吧。",
+            last_proposal="要不要一起去喝杯咖啡？",
+            open_question="要不要一起去喝杯咖啡？",
+            repeat_count=2,
+        )
+    }
+    world.interaction_edges = {
+        "alice->bob": InteractionEdgeState(
+            conversation_id="conv-1",
+            source_agent_id="alice",
+            target_agent_id="bob",
+            last_outgoing_message="好，那就中午见。",
+            last_incoming_message="那我们中午在咖啡馆碰头吧。",
+            last_outgoing_tick_no=6,
+            last_incoming_tick_no=5,
+            last_outgoing_act="closing",
+            last_incoming_act="coordination",
+            unresolved_item=None,
+            closure_state="soft_closed",
+            novelty_since_last_turn=True,
+            redundancy_risk=0.1,
+        )
+    }
+
+    context = build_agent_world_context(
+        agent_id="alice",
+        world=world,
+        current_goal="rest",
+        current_location_id="cafe",
+        home_location_id="home",
+        nearby_agent_id="bob",
+        current_status={"energy": 0.8},
+        recent_events=[],
+    )
+
+    diagnostics = context["conversation_diagnostics"]
+    assert context["interaction_edge"]["closure_state"] == "soft_closed"
+    assert diagnostics["conversation_focus"] == "那我们中午在咖啡馆碰头吧。"
+    assert diagnostics["other_party_latest_new_info"] == "那我们中午在咖啡馆碰头吧。"
+    assert diagnostics["other_party_latest_intent"] == "coordination"
+    assert diagnostics["conversation_phase"] == "soft_closed"
+    assert diagnostics["unresolved_item"] is None
 
 
 def test_extract_subject_alert_from_agent_data_returns_first_subject_score():

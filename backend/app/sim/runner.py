@@ -13,7 +13,7 @@ from app.sim.governance_consequences import (
     apply_governance_attention_decay,
     apply_governance_consequences,
 )
-from app.sim.world import ActiveConversationState, WorldState
+from app.sim.world import ActiveConversationState, InteractionEdgeState, WorldState
 
 
 @dataclass
@@ -75,6 +75,7 @@ class SimulationRunner:
             accepted=accepted,
             tick_no=self.tick_no + advanced.tick_delta,
         )
+        self._store_interaction_edges(accepted=accepted, tick_no=self.tick_no + advanced.tick_delta)
         days_elapsed = advanced.current_time.toordinal() - previous_day_index
         apply_governance_attention_decay(
             self.world,
@@ -250,6 +251,59 @@ class SimulationRunner:
             for session in sessions
         }
 
+    def _store_interaction_edges(
+        self,
+        *,
+        accepted: list[ActionResult],
+        tick_no: int,
+    ) -> None:
+        interaction_edges = dict(getattr(self.world, "interaction_edges", {}))
+
+        for item in accepted:
+            if item.action_type != "talk":
+                continue
+            source_agent_id = item.event_payload.get("agent_id")
+            target_agent_id = item.event_payload.get("target_agent_id")
+            conversation_id = item.event_payload.get("conversation_id")
+            message = item.event_payload.get("message")
+            if not all(
+                isinstance(value, str) and value
+                for value in (source_agent_id, target_agent_id, conversation_id, message)
+            ):
+                continue
+
+            source_key = f"{source_agent_id}->{target_agent_id}"
+            reverse_key = f"{target_agent_id}->{source_agent_id}"
+            source_edge = interaction_edges.get(source_key) or InteractionEdgeState(
+                conversation_id=conversation_id,
+                source_agent_id=source_agent_id,
+                target_agent_id=target_agent_id,
+            )
+            reverse_edge = interaction_edges.get(reverse_key) or InteractionEdgeState(
+                conversation_id=conversation_id,
+                source_agent_id=target_agent_id,
+                target_agent_id=source_agent_id,
+            )
+
+            source_edge.conversation_id = conversation_id
+            reverse_edge.conversation_id = conversation_id
+
+            source_edge.last_outgoing_message = message
+            source_edge.last_outgoing_tick_no = tick_no
+            source_edge.last_outgoing_act = self._infer_interaction_act(message)
+
+            reverse_edge.last_incoming_message = message
+            reverse_edge.last_incoming_tick_no = tick_no
+            reverse_edge.last_incoming_act = source_edge.last_outgoing_act
+
+            self._refresh_interaction_edge_state(source_edge)
+            self._refresh_interaction_edge_state(reverse_edge)
+
+            interaction_edges[source_key] = source_edge
+            interaction_edges[reverse_key] = reverse_edge
+
+        self.world.interaction_edges = interaction_edges
+
     def _conversation_message_for_session(
         self,
         conversation_id: str,
@@ -311,9 +365,114 @@ class SimulationRunner:
             return (previous.repeat_count if previous is not None else 1) + 1
         return 1
 
+    def _refresh_interaction_edge_state(self, edge: InteractionEdgeState) -> None:
+        latest_message, latest_act, latest_direction = self._latest_interaction_components(edge)
+        edge.novelty_since_last_turn = self._interaction_novelty_since_last_turn(edge)
+        edge.redundancy_risk = self._interaction_redundancy_risk(edge)
+        edge.unresolved_item = self._interaction_unresolved_item(edge, latest_act, latest_direction)
+        edge.closure_state = self._interaction_closure_state(
+            edge=edge,
+            latest_message=latest_message,
+            latest_act=latest_act,
+            latest_direction=latest_direction,
+        )
+
+    def _latest_interaction_components(
+        self,
+        edge: InteractionEdgeState,
+    ) -> tuple[str | None, str | None, str | None]:
+        outgoing_tick = edge.last_outgoing_tick_no if isinstance(edge.last_outgoing_tick_no, int) else -1
+        incoming_tick = edge.last_incoming_tick_no if isinstance(edge.last_incoming_tick_no, int) else -1
+        if outgoing_tick >= incoming_tick:
+            return edge.last_outgoing_message, edge.last_outgoing_act, "outgoing"
+        return edge.last_incoming_message, edge.last_incoming_act, "incoming"
+
+    def _interaction_unresolved_item(
+        self,
+        edge: InteractionEdgeState,
+        latest_act: str | None,
+        latest_direction: str | None,
+    ) -> str | None:
+        if latest_act not in {"question", "proposal"}:
+            return None
+        if latest_direction == "incoming":
+            return edge.last_incoming_message
+        if latest_direction == "outgoing":
+            return edge.last_outgoing_message
+        return None
+
+    def _interaction_closure_state(
+        self,
+        *,
+        edge: InteractionEdgeState,
+        latest_message: str | None,
+        latest_act: str | None,
+        latest_direction: str | None,
+    ) -> str:
+        if latest_act in {"question", "proposal"}:
+            return "awaiting_response"
+        if latest_act == "closing":
+            if edge.redundancy_risk >= 0.6:
+                return "closed"
+            return "soft_closed"
+        if latest_direction == "incoming" and edge.last_outgoing_act in {"question", "proposal"}:
+            return "open"
+        if latest_message:
+            return "open"
+        return "open"
+
+    def _interaction_novelty_since_last_turn(self, edge: InteractionEdgeState) -> bool:
+        if not edge.last_outgoing_message or not edge.last_incoming_message:
+            return True
+        return self._conversation_overlap_score(
+            edge.last_outgoing_message,
+            edge.last_incoming_message,
+        ) < 0.45
+
+    def _interaction_redundancy_risk(self, edge: InteractionEdgeState) -> float:
+        scores = [
+            self._conversation_overlap_score(edge.last_outgoing_message, edge.last_incoming_message),
+        ]
+        if edge.last_outgoing_act == "closing" and edge.last_incoming_act == "closing":
+            scores.append(0.7)
+        return max(scores)
+
     @staticmethod
     def _normalize_conversation_text(text: str) -> str:
         return "".join(text.split()).strip("，。！？,.!?：:;；\"'“”‘’").lower()
+
+    @staticmethod
+    def _conversation_overlap_score(left: str | None, right: str | None) -> float:
+        if not left or not right:
+            return 0.0
+        normalized_left = SimulationRunner._normalize_conversation_text(left)
+        normalized_right = SimulationRunner._normalize_conversation_text(right)
+        if not normalized_left or not normalized_right:
+            return 0.0
+
+        def _char_windows(text: str, width: int = 8) -> set[str]:
+            if len(text) <= width:
+                return {text}
+            return {text[idx : idx + width] for idx in range(len(text) - width + 1)}
+
+        left_windows = _char_windows(normalized_left)
+        right_windows = _char_windows(normalized_right)
+        if not left_windows or not right_windows:
+            return 0.0
+        return len(left_windows & right_windows) / min(len(left_windows), len(right_windows))
+
+    @staticmethod
+    def _infer_interaction_act(message: str) -> str:
+        normalized = SimulationRunner._normalize_conversation_text(message)
+        if any(token in message for token in ("？", "?", "吗", "要不要", "可以吗", "方便吗")):
+            return "question"
+        if any(token in normalized for token in ("下午见", "回头见", "回头再聊", "下次再聊", "先忙", "中午见")):
+            return "closing"
+        if any(token in message for token in ("中午", "下午", "晚上", "碰头", "见面", "一起去", "咖啡馆")):
+            return "coordination"
+        if any(token in message for token in ("一起", "要不", "不如")):
+            return "proposal"
+        return "social"
 
     @staticmethod
     def _looks_like_question(message: str) -> bool:

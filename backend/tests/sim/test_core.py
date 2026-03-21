@@ -1163,3 +1163,47 @@ def test_simulation_runner_reuses_conversation_id_across_adjacent_ticks():
     assert not any(item.action_type == "conversation_started" for item in tick2.accepted)
     assert speech_tick1.event_payload["conversation_id"] == started_tick1.event_payload["conversation_id"]
     assert speech_tick2.event_payload["conversation_id"] == started_tick1.event_payload["conversation_id"]
+
+
+def test_simulation_runner_tracks_directional_interaction_edge_state_across_turns():
+    world = _build_collocated_world()
+    runner = SimulationRunner(world)
+
+    tick1 = runner.tick(
+        [
+            ActionIntent(
+                agent_id="alice",
+                action_type="talk",
+                target_agent_id="bob",
+                payload={"message": "我们中午一起喝咖啡吗？"},
+            )
+        ]
+    )
+    tick2 = runner.tick(
+        [
+            ActionIntent(
+                agent_id="bob",
+                action_type="talk",
+                target_agent_id="alice",
+                payload={"message": "好啊，中午在咖啡馆见。"},
+            )
+        ]
+    )
+
+    first_conversation_id = next(
+        item.event_payload["conversation_id"] for item in tick1.accepted if item.action_type == "talk"
+    )
+    alice_to_bob = world.interaction_edges["alice->bob"]
+    bob_to_alice = world.interaction_edges["bob->alice"]
+
+    assert alice_to_bob.conversation_id == first_conversation_id
+    assert alice_to_bob.last_outgoing_message == "我们中午一起喝咖啡吗？"
+    assert alice_to_bob.last_incoming_message == "好啊，中午在咖啡馆见。"
+    assert alice_to_bob.unresolved_item is None
+    assert alice_to_bob.closure_state == "open"
+
+    assert bob_to_alice.conversation_id == first_conversation_id
+    assert bob_to_alice.last_incoming_message == "我们中午一起喝咖啡吗？"
+    assert bob_to_alice.last_outgoing_message == "好啊，中午在咖啡馆见。"
+    assert bob_to_alice.last_incoming_act == "question"
+    assert bob_to_alice.last_outgoing_act == "coordination"

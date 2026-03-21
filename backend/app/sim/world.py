@@ -44,6 +44,23 @@ class ActiveConversationState:
     repeat_count: int = 0
 
 
+@dataclass
+class InteractionEdgeState:
+    conversation_id: str
+    source_agent_id: str
+    target_agent_id: str
+    last_outgoing_message: str | None = None
+    last_incoming_message: str | None = None
+    last_outgoing_tick_no: int | None = None
+    last_incoming_tick_no: int | None = None
+    last_outgoing_act: str | None = None
+    last_incoming_act: str | None = None
+    unresolved_item: str | None = None
+    closure_state: str = "open"
+    novelty_since_last_turn: bool = True
+    redundancy_risk: float = 0.0
+
+
 class WorldState:
     """Authoritative in-memory world state facade."""
 
@@ -57,6 +74,7 @@ class WorldState:
         world_effects: dict[str, Any] | None = None,
         relationship_contexts: dict[str, dict[str, dict[str, Any]]] | None = None,
         active_conversations: dict[str, ActiveConversationState] | None = None,
+        interaction_edges: dict[str, InteractionEdgeState] | None = None,
         sleep_start_hour: int = 23,
         sleep_end_hour: int = 6,
     ) -> None:
@@ -68,6 +86,7 @@ class WorldState:
         self.world_effects = world_effects or {}
         self.relationship_contexts = relationship_contexts or {}
         self.active_conversations = active_conversations or {}
+        self.interaction_edges = interaction_edges or {}
         self.sleep_start_hour = sleep_start_hour
         self.sleep_end_hour = sleep_end_hour
 
@@ -100,6 +119,24 @@ class WorldState:
                     "repeat_count": conversation.repeat_count,
                 }
                 for conversation_id, conversation in self.active_conversations.items()
+            },
+            "interaction_edges": {
+                edge_key: {
+                    "conversation_id": edge.conversation_id,
+                    "source_agent_id": edge.source_agent_id,
+                    "target_agent_id": edge.target_agent_id,
+                    "last_outgoing_message": edge.last_outgoing_message,
+                    "last_incoming_message": edge.last_incoming_message,
+                    "last_outgoing_tick_no": edge.last_outgoing_tick_no,
+                    "last_incoming_tick_no": edge.last_incoming_tick_no,
+                    "last_outgoing_act": edge.last_outgoing_act,
+                    "last_incoming_act": edge.last_incoming_act,
+                    "unresolved_item": edge.unresolved_item,
+                    "closure_state": edge.closure_state,
+                    "novelty_since_last_turn": edge.novelty_since_last_turn,
+                    "redundancy_risk": edge.redundancy_risk,
+                }
+                for edge_key, edge in self.interaction_edges.items()
             },
             "agents": {
                 agent_id: {

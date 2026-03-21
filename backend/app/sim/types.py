@@ -46,3 +46,4 @@ class RuntimeWorldContext(ScenarioGuidance, total=False):
     daily_schedule: dict[str, str]
     conversation_state: dict[str, Any]
     conversation_diagnostics: dict[str, Any]
+    interaction_edge: dict[str, Any]

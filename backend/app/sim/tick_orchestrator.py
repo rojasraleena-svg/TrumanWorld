@@ -482,7 +482,7 @@ class TickOrchestrator:
             return intent
 
         repeat_count = conversation_state.get("repeat_count")
-        if not isinstance(repeat_count, int) or repeat_count < 2:
+        if not isinstance(repeat_count, int) or repeat_count < 1:
             return intent
 
         if intent.target_agent_id != world_ctx.get("nearby_agent_id"):
@@ -506,6 +506,9 @@ class TickOrchestrator:
         if any(
             TickOrchestrator._normalize_conversation_text(value) == normalized_message
             for value in repeated_targets
+        ) or any(
+            TickOrchestrator._conversation_overlap_score(value, message) >= 0.45
+            for value in repeated_targets
         ):
             return ActionIntent(
                 agent_id=intent.agent_id,
@@ -521,6 +524,25 @@ class TickOrchestrator:
     @staticmethod
     def _normalize_conversation_text(text: str) -> str:
         return "".join(text.split()).strip("，。！？,.!?：:;；\"'“”‘’").lower()
+
+    @staticmethod
+    def _conversation_overlap_score(left: str, right: str) -> float:
+        normalized_left = TickOrchestrator._normalize_conversation_text(left)
+        normalized_right = TickOrchestrator._normalize_conversation_text(right)
+        if not normalized_left or not normalized_right:
+            return 0.0
+
+        def _char_windows(text: str, width: int = 8) -> set[str]:
+            if len(text) <= width:
+                return {text}
+            return {text[idx : idx + width] for idx in range(len(text) - width + 1)}
+
+        left_windows = _char_windows(normalized_left)
+        right_windows = _char_windows(normalized_right)
+        if not left_windows or not right_windows:
+            return 0.0
+        overlap = left_windows & right_windows
+        return len(overlap) / min(len(left_windows), len(right_windows))
 
     @staticmethod
     def resolve_runtime_agent_id(agent: Agent) -> str:

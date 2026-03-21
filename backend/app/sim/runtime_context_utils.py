@@ -117,9 +117,19 @@ def build_agent_world_context(
         self_agent_id=agent_id,
         nearby_agent_id=nearby_agent_id,
     )
+    interaction_edge = extract_interaction_edge_state(
+        world=world,
+        self_agent_id=agent_id,
+        nearby_agent_id=nearby_agent_id,
+    )
     if conversation_state is not None:
         context["conversation_state"] = conversation_state
-        context["conversation_diagnostics"] = extract_conversation_diagnostics(conversation_state)
+        context["conversation_diagnostics"] = extract_conversation_diagnostics(
+            conversation_state,
+            interaction_edge_state=interaction_edge,
+        )
+    if interaction_edge is not None:
+        context["interaction_edge"] = interaction_edge
 
     if world_role:
         context["world_role"] = world_role
@@ -167,7 +177,15 @@ def extract_active_conversation_state(
 
 def extract_conversation_diagnostics(
     conversation_state: dict[str, object],
+    *,
+    interaction_edge_state: dict[str, object] | None = None,
 ) -> dict[str, object]:
+    if interaction_edge_state:
+        return extract_interaction_edge_diagnostics(
+            conversation_state=conversation_state,
+            interaction_edge_state=interaction_edge_state,
+        )
+
     last_message_summary = _clean_optional_text(conversation_state.get("last_message_summary"))
     last_proposal = _clean_optional_text(conversation_state.get("last_proposal"))
     open_question = _clean_optional_text(conversation_state.get("open_question"))
@@ -187,6 +205,65 @@ def extract_conversation_diagnostics(
         "unresolved_item": open_question or last_proposal,
     }
     return diagnostics
+
+
+def extract_interaction_edge_state(
+    *,
+    world: WorldState,
+    self_agent_id: str | None,
+    nearby_agent_id: str | None,
+) -> dict[str, object] | None:
+    if not self_agent_id or not nearby_agent_id:
+        return None
+
+    edge = getattr(world, "interaction_edges", {}).get(f"{self_agent_id}->{nearby_agent_id}")
+    if edge is None:
+        return None
+    return {
+        "conversation_id": edge.conversation_id,
+        "source_agent_id": edge.source_agent_id,
+        "target_agent_id": edge.target_agent_id,
+        "last_outgoing_message": edge.last_outgoing_message,
+        "last_incoming_message": edge.last_incoming_message,
+        "last_outgoing_tick_no": edge.last_outgoing_tick_no,
+        "last_incoming_tick_no": edge.last_incoming_tick_no,
+        "last_outgoing_act": edge.last_outgoing_act,
+        "last_incoming_act": edge.last_incoming_act,
+        "unresolved_item": edge.unresolved_item,
+        "closure_state": edge.closure_state,
+        "novelty_since_last_turn": edge.novelty_since_last_turn,
+        "redundancy_risk": edge.redundancy_risk,
+    }
+
+
+def extract_interaction_edge_diagnostics(
+    *,
+    conversation_state: dict[str, object],
+    interaction_edge_state: dict[str, object],
+) -> dict[str, object]:
+    repeat_count = conversation_state.get("repeat_count")
+    normalized_repeat_count = repeat_count if isinstance(repeat_count, int) and repeat_count > 0 else 0
+    last_incoming_message = _clean_optional_text(interaction_edge_state.get("last_incoming_message"))
+    last_outgoing_message = _clean_optional_text(interaction_edge_state.get("last_outgoing_message"))
+    closure_state = _clean_optional_text(interaction_edge_state.get("closure_state")) or "open"
+    unresolved_item = _clean_optional_text(interaction_edge_state.get("unresolved_item"))
+    latest_focus = unresolved_item or last_incoming_message or last_outgoing_message
+    last_incoming_act = _clean_optional_text(interaction_edge_state.get("last_incoming_act")) or "social"
+    redundancy_risk = interaction_edge_state.get("redundancy_risk")
+    redundancy_value = redundancy_risk if isinstance(redundancy_risk, (int, float)) else 0.0
+
+    return {
+        "conversation_focus": latest_focus,
+        "other_party_latest_new_info": last_incoming_message,
+        "other_party_latest_intent": last_incoming_act,
+        "conversation_phase": closure_state,
+        "self_recent_repetition": {
+            "is_repeating": normalized_repeat_count >= 2 or redundancy_value >= 0.6,
+            "type": "proposal" if conversation_state.get("last_proposal") else "paraphrase",
+            "repeat_span": normalized_repeat_count,
+        },
+        "unresolved_item": unresolved_item,
+    }
 
 
 def extract_pending_reply(
