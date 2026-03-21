@@ -103,6 +103,7 @@ class TickOrchestrator:
                     profile=profile,
                     recent_events=agent_recent_events.get(agent.id, []),
                     subject_alert_score=subject_alert_score,
+                    relationship_context=world.relationship_contexts.get(agent.id),
                 )
             )
 
@@ -222,6 +223,7 @@ class TickOrchestrator:
                     runtime_ctx=runtime_ctx,
                     workplace_location_id=workplace_location_id,
                     current_plan=agent_snapshot.current_plan,
+                    relationship_context=agent_snapshot.relationship_context,
                 )
             except UpstreamApiUnavailableError:
                 raise
@@ -334,6 +336,7 @@ class TickOrchestrator:
         runtime_ctx=None,
         workplace_location_id: str | None = None,
         current_plan: dict | None = None,
+        relationship_context: dict[str, dict[str, object]] | None = None,
     ) -> ActionIntent:
         nearby_agent_id = (
             find_nearby_agent(world, agent_id, current_location_id)
@@ -354,6 +357,7 @@ class TickOrchestrator:
             director_guidance=director_guidance,
             workplace_location_id=workplace_location_id,
             current_plan=current_plan,
+            relationship_context=relationship_context,
         )
         inject_profile_fields_into_context(world_ctx, profile)
         intent = await self.agent_runtime.react(

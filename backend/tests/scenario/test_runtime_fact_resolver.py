@@ -33,6 +33,17 @@ def test_build_rule_facts_maps_actor_target_world_and_policy_fields():
     world = WorldState(
         current_time=datetime(2026, 3, 21, 21, 30, tzinfo=UTC),
         current_tick=42,
+        relationship_contexts={
+            "truman": {
+                "meryl": {
+                    "familiarity": 0.8,
+                    "trust": 0.6,
+                    "affinity": 0.7,
+                    "relation_type": "friend",
+                    "relationship_level": "friend",
+                }
+            }
+        },
         locations={
             "home": LocationState(id="home", name="Home", capacity=2, occupants={"truman"}),
             "cafe": LocationState(
@@ -76,6 +87,9 @@ def test_build_rule_facts_maps_actor_target_world_and_policy_fields():
     assert resolve_fact_value(facts, "actor.status.suspicion_score") == 0.2
     assert resolve_fact_value(facts, "target_agent.id") == "meryl"
     assert resolve_fact_value(facts, "target_agent.role") == "cast"
+    assert resolve_fact_value(facts, "target_agent.relationship_level") == "friend"
+    assert resolve_fact_value(facts, "target_agent.familiarity") == 0.8
+    assert resolve_fact_value(facts, "target_agent.trust") == 0.6
     assert resolve_fact_value(facts, "target_location.id") == "cafe"
     assert resolve_fact_value(facts, "target_location.type") == "cafe"
     assert resolve_fact_value(facts, "target_location.occupancy") == 1
@@ -114,6 +128,7 @@ def test_build_rule_facts_uses_nulls_for_missing_targets_and_false_for_missing_l
 
     assert resolve_fact_value(facts, "target_agent.id") is None
     assert resolve_fact_value(facts, "target_agent.location_id") is None
+    assert resolve_fact_value(facts, "target_agent.relationship_level") is None
     assert resolve_fact_value(facts, "target_location.exists") is False
     assert resolve_fact_value(facts, "target_location.id") == "missing"
     assert resolve_fact_value(facts, "target_location.capacity_remaining") is None

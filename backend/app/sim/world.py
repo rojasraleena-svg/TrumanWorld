@@ -42,6 +42,7 @@ class WorldState:
         locations: dict[str, LocationState] | None = None,
         agents: dict[str, AgentState] | None = None,
         world_effects: dict[str, Any] | None = None,
+        relationship_contexts: dict[str, dict[str, dict[str, Any]]] | None = None,
         sleep_start_hour: int = 23,
         sleep_end_hour: int = 6,
     ) -> None:
@@ -51,6 +52,7 @@ class WorldState:
         self.locations = locations or {}
         self.agents = agents or {}
         self.world_effects = world_effects or {}
+        self.relationship_contexts = relationship_contexts or {}
         self.sleep_start_hour = sleep_start_hour
         self.sleep_end_hour = sleep_end_hour
 
@@ -70,6 +72,7 @@ class WorldState:
                 for location_id, location in self.locations.items()
             },
             "world_effects": deepcopy(self.world_effects),
+            "relationship_contexts": deepcopy(self.relationship_contexts),
             "agents": {
                 agent_id: {
                     "name": agent.name,

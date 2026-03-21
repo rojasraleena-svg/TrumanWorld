@@ -79,6 +79,14 @@ def test_build_agent_world_context_includes_location_occupants_and_guidance():
             reason="watch suspicion",
         ),
         workplace_location_id="cafe",
+        relationship_context={
+            "bob": {
+                "relationship_level": "friend",
+                "familiarity": 0.7,
+                "trust": 0.4,
+                "affinity": 0.6,
+            }
+        },
     )
 
     assert context["current_location_name"] == "Cafe"
@@ -86,6 +94,8 @@ def test_build_agent_world_context_includes_location_occupants_and_guidance():
     assert {occupant["id"] for occupant in context["location_occupants"]} == {"alice", "bob"}
     assert any(occupant["name"] == "Alice" for occupant in context["location_occupants"])
     assert context["nearby_agent"]["name"] == "Bob"
+    assert context["nearby_relationship"]["relationship_level"] == "friend"
+    assert context["nearby_relationship"]["familiarity"] == 0.7
     assert context["director_scene_goal"] == "soft_check_in"
     assert context["director_priority"] == "advisory"
     assert context["director_message_hint"] == "keep it casual"

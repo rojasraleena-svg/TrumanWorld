@@ -63,6 +63,13 @@ class ContextBuilder:
             self.location_repo.list_for_run(run_id),
             self.agent_repo.list_for_run(run_id),
         )
+        from app.sim.agent_snapshot_builder import build_agent_relationship_contexts
+
+        relationship_contexts = await build_agent_relationship_contexts(
+            session=self.session,
+            run_id=run_id,
+            agents=list(agents),
+        )
 
         location_states = {
             location.id: LocationState(
@@ -102,6 +109,7 @@ class ContextBuilder:
             locations=location_states,
             agents=agent_states,
             world_effects=get_run_world_effects(run),
+            relationship_contexts=relationship_contexts,
             **resolve_sleep_config_for_scenario(run.scenario_type),
         )
 
@@ -117,6 +125,7 @@ class ContextBuilder:
         subject_alert_score: float | None = 0.0,
         world_role: str | None = None,
         director_guidance: ScenarioGuidance | None = None,
+        relationship_context: dict[str, dict[str, object]] | None = None,
     ) -> dict:
         """Build context dict for agent decision making.
 
@@ -144,6 +153,7 @@ class ContextBuilder:
             subject_alert_score=subject_alert_score,
             world_role=world_role,
             director_guidance=director_guidance,
+            relationship_context=relationship_context,
         )
 
     def find_nearby_agent(self, world: WorldState, agent_id: str, location_id: str) -> str | None:

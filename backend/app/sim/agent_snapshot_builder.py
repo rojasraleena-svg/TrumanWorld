@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from app.scenario.types import get_world_role
 from app.sim.context import ContextBuilder
 from app.sim.location_utils import resolve_agent_location_id
+from app.sim.relationship_policy import derive_relationship_level
 from app.sim.types import AgentDecisionSnapshot
 
 if TYPE_CHECKING:
@@ -123,6 +124,47 @@ async def build_agent_memory_cache(
         }
 
     return cache
+
+
+async def build_agent_relationship_contexts(
+    *,
+    session: AsyncSession,
+    run_id: str,
+    agents: list[Agent],
+) -> dict[str, dict[str, dict[str, Any]]]:
+    from sqlalchemy import select
+
+    from app.store.models import Relationship
+
+    agent_ids = [agent.id for agent in agents]
+    if not agent_ids:
+        return {}
+
+    stmt = select(Relationship).where(
+        Relationship.run_id == run_id,
+        Relationship.agent_id.in_(agent_ids),
+    )
+    result = await session.execute(stmt)
+    relationships = result.scalars().all()
+
+    context_by_agent: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+    for relation in relationships:
+        familiarity = float(relation.familiarity or 0.0)
+        trust = float(relation.trust or 0.0)
+        affinity = float(relation.affinity or 0.0)
+        context_by_agent[relation.agent_id][relation.other_agent_id] = {
+            "familiarity": familiarity,
+            "trust": trust,
+            "affinity": affinity,
+            "relation_type": relation.relation_type,
+            "relationship_level": derive_relationship_level(
+                familiarity=familiarity,
+                trust=trust,
+                affinity=affinity,
+                relation_type=relation.relation_type,
+            ),
+        }
+    return context_by_agent
 
 
 async def build_agent_recent_events(
@@ -252,6 +294,11 @@ async def build_agent_snapshots(
         run_id=run_id,
         agents=agents,
     )
+    agent_relationship_context = await build_agent_relationship_contexts(
+        session=session,
+        run_id=run_id,
+        agents=agents,
+    )
 
     scenario_with_session = scenario.with_session(session)
     scenario_with_session.assess(
@@ -280,6 +327,7 @@ async def build_agent_snapshots(
                 recent_events=agent_recent_events.get(agent.id, []),
                 memory_cache=agent_memory_cache.get(agent.id),
                 current_plan=agent.current_plan or None,
+                relationship_context=agent_relationship_context.get(agent.id),
             )
         )
 

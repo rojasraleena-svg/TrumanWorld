@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.scenario.runtime.world_design_models import WorldDesignRuntimePackage
-from app.sim.action_resolver import ActionIntent
+from app.sim.relationship_policy import derive_relationship_level
 from app.sim.world import AgentState, LocationState, WorldState
+
+if TYPE_CHECKING:
+    from app.sim.action_resolver import ActionIntent
 
 
 def build_rule_facts(
@@ -23,7 +26,10 @@ def build_rule_facts(
 
     return {
         "actor": _build_agent_facts(actor),
-        "target_agent": _build_agent_facts(target_agent),
+        "target_agent": _build_agent_facts(
+            target_agent,
+            relationship_context=_build_relationship_facts(world, intent.agent_id, intent.target_agent_id),
+        ),
         "target_location": _build_location_facts(target_location, intent.target_location_id),
         "world": _build_world_facts(world),
         "policy": dict(package.policy_config.values),
@@ -40,7 +46,11 @@ def resolve_fact_value(facts: dict[str, Any], fact_path: str) -> Any:
     return current
 
 
-def _build_agent_facts(agent: AgentState | None) -> dict[str, Any]:
+def _build_agent_facts(
+    agent: AgentState | None,
+    *,
+    relationship_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     if agent is None:
         return {
             "id": None,
@@ -51,8 +61,14 @@ def _build_agent_facts(agent: AgentState | None) -> dict[str, Any]:
             "home_location_id": None,
             "workplace_id": None,
             "status": {},
+            "relationship_level": None,
+            "familiarity": None,
+            "trust": None,
+            "affinity": None,
+            "relation_type": None,
         }
 
+    relationship = relationship_context or {}
     return {
         "id": agent.id,
         "name": agent.name,
@@ -62,6 +78,11 @@ def _build_agent_facts(agent: AgentState | None) -> dict[str, Any]:
         "home_location_id": None,
         "workplace_id": agent.workplace_id,
         "status": dict(agent.status),
+        "relationship_level": relationship.get("relationship_level"),
+        "familiarity": relationship.get("familiarity"),
+        "trust": relationship.get("trust"),
+        "affinity": relationship.get("affinity"),
+        "relation_type": relationship.get("relation_type"),
     }
 
 
@@ -103,4 +124,41 @@ def _build_world_facts(world: WorldState) -> dict[str, Any]:
         "weekday": time_context["weekday"],
         "weekday_name": time_context["weekday_name"],
         "is_weekend": time_context["is_weekend"],
+    }
+
+
+def _build_relationship_facts(
+    world: WorldState,
+    actor_agent_id: str,
+    target_agent_id: str | None,
+) -> dict[str, Any] | None:
+    if not target_agent_id:
+        return None
+
+    relationship_contexts = getattr(world, "relationship_contexts", None)
+    if not isinstance(relationship_contexts, dict):
+        return None
+    actor_relationships = relationship_contexts.get(actor_agent_id)
+    if not isinstance(actor_relationships, dict):
+        return None
+    relationship = actor_relationships.get(target_agent_id)
+    if not isinstance(relationship, dict):
+        return None
+
+    familiarity = float(relationship.get("familiarity", 0.0) or 0.0)
+    trust = float(relationship.get("trust", 0.0) or 0.0)
+    affinity = float(relationship.get("affinity", 0.0) or 0.0)
+    relation_type = relationship.get("relation_type")
+    relationship_level = relationship.get("relationship_level") or derive_relationship_level(
+        familiarity=familiarity,
+        trust=trust,
+        affinity=affinity,
+        relation_type=relation_type,
+    )
+    return {
+        "familiarity": familiarity,
+        "trust": trust,
+        "affinity": affinity,
+        "relation_type": relation_type,
+        "relationship_level": relationship_level,
     }

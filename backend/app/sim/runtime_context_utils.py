@@ -25,6 +25,7 @@ def build_agent_world_context(
     director_guidance: ScenarioGuidance | None = None,
     workplace_location_id: str | None = None,
     current_plan: dict | None = None,
+    relationship_context: dict[str, dict[str, object]] | None = None,
 ) -> RuntimeWorldContext:
     # Identify social locations (plaza / cafe) for talk-goal navigation
     social_location_ids = [
@@ -69,6 +70,8 @@ def build_agent_world_context(
                 "name": nearby_agent.name,
                 "occupation": nearby_agent.occupation,
             }
+            if relationship_context and nearby_agent.id in relationship_context:
+                context["nearby_relationship"] = dict(relationship_context[nearby_agent.id])
 
     if world_role:
         context["world_role"] = world_role

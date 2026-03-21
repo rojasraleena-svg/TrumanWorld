@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from app.scenario.bundle_registry import resolve_sleep_config_for_scenario
-from app.sim.agent_snapshot_builder import build_agent_snapshots
+from app.sim.agent_snapshot_builder import build_agent_relationship_contexts, build_agent_snapshots
 from app.sim.context import get_run_world_effects, get_run_world_time
 from app.sim.location_utils import resolve_agent_location_id
 from app.sim.types import AgentDecisionSnapshot
@@ -86,6 +86,11 @@ async def load_tick_data(
         location_states=location_states,
         agent_states=agent_states,
     )
+    relationship_contexts = await build_agent_relationship_contexts(
+        session=session,
+        run_id=run_id,
+        agents=agents,
+    )
 
     world = WorldState(
         current_time=get_run_world_time(run),
@@ -94,6 +99,7 @@ async def load_tick_data(
         locations=location_states,
         agents=agent_states,
         world_effects=get_run_world_effects(run),
+        relationship_contexts=relationship_contexts,
         **resolve_sleep_config_for_scenario(run.scenario_type),
     )
 
