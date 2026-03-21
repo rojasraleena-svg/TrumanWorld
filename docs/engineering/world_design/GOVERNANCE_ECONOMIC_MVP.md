@@ -24,6 +24,7 @@
 | economic_effect_logs 模型 | ✅ | `app/store/models.py::EconomicEffectLog` |
 | economic_effect_logs repository | ✅ | `app/store/repositories.py::EconomicEffectLogRepository` |
 | 经济效果日志集成 | ✅ | `EconomicStateService` 集成日志记录 |
+| tick 经济流程集成 | ✅ | `app/sim/persistence.py::persist_tick_economic_state` |
 | API: director cases | ✅ | `GET /runs/{run_id}/director/cases` |
 | API: director restrictions | ✅ | `GET /runs/{run_id}/director/restrictions` |
 | API: agent economic summary | ✅ | `GET /runs/{run_id}/agents/{agent_id}/economic-summary` |
@@ -33,7 +34,7 @@
 - `location_ban` restriction 触发逻辑（当前仅实现 `work_ban`）
 - `heightened_watch` restriction 类型
 - 前端 UI 集成
-- 完整 tick 经济效果持久化（目前仅在 service 层生效）
+- tick 经济效果持久化 ✅ (已通过 `persist_tick_economic_state` 集成到 tick 流程)
 
 ## 1. 目标
 
