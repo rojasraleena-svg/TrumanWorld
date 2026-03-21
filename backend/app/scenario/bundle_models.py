@@ -12,6 +12,7 @@ class ScenarioManifest(BaseModel):
     name: str = Field(min_length=1)
     version: int = Field(default=1, ge=1)
     adapter: str = Field(min_length=1)
+    default: bool = False
 
     @model_validator(mode="before")
     @classmethod

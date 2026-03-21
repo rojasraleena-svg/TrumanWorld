@@ -3,7 +3,10 @@ from __future__ import annotations
 import pytest
 
 from app.infra.settings import get_settings
-from app.scenario.adapter_registry import ScenarioAdapterRegistry
+from app.scenario.adapter_registry import (
+    ScenarioAdapterRegistry,
+    get_scenario_adapter_registry,
+)
 from app.scenario.factory import create_scenario
 from app.scenario.open_world.scenario import OpenWorldScenario
 from app.scenario.narrative_world.scenario import NarrativeWorldScenario
@@ -48,6 +51,33 @@ def test_factory_resolves_runtime_adapter_from_bundle_registry(
 
     assert isinstance(open_world, OpenWorldScenario)
     assert isinstance(narrative_world, NarrativeWorldScenario)
+
+
+def test_factory_supports_bundle_world_adapter_for_configured_bundles(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    scenarios_root = tmp_path / "scenarios"
+    bundle_root = scenarios_root / "hero_world"
+    bundle_root.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: hero_world",
+                "name: Hero World",
+                "version: 1",
+                "adapter: bundle_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    scenario = create_scenario("hero_world")
+
+    assert isinstance(scenario, NarrativeWorldScenario)
+    assert scenario.scenario_id == "hero_world"
 
 
 def test_factory_falls_back_to_default_scenario_when_bundle_missing(
@@ -112,6 +142,18 @@ def test_adapter_registry_builds_registered_adapter():
 
     assert isinstance(scenario, NarrativeWorldScenario)
     assert scenario.scenario_id == "custom_world"
+
+
+def test_default_adapter_registry_keeps_bundle_world_and_legacy_alias_in_sync():
+    registry = get_scenario_adapter_registry()
+
+    narrative_world = registry.build("narrative_world", scenario_id="narrative_world")
+    bundle_world = registry.build("bundle_world", scenario_id="hero_world")
+
+    assert isinstance(narrative_world, NarrativeWorldScenario)
+    assert isinstance(bundle_world, NarrativeWorldScenario)
+    assert narrative_world.scenario_id == "narrative_world"
+    assert bundle_world.scenario_id == "hero_world"
 
 
 def test_adapter_registry_raises_clear_error_for_unknown_adapter():

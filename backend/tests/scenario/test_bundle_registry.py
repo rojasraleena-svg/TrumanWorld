@@ -166,6 +166,32 @@ def test_bundle_registry_prefers_narrative_world_as_default_when_present(tmp_pat
     assert registry.get_default_scenario_id() == "narrative_world"
 
 
+def test_bundle_registry_prefers_manifest_default_flag_over_legacy_name(tmp_path):
+    scenarios_root = tmp_path / "scenarios"
+    for scenario_id, adapter, is_default in (
+        ("narrative_world", "bundle_world", False),
+        ("hero_world", "bundle_world", True),
+    ):
+        bundle_root = scenarios_root / scenario_id
+        bundle_root.mkdir(parents=True)
+        manifest_lines = [
+            f"id: {scenario_id}",
+            f"name: {scenario_id}",
+            "version: 1",
+            f"adapter: {adapter}",
+        ]
+        if is_default:
+            manifest_lines.append("default: true")
+        (bundle_root / "scenario.yml").write_text(
+            "\n".join(manifest_lines),
+            encoding="utf-8",
+        )
+
+    registry = ScenarioBundleRegistry(scenarios_root)
+
+    assert registry.get_default_scenario_id() == "hero_world"
+
+
 def test_resolve_default_scenario_id_uses_first_bundle_when_truman_missing(tmp_path, monkeypatch):
     scenarios_root = tmp_path / "scenarios"
     for scenario_id in ("alpha_world", "open_world"):
@@ -187,6 +213,30 @@ def test_resolve_default_scenario_id_uses_first_bundle_when_truman_missing(tmp_p
     get_settings.cache_clear()
 
     assert resolve_default_scenario_id() == "alpha_world"
+
+
+def test_resolve_default_scenario_id_uses_manifest_default_flag(tmp_path, monkeypatch):
+    scenarios_root = tmp_path / "scenarios"
+    for scenario_id, is_default in (("alpha_world", False), ("beta_world", True)):
+        bundle_root = scenarios_root / scenario_id
+        bundle_root.mkdir(parents=True)
+        manifest_lines = [
+            f"id: {scenario_id}",
+            f"name: {scenario_id}",
+            "version: 1",
+            "adapter: bundle_world",
+        ]
+        if is_default:
+            manifest_lines.append("default: true")
+        (bundle_root / "scenario.yml").write_text(
+            "\n".join(manifest_lines),
+            encoding="utf-8",
+        )
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    assert resolve_default_scenario_id() == "beta_world"
 
 
 def test_bundle_registry_normalizes_legacy_alert_tracking_capability(tmp_path):
