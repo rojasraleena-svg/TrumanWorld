@@ -10,9 +10,11 @@ from typing import Any
 import yaml
 
 from app.infra.logging import get_logger
+from app.infra.settings import get_settings
 from app.scenario.bundle_registry import (
     load_director_config_dict_for_scenario,
     load_director_prompt_template_for_scenario,
+    resolve_default_scenario_id,
 )
 
 logger = get_logger(__name__)
@@ -20,8 +22,8 @@ logger = get_logger(__name__)
 _LEGACY_SCENARIO_DIR = Path(__file__).resolve().parents[1] / "narrative_world"
 _LEGACY_DIRECTOR_CONFIG_PATH = _LEGACY_SCENARIO_DIR / "director.yml"
 
-_config_cache: dict[str, dict[str, Any]] = {}
-_config_load_time: dict[str, float] = {}
+_config_cache: dict[tuple[str, str], dict[str, Any]] = {}
+_config_load_time: dict[tuple[str, str], float] = {}
 _CONFIG_CACHE_TTL = 30
 
 
@@ -107,19 +109,24 @@ def load_director_config(
     force_reload: bool = False,
 ) -> DirectorConfig:
     current_time = time.time()
-    if not force_reload and scenario_id in _config_cache:
-        if current_time - _config_load_time.get(scenario_id, 0) < _CONFIG_CACHE_TTL:
-            return _parse_config(_config_cache[scenario_id], scenario_id=scenario_id)
+    project_root = get_settings().project_root
+    cache_key = _build_cache_key(project_root, scenario_id)
+    if not force_reload and cache_key in _config_cache:
+        if current_time - _config_load_time.get(cache_key, 0) < _CONFIG_CACHE_TTL:
+            return _parse_config(_config_cache[cache_key], scenario_id=scenario_id)
 
     try:
-        config_dict = load_director_config_dict_for_scenario(scenario_id)
-        if not config_dict and scenario_id != "narrative_world":
-            config_dict = load_director_config_dict_for_scenario("narrative_world")
+        config_dict = load_director_config_dict_for_scenario(scenario_id, project_root=project_root)
+        default_scenario_id = resolve_default_scenario_id(project_root=project_root)
+        if not config_dict and scenario_id != default_scenario_id:
+            config_dict = load_director_config_dict_for_scenario(
+                default_scenario_id, project_root=project_root
+            )
         if not config_dict:
             with open(_LEGACY_DIRECTOR_CONFIG_PATH, encoding="utf-8") as f:
                 config_dict = yaml.safe_load(f)
-        _config_cache[scenario_id] = config_dict
-        _config_load_time[scenario_id] = current_time
+        _config_cache[cache_key] = config_dict
+        _config_load_time[cache_key] = current_time
         logger.debug("Loaded director config for %s", scenario_id)
     except FileNotFoundError:
         logger.warning("Director config file not found: %s", _LEGACY_DIRECTOR_CONFIG_PATH)
@@ -128,7 +135,7 @@ def load_director_config(
         logger.error("Failed to parse director config: %s", exc)
         return DirectorConfig(scenario_id=scenario_id)
 
-    return _parse_config(_config_cache[scenario_id], scenario_id=scenario_id)
+    return _parse_config(_config_cache[cache_key], scenario_id=scenario_id)
 
 
 def _parse_config(
@@ -186,3 +193,7 @@ def _parse_config(
         scene_goals=scene_goals,
         scenario_id=scenario_id,
     )
+
+
+def _build_cache_key(project_root: Path, scenario_id: str) -> tuple[str, str]:
+    return (str(project_root.resolve()), scenario_id)

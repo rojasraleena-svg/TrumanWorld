@@ -98,3 +98,55 @@ def test_runtime_director_config_falls_back_to_default_bundle_when_specific_conf
 
     assert config.scenario_id == "hero_world"
     assert config.decision_interval == 7
+
+
+def test_runtime_director_config_falls_back_to_manifest_default_bundle_not_legacy_name(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    default_root = tmp_path / "scenarios" / "hero_world"
+    default_root.mkdir(parents=True)
+    (default_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: hero_world",
+                "name: Hero World",
+                "version: 1",
+                "adapter: bundle_world",
+                "default: true",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (default_root / "director.yml").write_text(
+        "\n".join(
+            [
+                "enabled: true",
+                "decision_interval: 13",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    other_root = tmp_path / "scenarios" / "mystery_world"
+    other_root.mkdir(parents=True)
+    (other_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: mystery_world",
+                "name: Mystery World",
+                "version: 1",
+                "adapter: bundle_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    from app.scenario.runtime.director_config import load_director_config
+
+    config = load_director_config("mystery_world", force_reload=True)
+
+    assert config.scenario_id == "mystery_world"
+    assert config.decision_interval == 13
