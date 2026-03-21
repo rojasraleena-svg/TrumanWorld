@@ -12,26 +12,27 @@ _WORLD_CONFIG_CACHE: dict[tuple[str, str], dict[str, Any]] = {}
 
 
 def load_world_config(
-    scenario_id: str = "narrative_world",
+    scenario_id: str | None = None,
     *,
     force_reload: bool = False,
 ) -> dict[str, Any]:
     """Load world configuration for a scenario, falling back to the default bundle."""
     project_root = get_settings().project_root
-    cache_key = _build_cache_key(project_root, scenario_id)
+    resolved_scenario_id = scenario_id or resolve_default_scenario_id(project_root=project_root)
+    cache_key = _build_cache_key(project_root, resolved_scenario_id)
     if not force_reload and cache_key in _WORLD_CONFIG_CACHE:
         return _WORLD_CONFIG_CACHE[cache_key]
 
-    config = load_world_config_for_scenario(scenario_id, project_root=project_root)
+    config = load_world_config_for_scenario(resolved_scenario_id, project_root=project_root)
     default_scenario_id = resolve_default_scenario_id(project_root=project_root)
-    if not config and scenario_id != default_scenario_id:
+    if not config and resolved_scenario_id != default_scenario_id:
         config = load_world_config_for_scenario(default_scenario_id, project_root=project_root)
 
     _WORLD_CONFIG_CACHE[cache_key] = config
     return config
 
 
-def build_world_common_knowledge(scenario_id: str = "narrative_world") -> dict[str, Any]:
+def build_world_common_knowledge(scenario_id: str | None = None) -> dict[str, Any]:
     """Build the shared world knowledge exposed to runtime consumers."""
     config = load_world_config(scenario_id)
     return {

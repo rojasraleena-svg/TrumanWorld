@@ -105,20 +105,23 @@ Decide whether to intervene. Output JSON with should_intervene, scene_goal, targ
 
 
 def load_director_config(
-    scenario_id: str = "narrative_world",
+    scenario_id: str | None = None,
     force_reload: bool = False,
 ) -> DirectorConfig:
     current_time = time.time()
     project_root = get_settings().project_root
-    cache_key = _build_cache_key(project_root, scenario_id)
+    resolved_scenario_id = scenario_id or resolve_default_scenario_id(project_root=project_root)
+    cache_key = _build_cache_key(project_root, resolved_scenario_id)
     if not force_reload and cache_key in _config_cache:
         if current_time - _config_load_time.get(cache_key, 0) < _CONFIG_CACHE_TTL:
-            return _parse_config(_config_cache[cache_key], scenario_id=scenario_id)
+            return _parse_config(_config_cache[cache_key], scenario_id=resolved_scenario_id)
 
     try:
-        config_dict = load_director_config_dict_for_scenario(scenario_id, project_root=project_root)
+        config_dict = load_director_config_dict_for_scenario(
+            resolved_scenario_id, project_root=project_root
+        )
         default_scenario_id = resolve_default_scenario_id(project_root=project_root)
-        if not config_dict and scenario_id != default_scenario_id:
+        if not config_dict and resolved_scenario_id != default_scenario_id:
             config_dict = load_director_config_dict_for_scenario(
                 default_scenario_id, project_root=project_root
             )
@@ -127,15 +130,15 @@ def load_director_config(
                 config_dict = yaml.safe_load(f)
         _config_cache[cache_key] = config_dict
         _config_load_time[cache_key] = current_time
-        logger.debug("Loaded director config for %s", scenario_id)
+        logger.debug("Loaded director config for %s", resolved_scenario_id)
     except FileNotFoundError:
         logger.warning("Director config file not found: %s", _LEGACY_DIRECTOR_CONFIG_PATH)
-        return DirectorConfig(scenario_id=scenario_id)
+        return DirectorConfig(scenario_id=resolved_scenario_id)
     except yaml.YAMLError as exc:
         logger.error("Failed to parse director config: %s", exc)
-        return DirectorConfig(scenario_id=scenario_id)
+        return DirectorConfig(scenario_id=resolved_scenario_id)
 
-    return _parse_config(_config_cache[cache_key], scenario_id=scenario_id)
+    return _parse_config(_config_cache[cache_key], scenario_id=resolved_scenario_id)
 
 
 def _parse_config(

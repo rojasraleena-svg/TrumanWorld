@@ -79,3 +79,7 @@ class NarrativeWorldStateUpdater:
 
 def build_alert_state_semantics(scenario_id: str) -> AlertStateSemantics:
     return build_scenario_runtime_config(scenario_id)
+
+
+class BundleWorldStateUpdater(NarrativeWorldStateUpdater):
+    """Neutral state-updater alias for bundle-driven worlds."""

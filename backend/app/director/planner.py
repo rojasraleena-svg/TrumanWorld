@@ -11,6 +11,7 @@ from app.director.observer import DirectorAssessment
 from app.director.strategy_engine import StrategyExecutor
 from app.director.types import DirectorPlan
 from app.infra.logging import get_logger
+from app.scenario.bundle_registry import resolve_default_scenario_id
 from app.scenario.runtime.director_config import load_director_config
 from app.scenario.runtime_config import ScenarioRuntimeConfig
 from app.scenario.types import get_agent_config_id, get_world_role
@@ -45,16 +46,17 @@ class DirectorPlanner:
         self,
         backend: DirectorCognitionBackend | None = None,
         *,
-        scenario_id: str = "narrative_world",
+        scenario_id: str | None = None,
         semantics: DirectorPlannerSemantics | None = None,
     ) -> None:
-        self._scenario_id = scenario_id
+        resolved_scenario_id = scenario_id or resolve_default_scenario_id()
+        self._scenario_id = resolved_scenario_id
         self._semantics = semantics or DirectorPlannerSemantics()
         self._backend = backend or get_cognition_registry().build_director_backend()
         self._strategy_executor = StrategyExecutor()
         self._pending_decision: asyncio.Task[DirectorPlan | None] | None = None
         self._last_decision_tick: int = 0
-        self._config = load_director_config(scenario_id=scenario_id)
+        self._config = load_director_config(scenario_id=resolved_scenario_id)
 
     async def build_plan(
         self,

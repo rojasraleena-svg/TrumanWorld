@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 
+from app.infra.settings import get_settings
 from app.director.observer import DirectorAssessment, SuspicionTrend
 from app.director.planner import DirectorPlanner, DirectorPlannerSemantics
 from app.protocol.simulation import (
@@ -36,6 +37,42 @@ def _make_truman_agent(suspicion_score: float = 0.0) -> Agent:
         status={"suspicion_score": suspicion_score},
         current_plan={},
     )
+
+
+def test_director_planner_uses_default_bundle_config_when_scenario_id_omitted(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    bundle_root = tmp_path / "scenarios" / "hero_world"
+    bundle_root.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: hero_world",
+                "name: Hero World",
+                "version: 1",
+                "adapter: bundle_world",
+                "default: true",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (bundle_root / "director.yml").write_text(
+        "\n".join(
+            [
+                "enabled: true",
+                "decision_interval: 13",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    planner = DirectorPlanner()
+
+    assert planner._config.scenario_id == "hero_world"
+    assert planner._config.decision_interval == 13
 
 
 @pytest.mark.asyncio

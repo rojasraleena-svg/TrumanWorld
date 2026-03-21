@@ -13,6 +13,7 @@ from app.cognition.claude.decision_provider import AgentDecisionProvider
 from app.cognition.claude.decision_utils import RuntimeDecision
 from app.cognition.errors import UpstreamApiUnavailableError
 from app.cognition.heuristic.agent_backend import HeuristicAgentBackend
+from app.infra.settings import get_settings
 from app.scenario.types import ScenarioGuidance
 from app.sim.action_resolver import ActionIntent
 from app.sim.context import get_run_world_time
@@ -253,43 +254,112 @@ class UnavailableApiBackend:
 @pytest.mark.asyncio
 async def test_prepare_intents_from_data_raises_on_upstream_api_unavailable(db_session):
     tmp_path = Path(tempfile.mkdtemp())
-    agent_dir = tmp_path / "agent-stop-fast"
-    agent_dir.mkdir(parents=True)
-    (agent_dir / "agent.yml").write_text(
-        "id: agent-stop-fast\nname: Alice\noccupation: resident\nhome: loc-1\n",
-        encoding="utf-8",
-    )
-    (agent_dir / "prompt.md").write_text("# Alice\nBase prompt", encoding="utf-8")
+    try:
+        agent_dir = tmp_path / "agent-stop-fast"
+        agent_dir.mkdir(parents=True)
+        (agent_dir / "agent.yml").write_text(
+            "id: agent-stop-fast\nname: Alice\noccupation: resident\nhome: loc-1\n",
+            encoding="utf-8",
+        )
+        (agent_dir / "prompt.md").write_text("# Alice\nBase prompt", encoding="utf-8")
+        runtime = AgentRuntime(
+            registry=AgentRegistry(tmp_path),
+            backend=UnavailableApiBackend(),
+        )
+        orchestrator = TickOrchestrator(agent_runtime=runtime, scenario=FakeScenario())
+        world = WorldState(current_time=datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc))
+        world.agents["agent-stop-fast"] = type(
+            "S", (), {"id": "agent-stop-fast", "status": {}, "location_id": "loc-1"}
+        )()
+        snapshot = AgentDecisionSnapshot(
+            id="agent-stop-fast",
+            current_goal="rest",
+            current_location_id="loc-1",
+            home_location_id="loc-1",
+            profile={},
+            recent_events=[],
+        )
 
-    runtime = AgentRuntime(
-        registry=AgentRegistry(tmp_path),
-        backend=UnavailableApiBackend(),
-    )
-    orchestrator = TickOrchestrator(agent_runtime=runtime, scenario=FakeScenario())
+        with pytest.raises(UpstreamApiUnavailableError):
+            await orchestrator.prepare_intents_from_data(
+                world=world,
+                agent_data=[snapshot],
+                engine=None,
+                run_id="run-stop-fast",
+                tick_no=3,
+            )
+    finally:
+        shutil.rmtree(tmp_path)
 
-    world = WorldState(current_time=datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc))
-    world.agents["agent-stop-fast"] = type(
-        "S", (), {"id": "agent-stop-fast", "status": {}, "location_id": "loc-1"}
-    )()
-    snapshot = AgentDecisionSnapshot(
-        id="agent-stop-fast",
-        current_goal="rest",
-        current_location_id="loc-1",
-        home_location_id="loc-1",
-        profile={},
-        recent_events=[],
-    )
 
-    with pytest.raises(UpstreamApiUnavailableError):
-        await orchestrator.prepare_intents_from_data(
+@pytest.mark.asyncio
+async def test_tick_orchestrator_uses_default_bundle_semantics_when_scenario_id_missing():
+    tmp_path = Path(tempfile.mkdtemp())
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        bundle_root = tmp_path / "scenarios" / "hero_world"
+        agent_dir = bundle_root / "agents" / "hero"
+        agent_dir.mkdir(parents=True)
+        (bundle_root / "scenario.yml").write_text(
+            "\n".join(
+                [
+                    "id: hero_world",
+                    "name: Hero World",
+                    "version: 1",
+                    "adapter: bundle_world",
+                    "default: true",
+                    "semantics:",
+                    "  subject_role: protagonist",
+                    "  support_roles:",
+                    "    - ally",
+                    "  alert_metric: anomaly_score",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        (agent_dir / "agent.yml").write_text(
+            "id: hero\nname: Hero\noccupation: resident\nhome: home\n",
+            encoding="utf-8",
+        )
+        (agent_dir / "prompt.md").write_text("# Hero\nBase prompt", encoding="utf-8")
+
+        monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+        get_settings.cache_clear()
+
+        provider = TokenCapturingDecisionProvider()
+        runtime = AgentRuntime(
+            registry=AgentRegistry(bundle_root / "agents"),
+            backend=HeuristicAgentBackend(provider),
+        )
+        orchestrator = TickOrchestrator(agent_runtime=runtime, scenario=FakeScenario())
+
+        world = WorldState(current_time=datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc))
+        world.agents["hero-1"] = type(
+            "S", (), {"id": "hero-1", "status": {"anomaly_score": 0.55}, "location_id": "home"}
+        )()
+        snapshot = AgentDecisionSnapshot(
+            id="hero-1",
+            current_goal="rest",
+            current_location_id="home",
+            home_location_id="home",
+            profile={"world_role": "protagonist", "agent_config_id": "hero"},
+            recent_events=[],
+        )
+
+        intents, _ = await orchestrator.prepare_intents_from_data(
             world=world,
             agent_data=[snapshot],
             engine=None,
-            run_id="run-stop-fast",
-            tick_no=3,
+            run_id="run-default-semantics",
+            tick_no=1,
         )
 
-    shutil.rmtree(tmp_path)
+        assert len(intents) == 1
+        assert provider.captured_invocations[0].context["world"]["subject_alert_score"] == 0.55
+    finally:
+        monkeypatch.undo()
+        get_settings.cache_clear()
+        shutil.rmtree(tmp_path)
 
 
 @pytest.mark.asyncio

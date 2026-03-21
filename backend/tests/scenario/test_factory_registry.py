@@ -9,6 +9,7 @@ from app.scenario.adapter_registry import (
 )
 from app.scenario.factory import create_scenario
 from app.scenario.open_world.scenario import OpenWorldScenario
+from app.scenario.narrative_world.coordinator import BundleWorldCoordinator
 from app.scenario.narrative_world.scenario import BundleWorldScenario
 from app.scenario.narrative_world.scenario import NarrativeWorldScenario
 
@@ -162,6 +163,12 @@ def test_adapter_registry_raises_clear_error_for_unknown_adapter():
 
     with pytest.raises(ValueError, match="Unknown scenario adapter: missing_adapter"):
         registry.build("missing_adapter", scenario_id="unknown_world")
+
+
+def test_bundle_world_scenario_uses_neutral_runtime_aliases():
+    scenario = BundleWorldScenario()
+
+    assert isinstance(scenario.coordinator, BundleWorldCoordinator)
 
 
 def test_factory_raises_clear_error_for_unknown_manifest_adapter(

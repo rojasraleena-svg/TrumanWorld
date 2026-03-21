@@ -12,6 +12,8 @@ from app.scenario.bundle_models import (
     ScenarioSemantics,
 )
 
+LEGACY_DEFAULT_SCENARIO_ID = "narrative_world"
+
 
 class ScenarioBundleRegistry:
     def __init__(self, root: Path) -> None:
@@ -40,7 +42,7 @@ class ScenarioBundleRegistry:
     def get_default_scenario_id(self) -> str:
         bundles = self.list_bundles()
         if not bundles:
-            return "narrative_world"
+            return LEGACY_DEFAULT_SCENARIO_ID
         configured_default = next(
             (bundle for bundle in bundles if bundle.manifest.default),
             None,
@@ -48,7 +50,7 @@ class ScenarioBundleRegistry:
         if configured_default is not None:
             return configured_default.manifest.id
         preferred = next(
-            (bundle for bundle in bundles if bundle.manifest.id == "narrative_world"), None
+            (bundle for bundle in bundles if bundle.manifest.id == LEGACY_DEFAULT_SCENARIO_ID), None
         )
         return preferred.manifest.id if preferred is not None else bundles[0].manifest.id
 

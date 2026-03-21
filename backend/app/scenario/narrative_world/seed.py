@@ -227,3 +227,7 @@ class NarrativeWorldSeedBuilder:
         if relationships:
             self.session.add_all(relationships)
         await self.session.commit()
+
+
+class BundleWorldSeedBuilder(NarrativeWorldSeedBuilder):
+    """Neutral seed-builder alias for bundle-driven worlds."""

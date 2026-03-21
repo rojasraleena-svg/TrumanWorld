@@ -111,7 +111,7 @@ class RunCreateRequest(BaseModel):
     scenario_type: str | None = Field(
         default=None,
         description="运行场景类型；未提供时使用系统默认场景",
-        examples=["narrative_world", "open_world"],
+        examples=["hero_world", "open_world"],
     )
     seed_demo: bool = Field(
         default=True,
@@ -132,7 +132,7 @@ class RunBaseResponse(BaseModel):
     name: str = Field(..., description="运行名称", examples=["Truman Town"])
     status: str = Field(..., description="运行状态", examples=["running", "paused", "stopped"])
     scenario_type: str = Field(
-        ..., description="场景类型", examples=["narrative_world", "open_world"]
+        ..., description="场景类型", examples=["hero_world", "open_world"]
     )
     current_tick: int = Field(..., description="当前 tick", examples=[42])
     tick_minutes: int = Field(..., description="每 tick 分钟数", examples=[5])
@@ -159,8 +159,8 @@ class RunDetailResponse(RunBaseResponse):
 
 
 class ScenarioSummaryResponse(BaseModel):
-    id: str = Field(..., description="场景 ID", examples=["narrative_world"])
-    name: str = Field(..., description="场景名称", examples=["Narrative World"])
+    id: str = Field(..., description="场景 ID", examples=["hero_world"])
+    name: str = Field(..., description="场景名称", examples=["Hero World"])
     version: int = Field(..., description="场景版本", ge=1, examples=[1])
 
 

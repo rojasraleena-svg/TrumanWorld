@@ -402,3 +402,7 @@ class NarrativeWorldCoordinator:
             )
 
         return None
+
+
+class BundleWorldCoordinator(NarrativeWorldCoordinator):
+    """Neutral coordinator alias for bundle-driven worlds."""

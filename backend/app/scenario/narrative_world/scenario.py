@@ -6,16 +6,16 @@ from typing import TYPE_CHECKING
 from app.agent.context_builder import ScenarioContextHooks
 from app.scenario.base import Scenario
 from app.scenario.bundle_registry import get_scenario_bundle
-from app.scenario.narrative_world.coordinator import NarrativeWorldCoordinator
+from app.scenario.narrative_world.coordinator import BundleWorldCoordinator
 from app.scenario.narrative_world.rules import (
     build_role_context,
     build_scene_guidance,
     build_world_common_knowledge,
     filter_world_for_role,
 )
-from app.scenario.narrative_world.seed import NarrativeWorldSeedBuilder
+from app.scenario.narrative_world.seed import BundleWorldSeedBuilder
 from app.scenario.narrative_world.state import (
-    NarrativeWorldStateUpdater,
+    BundleWorldStateUpdater,
     build_alert_state_semantics,
 )
 from app.scenario.runtime_config import build_scenario_runtime_config
@@ -47,9 +47,9 @@ class NarrativeWorldScenario(Scenario):
             if capabilities is not None and capabilities.subject_alert_tracking is not None
             else True
         )
-        self.coordinator = NarrativeWorldCoordinator(session, scenario_id=scenario_id)
+        self.coordinator = BundleWorldCoordinator(session, scenario_id=scenario_id)
         self.state_updater = (
-            NarrativeWorldStateUpdater(
+            BundleWorldStateUpdater(
                 session,
                 semantics=build_alert_state_semantics(scenario_id),
             )
@@ -57,7 +57,7 @@ class NarrativeWorldScenario(Scenario):
             else None
         )
         self.seed_builder = (
-            NarrativeWorldSeedBuilder(session, scenario_id=scenario_id)
+            BundleWorldSeedBuilder(session, scenario_id=scenario_id)
             if session is not None
             else None
         )
