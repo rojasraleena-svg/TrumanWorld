@@ -1,5 +1,3 @@
-"""Compatibility wrapper around runtime-level director configuration."""
-
 from app.scenario.runtime.director_config import (
     DirectorConfig,
     DirectorEffectivenessConfig,
