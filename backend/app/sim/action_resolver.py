@@ -140,6 +140,23 @@ class ActionResolver:
                 governance_execution,
             )
 
+        # Check work_ban restriction
+        if intent.action_type == "work" and world.has_restriction(
+            intent.agent_id, "work_ban", scope_value="work"
+        ):
+            return self._build_result(
+                False,
+                intent.action_type,
+                "work_ban",
+                event_payload={
+                    "agent_id": intent.agent_id,
+                    "location_id": agent.location_id,
+                    **intent.payload,
+                },
+                rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
+            )
+
         if self._conversation_roles.get(intent.agent_id) == "listener":
             if intent.action_type == "talk":
                 event_payload = {
