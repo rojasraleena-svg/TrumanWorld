@@ -8,8 +8,8 @@ from app.agent.registry import AgentRegistry
 from app.agent.runtime import AgentRuntime
 from app.scenario.factory import create_scenario
 from app.scenario.open_world.scenario import OpenWorldScenario
-from app.scenario.narrative_world.scenario import NarrativeWorldScenario
-from app.scenario.narrative_world.seed import NarrativeWorldSeedBuilder
+from app.scenario.narrative_world.scenario import BundleWorldScenario
+from app.scenario.narrative_world.seed import BundleWorldSeedBuilder
 from app.store.models import Event, SimulationRun
 from app.store.repositories import AgentRepository
 
@@ -32,7 +32,7 @@ def test_narrative_world_scenario_configures_runtime_context(tmp_path):
     (agent_dir / "prompt.md").write_text("# Truman\nBase prompt", encoding="utf-8")
 
     runtime = AgentRuntime(registry=AgentRegistry(tmp_path), context_builder=ContextBuilder())
-    NarrativeWorldScenario().configure_runtime(runtime)
+    BundleWorldScenario().configure_runtime(runtime)
 
     invocation = runtime.prepare_reactor(
         "truman",
@@ -86,13 +86,13 @@ def test_narrative_world_scenario_registers_fallback_hook_on_runtime(tmp_path):
         backend=backend,
     )
 
-    NarrativeWorldScenario().configure_runtime(runtime)
+    BundleWorldScenario().configure_runtime(runtime)
 
     assert backend.hook is not None
 
 
 def test_narrative_world_scenario_fallback_talks_to_nearby_agent():
-    scenario = NarrativeWorldScenario()
+    scenario = BundleWorldScenario()
 
     intent = scenario.fallback_intent(
         agent_id="cast-1",
@@ -111,7 +111,7 @@ def test_narrative_world_scenario_fallback_talks_to_nearby_agent():
 
 
 def test_narrative_world_scenario_fallback_uses_director_guidance_location_hint():
-    scenario = NarrativeWorldScenario()
+    scenario = BundleWorldScenario()
 
     intent = scenario.fallback_intent(
         agent_id="cast-1",
@@ -134,7 +134,7 @@ def test_narrative_world_scenario_fallback_uses_director_guidance_location_hint(
 
 
 def test_narrative_world_scenario_fallback_returns_home_when_idle_and_away():
-    scenario = NarrativeWorldScenario()
+    scenario = BundleWorldScenario()
 
     intent = scenario.fallback_intent(
         agent_id="cast-1",
@@ -158,7 +158,7 @@ async def test_narrative_world_scenario_seed_and_state_update(db_session):
     db_session.add(run)
     await db_session.commit()
 
-    scenario = NarrativeWorldScenario(db_session)
+    scenario = BundleWorldScenario(db_session)
     await scenario.seed_demo_run(run)
 
     agents = await AgentRepository(db_session).list_for_run(run.id)
@@ -189,7 +189,7 @@ async def test_narrative_world_scenario_seed_and_state_update(db_session):
 
 
 def test_narrative_world_scenario_defaults_subject_alert_tracking_enabled():
-    scenario = NarrativeWorldScenario()
+    scenario = BundleWorldScenario()
 
     assert scenario.subject_alert_tracking_enabled is True
 
@@ -617,7 +617,7 @@ async def test_narrative_world_seed_builder_prefers_scenario_bundle_agents(
     db_session.add(run)
     await db_session.commit()
 
-    builder = NarrativeWorldSeedBuilder(db_session)
+    builder = BundleWorldSeedBuilder(db_session)
     await builder.seed_demo_run(run)
 
     agents = await AgentRepository(db_session).list_for_run(run.id)
@@ -727,8 +727,8 @@ async def test_open_world_scenario_persist_director_plan_is_noop(db_session):
 
 def test_scenario_factory_returns_expected_implementation(db_session):
     assert isinstance(create_scenario("open_world", db_session), OpenWorldScenario)
-    assert isinstance(create_scenario("narrative_world", db_session), NarrativeWorldScenario)
-    assert isinstance(create_scenario(None, db_session), NarrativeWorldScenario)
+    assert isinstance(create_scenario("narrative_world", db_session), BundleWorldScenario)
+    assert isinstance(create_scenario(None, db_session), BundleWorldScenario)
 
 
 def test_narrative_world_adapter_uses_active_bundle_world_knowledge(
