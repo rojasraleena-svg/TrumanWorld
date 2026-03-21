@@ -98,6 +98,9 @@ values:
 - `inspection_level`
 - `subject_protection_bias`
 - `continuity_protection_level`
+- `observation_threshold`
+- `warn_intervention_threshold`
+- `block_intervention_threshold`
 
 建议第一版使用枚举值，而不是自由数字。
 
@@ -106,6 +109,12 @@ values:
 - `low`
 - `medium`
 - `high`
+
+补充说明：
+
+- `inspection_level` 仍是粗粒度开关
+- 更细的治理松紧度应通过数值阈值和 bonus 参数控制
+- 第一版允许 policy 同时存在“枚举级别 + 数值微调”两层参数
 
 ### 5.4 时段参数类
 
@@ -130,6 +139,37 @@ values:
 ```
 
 第一版允许简单 map，但不建议引入复杂嵌套对象。
+
+### 5.6 选择性执法参数类
+
+用于支持“先观察、再介入”的治理执行模型。
+
+建议第一版支持：
+
+- `low_inspection_observation_base`
+- `medium_inspection_observation_base`
+- `high_inspection_observation_base`
+- `violation_observation_bonus`
+- `soft_risk_observation_bonus`
+- `high_attention_observation_bonus`
+- `sensitive_location_observation_bonus`
+- `subject_observation_bonus`
+- `high_attention_score_observation_bonus`
+- `elevated_attention_score_observation_bonus`
+- `low_attention_score_observation_bonus`
+- `low_inspection_intervention_bonus`
+- `medium_inspection_intervention_bonus`
+- `high_inspection_intervention_bonus`
+- `violation_intervention_bonus`
+- `soft_risk_intervention_bonus`
+- `medium_risk_intervention_bonus`
+- `high_risk_intervention_bonus`
+- `strong_signal_intervention_bonus`
+
+这些字段的职责是：
+
+- observation 参数决定“是否被看到”
+- intervention 参数决定“被看到之后是 record_only / warn / block”
 
 ## 6. 与 `rules.yml` 的关系
 
@@ -181,6 +221,10 @@ policy 是治理执行层最重要的动态输入。
   表示更高的观察和介入强度
 - `subject_protection_bias = high`
   表示靠近主体的异常行为更容易被处理
+- `warn_intervention_threshold = 0.65`
+  表示已被观察到的行为，达到这个阈值才升级为 `warn`
+- `block_intervention_threshold = 0.85`
+  表示已被观察到且风险更高的行为升级为 `block`
 
 ## 9. 空值和默认值
 
@@ -213,6 +257,33 @@ values:
   talk_risk_after_hour: 23
   night_restriction_start_hour: 23
   night_restriction_end_hour: 6
+  observation_threshold: 0.5
+  warn_intervention_threshold: 0.65
+  block_intervention_threshold: 0.85
+  low_inspection_observation_base: 0.2
+  medium_inspection_observation_base: 0.55
+  high_inspection_observation_base: 0.85
+  violation_observation_bonus: 0.1
+  soft_risk_observation_bonus: 0.05
+  high_attention_observation_bonus: 0.3
+  sensitive_location_observation_bonus: 0.25
+  subject_observation_bonus: 0.3
+  high_attention_score_observation_bonus: 0.2
+  elevated_attention_score_observation_bonus: 0.12
+  low_attention_score_observation_bonus: 0.05
+  low_inspection_intervention_bonus: 0.0
+  medium_inspection_intervention_bonus: 0.0
+  high_inspection_intervention_bonus: 0.05
+  violation_intervention_bonus: 0.2
+  soft_risk_intervention_bonus: 0.05
+  medium_risk_intervention_bonus: 0.05
+  high_risk_intervention_bonus: 0.1
+  strong_signal_intervention_bonus: 0.15
+  record_attention_delta: 0.02
+  warn_attention_delta: 0.05
+  block_attention_delta: 0.15
+  attention_score_cap: 1.0
+  attention_decay_per_day: 0.05
   social_boost_locations: {}
 ```
 

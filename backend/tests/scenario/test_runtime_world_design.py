@@ -284,3 +284,7 @@ def test_narrative_world_default_package_includes_relationship_policy_assets():
     assert package.policy_config.values["talk_risk_after_hour"] == 23
     assert package.policy_config.values["subject_protection_bias"] == "high"
     assert package.policy_config.values["social_boost_locations"]["cafe"] == 0.3
+    assert package.policy_config.values["observation_threshold"] == 0.5
+    assert package.policy_config.values["warn_intervention_threshold"] == 0.65
+    assert package.policy_config.values["block_intervention_threshold"] == 0.85
+    assert package.policy_config.values["record_attention_delta"] == 0.02

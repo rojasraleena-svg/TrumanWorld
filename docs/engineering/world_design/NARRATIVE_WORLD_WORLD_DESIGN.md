@@ -194,6 +194,20 @@ values:
   subject_protection_bias: high
   continuity_protection_level: high
   talk_risk_after_hour: 23
+  observation_threshold: 0.5
+  warn_intervention_threshold: 0.65
+  block_intervention_threshold: 0.85
+  low_inspection_observation_base: 0.2
+  medium_inspection_observation_base: 0.55
+  high_inspection_observation_base: 0.85
+  violation_observation_bonus: 0.1
+  soft_risk_observation_bonus: 0.05
+  violation_intervention_bonus: 0.2
+  soft_risk_intervention_bonus: 0.05
+  strong_signal_intervention_bonus: 0.15
+  record_attention_delta: 0.02
+  warn_attention_delta: 0.05
+  block_attention_delta: 0.15
   relationship_decay_per_day:
     affinity: 0.02
     trust: 0.0
@@ -309,10 +323,24 @@ values:
 
 当前不仅治理警告/拦截会进入长期记忆，纯规则反馈也已经进入长期记忆：
 
+- `record_only -> Governance record`
 - `soft_risk -> Rule risk`
 - `violates_rule / impossible -> Rule block`
 
 这使得 Narrative World 中的“被提醒过什么、被拦过什么”开始形成跨 tick 学习闭环。
+
+### 9.4 选择性执法已经进入默认 policy
+
+当前 Narrative World 默认 policy 已经不再只有 `inspection_level` 这一层粗粒度开关。
+
+现在还包含：
+
+- 观察阈值
+- `record_only / warn / block` 的介入阈值
+- inspection/risk/location/subject/attention 的 observation bonus
+- inspection/risk/signal 的 intervention bonus
+
+这意味着 Narrative World 的治理执行已经从“命中规则后直接处理”进化为“先看见，再决定如何处理”。
 
 补充建议：
 

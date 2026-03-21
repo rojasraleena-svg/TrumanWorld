@@ -19,6 +19,29 @@ values:
   talk_risk_after_hour: 23
   night_restriction_start_hour: 23
   night_restriction_end_hour: 6
+  observation_threshold: 0.5
+  warn_intervention_threshold: 0.65
+  block_intervention_threshold: 0.85
+  low_inspection_observation_base: 0.2
+  medium_inspection_observation_base: 0.55
+  high_inspection_observation_base: 0.85
+  violation_observation_bonus: 0.1
+  soft_risk_observation_bonus: 0.05
+  high_attention_observation_bonus: 0.3
+  sensitive_location_observation_bonus: 0.25
+  subject_observation_bonus: 0.3
+  high_attention_score_observation_bonus: 0.2
+  elevated_attention_score_observation_bonus: 0.12
+  low_attention_score_observation_bonus: 0.05
+  low_inspection_intervention_bonus: 0.0
+  medium_inspection_intervention_bonus: 0.0
+  high_inspection_intervention_bonus: 0.05
+  violation_intervention_bonus: 0.2
+  soft_risk_intervention_bonus: 0.05
+  medium_risk_intervention_bonus: 0.05
+  high_risk_intervention_bonus: 0.1
+  strong_signal_intervention_bonus: 0.15
+  record_attention_delta: 0.02
   warn_attention_delta: 0.05
   block_attention_delta: 0.15
   attention_score_cap: 1.0
