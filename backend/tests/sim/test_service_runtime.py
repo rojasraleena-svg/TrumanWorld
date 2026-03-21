@@ -1151,6 +1151,118 @@ async def test_persist_tick_memories_includes_governance_block_for_rejected_even
 
 
 @pytest.mark.asyncio
+async def test_persist_tick_memories_includes_soft_risk_rule_feedback_memory(db_session):
+    run = SimulationRun(
+        id="run-rule-feedback-memory",
+        name="rule-feedback-memory",
+        status="running",
+        current_tick=0,
+        tick_minutes=5,
+    )
+    plaza = Location(
+        id="loc-rule-feedback-memory",
+        run_id=run.id,
+        name="Plaza",
+        location_type="plaza",
+        capacity=4,
+    )
+    alice = Agent(
+        id="alice-rule-feedback-memory",
+        run_id=run.id,
+        name="Alice",
+        occupation="resident",
+        home_location_id=plaza.id,
+        current_location_id=plaza.id,
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+    db_session.add_all([run, plaza, alice])
+    await db_session.commit()
+
+    event = Event(
+        id="event-rule-feedback-memory",
+        run_id=run.id,
+        tick_no=1,
+        event_type="talk",
+        actor_agent_id=alice.id,
+        location_id=plaza.id,
+        importance=0.7,
+        payload={
+            "message": "Want to talk?",
+            "rule_evaluation": {
+                "decision": "soft_risk",
+                "reason": "late_night_talk_risk",
+                "matched_tags": ["night", "social"],
+            },
+        },
+    )
+
+    await PersistenceManager(db_session).persist_tick_memories(run.id, [event])
+
+    memories = await AgentRepository(db_session).list_recent_memories(alice.id, limit=10)
+    summaries = [memory.summary for memory in memories]
+    assert "Rule risk: late_night_talk_risk" in summaries
+
+
+@pytest.mark.asyncio
+async def test_persist_tick_memories_includes_rule_block_feedback_without_governance(db_session):
+    run = SimulationRun(
+        id="run-rule-block-memory",
+        name="rule-block-memory",
+        status="running",
+        current_tick=0,
+        tick_minutes=5,
+    )
+    cafe = Location(
+        id="loc-rule-block-memory",
+        run_id=run.id,
+        name="Cafe",
+        location_type="cafe",
+        capacity=4,
+    )
+    alice = Agent(
+        id="alice-rule-block-memory",
+        run_id=run.id,
+        name="Alice",
+        occupation="resident",
+        home_location_id=cafe.id,
+        current_location_id=cafe.id,
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+    db_session.add_all([run, cafe, alice])
+    await db_session.commit()
+
+    event = Event(
+        id="event-rule-block-memory",
+        run_id=run.id,
+        tick_no=1,
+        event_type="move_rejected",
+        actor_agent_id=alice.id,
+        location_id=cafe.id,
+        importance=0.8,
+        payload={
+            "reason": "location_closed",
+            "rule_evaluation": {
+                "decision": "violates_rule",
+                "reason": "location_closed",
+                "matched_tags": ["closure"],
+            },
+        },
+    )
+
+    await PersistenceManager(db_session).persist_tick_memories(run.id, [event])
+
+    memories = await AgentRepository(db_session).list_recent_memories(alice.id, limit=10)
+    summaries = [memory.summary for memory in memories]
+    assert "Rule block: location_closed" in summaries
+
+
+@pytest.mark.asyncio
 async def test_simulation_service_persists_rejected_talk_with_requested_target_only(db_session):
     run = SimulationRun(
         id="run-invalid-target",
