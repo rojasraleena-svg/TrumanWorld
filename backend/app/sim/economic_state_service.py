@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from app.sim.world import WorldState
-from app.store.repositories import AgentEconomicStateRepository
+from app.store.repositories import AgentEconomicStateRepository, EconomicEffectLogRepository
 
 if TYPE_CHECKING:
     pass
@@ -23,6 +23,7 @@ class EconomicStateService:
     def __init__(self, session) -> None:
         self.session = session
         self.econ_repo = AgentEconomicStateRepository(session)
+        self.effect_log_repo = EconomicEffectLogRepository(session)
 
     async def ensure_economic_state(
         self,
@@ -67,6 +68,15 @@ class EconomicStateService:
         if updated:
             updated.last_income_tick = tick_no
             await self.session.commit()
+            # Log work income effect
+            await self.effect_log_repo.create(
+                run_id=run_id,
+                agent_id=agent_id,
+                tick_no=tick_no,
+                effect_type="daily_work_income",
+                cash_delta=DEFAULT_WORK_INCOME,
+                reason="work performed",
+            )
             return updated
 
         return state
@@ -77,11 +87,15 @@ class EconomicStateService:
         agent_id: str,
         tick_no: int,
         run_id: str | None = None,
+        case_id: str | None = None,
     ) -> AgentEconomicState:
         """Process economic effects at end of tick."""
         if run_id is None:
             run_id = self._get_run_id(world)
         state = await self.ensure_economic_state(world, agent_id, tick_no, run_id)
+
+        employment_before = state.employment_status
+        food_before = state.food_security
 
         # Check if agent has work_ban
         if world.has_restriction(agent_id, "work_ban", scope_value="work"):
@@ -90,6 +104,18 @@ class EconomicStateService:
                 state = await self.econ_repo.update_employment_status(
                     run_id, agent_id, "suspended"
                 ) or state
+                # Log governance work loss
+                await self.effect_log_repo.create(
+                    run_id=run_id,
+                    agent_id=agent_id,
+                    tick_no=tick_no,
+                    effect_type="governance_work_loss",
+                    cash_delta=0.0,
+                    employment_status_before=employment_before,
+                    employment_status_after="suspended",
+                    reason="work_ban active",
+                    case_id=case_id,
+                )
 
         # Check if agent should get food decay (no income for N ticks)
         if state.last_income_tick is not None:
@@ -100,6 +126,17 @@ class EconomicStateService:
                 state = await self.econ_repo.update_food_security(
                     run_id, agent_id, -decay
                 ) or state
+                # Log food decay effect (only if actually decayed)
+                if state.food_security < food_before:
+                    await self.effect_log_repo.create(
+                        run_id=run_id,
+                        agent_id=agent_id,
+                        tick_no=tick_no,
+                        effect_type="food_insecurity_decay",
+                        cash_delta=0.0,
+                        food_security_delta=state.food_security - food_before,
+                        reason=f"no income for {ticks_since_income} ticks",
+                    )
 
         return state
 

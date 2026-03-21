@@ -13,6 +13,7 @@ from app.store.models import (
     Agent,
     AgentEconomicState,
     DirectorMemory,
+    EconomicEffectLog,
     Event,
     GovernanceCase,
     GovernanceRecord,
@@ -871,6 +872,83 @@ class AgentEconomicStateRepository:
         await self.session.commit()
         await self.session.refresh(state)
         return state
+
+
+class EconomicEffectLogRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def create(
+        self,
+        run_id: str,
+        agent_id: str,
+        tick_no: int,
+        effect_type: str,
+        cash_delta: float = 0.0,
+        food_security_delta: float = 0.0,
+        housing_security_delta: float = 0.0,
+        employment_status_before: str | None = None,
+        employment_status_after: str | None = None,
+        reason: str | None = None,
+        case_id: str | None = None,
+    ) -> EconomicEffectLog:
+        log = EconomicEffectLog(
+            id=str(uuid4()),
+            run_id=run_id,
+            agent_id=agent_id,
+            case_id=case_id,
+            tick_no=tick_no,
+            effect_type=effect_type,
+            cash_delta=cash_delta,
+            food_security_delta=food_security_delta,
+            housing_security_delta=housing_security_delta,
+            employment_status_before=employment_status_before,
+            employment_status_after=employment_status_after,
+            reason=reason,
+        )
+        self.session.add(log)
+        await self.session.commit()
+        await self.session.refresh(log)
+        return log
+
+    async def list_for_agent(
+        self,
+        run_id: str,
+        agent_id: str,
+        limit: int = 50,
+        effect_type: str | None = None,
+    ) -> Sequence[EconomicEffectLog]:
+        stmt = select(EconomicEffectLog).where(
+            EconomicEffectLog.run_id == run_id,
+            EconomicEffectLog.agent_id == agent_id,
+        )
+        if effect_type:
+            stmt = stmt.where(EconomicEffectLog.effect_type == effect_type)
+        stmt = stmt.order_by(EconomicEffectLog.tick_no.desc()).limit(limit)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def list_for_run(
+        self,
+        run_id: str,
+        limit: int = 100,
+    ) -> Sequence[EconomicEffectLog]:
+        stmt = (
+            select(EconomicEffectLog)
+            .where(EconomicEffectLog.run_id == run_id)
+            .order_by(EconomicEffectLog.tick_no.desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_recent_logs(
+        self,
+        run_id: str,
+        agent_id: str,
+        limit: int = 10,
+    ) -> Sequence[EconomicEffectLog]:
+        return await self.list_for_agent(run_id, agent_id, limit=limit)
 
 
 class AgentRepository:

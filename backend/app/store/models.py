@@ -214,6 +214,31 @@ class AgentEconomicState(Base):
     )
 
 
+class EconomicEffectLog(Base):
+    """Logs economic effect events for an agent."""
+
+    __tablename__ = "economic_effect_logs"
+    __table_args__ = (
+        Index("ix_economic_effect_logs_run_id_agent_id", "run_id", "agent_id"),
+        Index("ix_economic_effect_logs_run_id_tick_no", "run_id", "tick_no"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("simulation_runs.id"), nullable=False)
+    agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id"), nullable=False)
+    case_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    tick_no: Mapped[int] = mapped_column(Integer, default=0)
+    effect_type: Mapped[str] = mapped_column(String(50), nullable=False)  # daily_work_income / governance_work_loss / manual_support
+    cash_delta: Mapped[float] = mapped_column(Float, default=0.0)
+    food_security_delta: Mapped[float] = mapped_column(Float, default=0.0)
+    housing_security_delta: Mapped[float] = mapped_column(Float, default=0.0)
+    employment_status_before: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    employment_status_after: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Memory(Base):
     __tablename__ = "memories"
     __table_args__ = (
