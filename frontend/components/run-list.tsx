@@ -5,6 +5,7 @@ import { useState, useTransition, useRef, useCallback } from "react";
 import { useDemoAccess } from "@/components/demo-access-provider";
 import { deleteRunResult } from "@/lib/api";
 import { useRuns } from "@/components/runs-provider";
+import { formatRelativeTime } from "@/lib/time";
 import { WorldOpeningAnimation } from "@/components/world-opening-animation";
 
 type Run = {
@@ -16,6 +17,7 @@ type Run = {
   agent_count?: number;
   location_count?: number;
   event_count?: number;
+  created_at?: string | null;
 };
 
 type RunListProps = {
@@ -147,6 +149,11 @@ export function RunList({ runs }: RunListProps) {
                 </span>
                 <span className="text-xs text-slate-400">ticks</span>
               </div>
+              {run.created_at && (
+                <p className="mt-1 text-[11px] text-slate-400">
+                  创建于 {formatRelativeTime(run.created_at, { maxUnit: "month" })}
+                </p>
+              )}
 
               {/* 状态标签 */}
               <div className="mt-3 flex items-center gap-2">
