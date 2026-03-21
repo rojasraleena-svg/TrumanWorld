@@ -35,6 +35,38 @@ type LocalFilterState = {
 
 const ROUTINE_EVENT_TYPES = new Set(["work", "rest"]);
 
+function hasWorldRulesSummary(agent: AgentDetails) {
+  const summary = agent.world_rules_summary;
+  if (!summary) return false;
+  return [
+    summary.available_actions,
+    summary.policy_notices,
+    summary.blocked_constraints,
+    summary.current_risks,
+    summary.recent_rule_feedback,
+  ].some((items) => items.length > 0);
+}
+
+function SummaryChip({
+  value,
+  tone = "neutral",
+}: {
+  value: string;
+  tone?: "neutral" | "notice" | "risk";
+}) {
+  const toneClass =
+    tone === "notice"
+      ? "border-sky-100 bg-sky-50 text-sky-700"
+      : tone === "risk"
+        ? "border-amber-100 bg-amber-50 text-amber-700"
+        : "border-slate-200 bg-slate-50 text-slate-600";
+  return (
+    <span className={`rounded-full border px-2 py-1 text-[11px] ${toneClass}`}>
+      {value}
+    </span>
+  );
+}
+
 function applyEventFilters(events: AgentRecentEvent[], filter: LocalFilterState) {
   const query = filter.eventQuery.trim().toLowerCase();
   return events.filter((event) => {
@@ -113,9 +145,74 @@ export function AgentSignalsPanel({
   // 判断筛选器是否有非默认值（用于显示"已筛选"状态点）
   const hasEventFilter = !!(filter.eventType || filter.eventQuery || filter.hideRoutineEvents);
   const hasMemFilter = !!(filter.memoryCategory || filter.memoryQuery || filter.minMemoryImportance);
+  const showWorldRulesSummary = hasWorldRulesSummary(agent);
 
   return (
-    <div className={`grid gap-4 ${compact ? "h-full grid-cols-2" : "xl:grid-cols-2"}`}>
+    <div className="space-y-4">
+      {showWorldRulesSummary && agent.world_rules_summary && (
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-xs">
+          <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+            <span className="h-3.5 w-0.5 rounded-full bg-emerald-400" />
+            <span className="text-sm font-semibold text-slate-700">制度摘要</span>
+          </div>
+          <div className="grid gap-3 px-4 py-3 md:grid-cols-2">
+            {agent.world_rules_summary.policy_notices.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">政策提示</p>
+                <div className="flex flex-wrap gap-2">
+                  {agent.world_rules_summary.policy_notices.map((notice) => (
+                    <SummaryChip key={notice} value={notice} tone="notice" />
+                  ))}
+                </div>
+              </div>
+            )}
+            {agent.world_rules_summary.available_actions.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">可执行动作</p>
+                <div className="flex flex-wrap gap-2">
+                  {agent.world_rules_summary.available_actions.map((action) => (
+                    <SummaryChip key={action} value={action} />
+                  ))}
+                </div>
+              </div>
+            )}
+            {agent.world_rules_summary.blocked_constraints.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">受限约束</p>
+                <div className="flex flex-wrap gap-2">
+                  {agent.world_rules_summary.blocked_constraints.map((constraint) => (
+                    <SummaryChip key={constraint} value={constraint} tone="risk" />
+                  ))}
+                </div>
+              </div>
+            )}
+            {agent.world_rules_summary.current_risks.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">当前风险</p>
+                <div className="space-y-1.5">
+                  {agent.world_rules_summary.current_risks.map((risk) => (
+                    <p key={risk} className="rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs text-amber-800">
+                      {risk}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+            {agent.world_rules_summary.recent_rule_feedback.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">近期规则反馈</p>
+                <div className="flex flex-wrap gap-2">
+                  {agent.world_rules_summary.recent_rule_feedback.map((feedback) => (
+                    <SummaryChip key={feedback} value={feedback} tone="risk" />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      <div className={`grid gap-4 ${compact ? "h-full grid-cols-2" : "xl:grid-cols-2"}`}>
       {/* ── 行为流 ── */}
       <section className="flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-xs">
         {/* 区域标题 */}
@@ -394,6 +491,7 @@ export function AgentSignalsPanel({
           )}
         </ScrollArea>
       </section>
+      </div>
     </div>
   );
 }

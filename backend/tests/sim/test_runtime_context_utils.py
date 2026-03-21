@@ -7,7 +7,7 @@ from app.sim.runtime_context_utils import (
     extract_subject_alert_from_agent_data,
 )
 from app.sim.types import AgentDecisionSnapshot
-from app.sim.world import AgentState, LocationState, WorldState
+from app.sim.world import ActiveConversationState, AgentState, LocationState, WorldState
 
 
 def _build_world() -> WorldState:
@@ -452,6 +452,39 @@ def test_build_agent_world_context_omits_pending_reply_for_closing_message():
     )
 
     assert "pending_reply" not in context
+
+
+def test_build_agent_world_context_includes_conversation_state_for_active_nearby_dialogue():
+    world = _build_world()
+    world.current_tick = 6
+    world.active_conversations = {
+        "conv-1": ActiveConversationState(
+            id="conv-1",
+            location_id="cafe",
+            participant_ids=["alice", "bob"],
+            active_speaker_id="bob",
+            last_tick_no=5,
+            last_message_summary="要不要一起去喝杯咖啡？",
+            last_proposal="要不要一起去喝杯咖啡？",
+            open_question="要不要一起去喝杯咖啡？",
+            repeat_count=2,
+        )
+    }
+
+    context = build_agent_world_context(
+        agent_id="alice",
+        world=world,
+        current_goal="rest",
+        current_location_id="cafe",
+        home_location_id="home",
+        nearby_agent_id="bob",
+        current_status={"energy": 0.8},
+        recent_events=[],
+    )
+
+    assert context["conversation_state"]["conversation_id"] == "conv-1"
+    assert context["conversation_state"]["repeat_count"] == 2
+    assert context["conversation_state"]["open_question"] == "要不要一起去喝杯咖啡？"
 
 
 def test_extract_subject_alert_from_agent_data_returns_first_subject_score():

@@ -48,6 +48,21 @@ class TokenCapturingDecisionProvider(AgentDecisionProvider):
         return RuntimeDecision(action_type="rest")
 
 
+class FixedTalkDecisionProvider(TokenCapturingDecisionProvider):
+    def __init__(self, *, message: str, target_agent_id: str) -> None:
+        super().__init__()
+        self._message = message
+        self._target_agent_id = target_agent_id
+
+    async def decide(self, invocation: RuntimeInvocation, runtime_ctx=None):
+        await super().decide(invocation, runtime_ctx=runtime_ctx)
+        return RuntimeDecision(
+            action_type="talk",
+            target_agent_id=self._target_agent_id,
+            message=self._message,
+        )
+
+
 @pytest.mark.asyncio
 async def test_run_tick_isolated_with_separate_sessions(db_session):
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
@@ -390,6 +405,98 @@ async def test_prepare_intents_from_data_keeps_rest_for_closing_message():
         assert len(intents) == 1
         assert intents[0].action_type == "rest"
         assert "pending_reply" not in provider.captured_invocations[0].context["world"]
+    finally:
+        shutil.rmtree(tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_prepare_intents_from_data_suppresses_repeated_conversation_proposal():
+    tmp_path = Path(tempfile.mkdtemp())
+    try:
+        agent_dir = tmp_path / "agent-repeat"
+        agent_dir.mkdir(parents=True)
+        (agent_dir / "agent.yml").write_text(
+            "id: agent-repeat\nname: Alice\noccupation: resident\nhome: loc-1\n",
+            encoding="utf-8",
+        )
+        (agent_dir / "prompt.md").write_text("# Alice\nBase prompt", encoding="utf-8")
+
+        provider = FixedTalkDecisionProvider(
+            message="要不要一起去咖啡馆？",
+            target_agent_id="bob",
+        )
+        runtime = AgentRuntime(
+            registry=AgentRegistry(tmp_path),
+            backend=HeuristicAgentBackend(provider),
+        )
+        orchestrator = TickOrchestrator(agent_runtime=runtime, scenario=FakeScenario())
+
+        world = WorldState(current_time=datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc))
+        world.current_tick = 6
+        world.locations["loc-1"] = LocationState(
+            id="loc-1",
+            name="Dorm",
+            location_type="home",
+            occupants={"alice", "bob"},
+        )
+        world.agents["alice"] = AgentState(
+            id="alice",
+            name="Alice",
+            location_id="loc-1",
+            occupation="resident",
+            workplace_id=None,
+            status={},
+        )
+        world.agents["bob"] = AgentState(
+            id="bob",
+            name="Bob",
+            location_id="loc-1",
+            occupation="friend",
+            workplace_id=None,
+            status={},
+        )
+        world.active_conversations = {
+            "conv-1": type(
+                "ConversationState",
+                (),
+                {
+                    "id": "conv-1",
+                    "location_id": "loc-1",
+                    "participant_ids": ["alice", "bob"],
+                    "active_speaker_id": "alice",
+                    "last_tick_no": 5,
+                    "last_message_summary": "要不要一起去咖啡馆？",
+                    "last_proposal": "要不要一起去咖啡馆？",
+                    "open_question": "要不要一起去咖啡馆？",
+                    "repeat_count": 2,
+                },
+            )()
+        }
+
+        snapshot = AgentDecisionSnapshot(
+            id="alice",
+            current_goal="talk",
+            current_location_id="loc-1",
+            home_location_id="loc-1",
+            profile={"agent_config_id": "agent-repeat"},
+            recent_events=[],
+        )
+
+        intents, _ = await orchestrator.prepare_intents_from_data(
+            world=world,
+            agent_data=[snapshot],
+            engine=None,
+            run_id="run-repeat-guard",
+            tick_no=6,
+        )
+
+        assert len(intents) == 1
+        assert intents[0].action_type == "rest"
+        assert intents[0].payload["intent_source"] == "conversation_repeat_guard"
+        assert (
+            provider.captured_invocations[0].context["world"]["conversation_state"]["repeat_count"]
+            == 2
+        )
     finally:
         shutil.rmtree(tmp_path)
 

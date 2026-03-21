@@ -129,13 +129,14 @@ class ContextBuilder:
 
         recent_events, _total = await self.event_repo.list_timeline_api_rows(
             run_id=run_id,
-            tick_from=current_tick,
+            tick_from=max(0, current_tick - 3),
             tick_to=current_tick,
             event_type="speech,listen,conversation_started,conversation_joined",
-            limit=50,
+            limit=100,
             order_desc=False,
         )
 
+        speech_history: dict[str, list[tuple[int, str, str]]] = {}
         conversations: dict[str, ActiveConversationState] = {}
         for event in recent_events:
             payload = event.payload or {}
@@ -155,6 +156,12 @@ class ContextBuilder:
             if not isinstance(speaker_agent_id, str) or not speaker_agent_id:
                 continue
 
+            message = payload.get("message")
+            if isinstance(message, str) and message.strip() and event.event_type == "speech":
+                speech_history.setdefault(conversation_id, []).append(
+                    (event.tick_no, speaker_agent_id, message.strip())
+                )
+
             existing = conversations.get(conversation_id)
             if existing is None:
                 conversations[conversation_id] = ActiveConversationState(
@@ -171,7 +178,49 @@ class ContextBuilder:
             existing.active_speaker_id = speaker_agent_id
             existing.last_tick_no = max(existing.last_tick_no, event.tick_no)
 
+        for conversation_id, conversation in conversations.items():
+            history = speech_history.get(conversation_id, [])
+            if not history:
+                continue
+            history.sort(key=lambda item: item[0], reverse=True)
+            _tick_no, _speaker_id, latest_message = history[0]
+            conversation.last_message_summary = latest_message
+            if self._looks_like_proposal_or_question(latest_message):
+                conversation.last_proposal = latest_message
+            if self._looks_like_question(latest_message):
+                conversation.open_question = latest_message
+            conversation.repeat_count = self._repeat_count(history)
+
         return {cid: conv for cid, conv in conversations.items() if conv.location_id}
+
+    @staticmethod
+    def _repeat_count(history: list[tuple[int, str, str]]) -> int:
+        if not history:
+            return 0
+        _tick_no, speaker_id, latest_message = history[0]
+        normalized_latest = ContextBuilder._normalize_conversation_text(latest_message)
+        count = 0
+        for _tick_no, current_speaker_id, message in history:
+            if current_speaker_id != speaker_id:
+                break
+            if ContextBuilder._normalize_conversation_text(message) != normalized_latest:
+                break
+            count += 1
+        return count
+
+    @staticmethod
+    def _normalize_conversation_text(text: str) -> str:
+        return "".join(text.split()).strip("，。！？,.!?：:;；\"'“”‘’").lower()
+
+    @staticmethod
+    def _looks_like_question(message: str) -> bool:
+        return any(token in message for token in ("？", "?", "要不要", "可以吗", "方便吗", "吗"))
+
+    @staticmethod
+    def _looks_like_proposal_or_question(message: str) -> bool:
+        return ContextBuilder._looks_like_question(message) or any(
+            token in message for token in ("一起", "先花十分钟", "要不", "不如")
+        )
 
     def build_agent_world_context(
         self,
@@ -185,6 +234,7 @@ class ContextBuilder:
         subject_alert_score: float | None = 0.0,
         world_role: str | None = None,
         director_guidance: ScenarioGuidance | None = None,
+        workplace_location_id: str | None = None,
         relationship_context: dict[str, dict[str, object]] | None = None,
         recent_events: list[dict] | None = None,
     ) -> dict:
@@ -200,6 +250,7 @@ class ContextBuilder:
             subject_alert_score: Primary subject alert score when enabled
             world_role: Agent's scenario role
             director_guidance: Director guidance payload
+            workplace_location_id: Agent workplace location when known
 
         Returns:
             Context dict for agent runtime
@@ -215,6 +266,7 @@ class ContextBuilder:
             subject_alert_score=subject_alert_score,
             world_role=world_role,
             director_guidance=director_guidance,
+            workplace_location_id=workplace_location_id,
             relationship_context=relationship_context,
             recent_events=recent_events,
         )

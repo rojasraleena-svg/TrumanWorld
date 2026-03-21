@@ -12,10 +12,12 @@ from app.api.schemas.simulation import (
     AgentRelationshipResponse,
     AgentsListResponse,
     AgentSummaryResponse,
+    WorldRulesSummaryResponse,
 )
 from app.infra.db import get_db_session
 from app.infra.logging import get_logger
 from app.scenario.types import get_agent_config_id
+from app.sim.context import ContextBuilder as SimulationContextBuilder
 from app.store.repositories import (
     AgentRepository,
     LocationRepository,
@@ -152,6 +154,12 @@ async def get_agent(
         include_routine_events=include_routine_events,
     )
     relationships = await repo.list_relationships(str(run_id), agent_id)
+    world_rules_summary = await _build_world_rules_summary(
+        session=session,
+        run=run,
+        agent=agent,
+        recent_events=recent_events,
+    )
 
     return AgentDetailResponse(
         run_id=str(run_id),
@@ -219,8 +227,49 @@ async def get_agent(
             )
             for relation in relationships
         ],
+        world_rules_summary=WorldRulesSummaryResponse.model_validate(world_rules_summary),
     )
     logger.debug(
         f"Agent details retrieved: run_id={run_id}, agent_id={agent_id}, "
         f"memories={len(memories)}, events={len(recent_events)}, relationships={len(relationships)}"
     )
+
+
+async def _build_world_rules_summary(
+    *,
+    session: AsyncSession,
+    run,
+    agent,
+    recent_events: list,
+) -> dict:
+    context_builder = SimulationContextBuilder(session)
+    world = await context_builder.load_world(str(run.id), run, run.tick_minutes)
+    current_location_id = agent.current_location_id or agent.home_location_id
+    nearby_agent_id = (
+        context_builder.find_nearby_agent(world, agent.id, current_location_id)
+        if current_location_id
+        else None
+    )
+    context = context_builder.build_agent_world_context(
+        world=world,
+        current_goal=agent.current_goal,
+        current_location_id=current_location_id,
+        home_location_id=agent.home_location_id,
+        nearby_agent_id=nearby_agent_id,
+        current_status=agent.status or {},
+        subject_alert_score=None,
+        world_role=(agent.profile or {}).get("world_role"),
+        workplace_location_id=(agent.profile or {}).get("workplace_location_id"),
+        relationship_context=world.relationship_contexts.get(agent.id),
+        recent_events=[
+            {
+                "event_type": event.event_type,
+                "tick_no": event.tick_no,
+                "actor_agent_id": event.actor_agent_id,
+                "target_agent_id": event.target_agent_id,
+                "payload": event.payload or {},
+            }
+            for event in recent_events
+        ],
+    )
+    return context.get("world_rules_summary") or {}

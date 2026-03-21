@@ -336,6 +336,14 @@ class AgentRelationshipResponse(BaseModel):
     )
 
 
+class WorldRulesSummaryResponse(BaseModel):
+    available_actions: list[str] = Field(default_factory=list, description="当前推荐可行动作")
+    policy_notices: list[str] = Field(default_factory=list, description="当前政策或环境通知")
+    blocked_constraints: list[str] = Field(default_factory=list, description="当前明确约束")
+    current_risks: list[str] = Field(default_factory=list, description="当前风险提示")
+    recent_rule_feedback: list[str] = Field(default_factory=list, description="最近制度反馈")
+
+
 class AgentDetailResponse(BaseModel):
     run_id: str = Field(..., description="运行 ID")
     agent_id: str = Field(..., description="Agent ID")
@@ -350,6 +358,10 @@ class AgentDetailResponse(BaseModel):
     memories: list[AgentMemoryResponse] = Field(default_factory=list, description="记忆列表")
     relationships: list[AgentRelationshipResponse] = Field(
         default_factory=list, description="关系网络"
+    )
+    world_rules_summary: WorldRulesSummaryResponse = Field(
+        default_factory=WorldRulesSummaryResponse,
+        description="面向 agent 的制度摘要",
     )
 
 

@@ -81,6 +81,21 @@ class PromptLoader:
                 lines.append(f'- 对方刚才说: "{message}"')
             lines.append("")
 
+        conversation_state = _world_ctx.get("conversation_state") if isinstance(_world_ctx, dict) else None
+        if conversation_state and isinstance(conversation_state, dict):
+            lines.append("# 当前对话状态")
+            lines.append("如果还在延续同一段对话，请优先推进内容，不要重复上一轮的提议。")
+            repeat_count = conversation_state.get("repeat_count")
+            if isinstance(repeat_count, int):
+                lines.append(f"- 当前重复次数: {repeat_count}")
+            last_proposal = conversation_state.get("last_proposal")
+            if isinstance(last_proposal, str) and last_proposal:
+                lines.append(f'- 最近提议: "{last_proposal}"')
+            open_question = conversation_state.get("open_question")
+            if isinstance(open_question, str) and open_question:
+                lines.append(f'- 待回应问题: "{open_question}"')
+            lines.append("")
+
         # 渲染对话历史（如果有）
         recent_events = context.get("recent_events", [])
         if recent_events:

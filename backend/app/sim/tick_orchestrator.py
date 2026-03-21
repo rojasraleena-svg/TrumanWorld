@@ -371,7 +371,8 @@ class TickOrchestrator:
             runtime_ctx=runtime_ctx,
         )
         intent.agent_id = agent_id
-        return self._apply_pending_reply_bias(intent=intent, world_ctx=world_ctx)
+        intent = self._apply_pending_reply_bias(intent=intent, world_ctx=world_ctx)
+        return self._apply_conversation_state_guard(intent=intent, world_ctx=world_ctx)
 
     def execute_tick(
         self,
@@ -453,6 +454,56 @@ class TickOrchestrator:
             f"{name}，我刚才听到你说的了。"
             "既然我们还在这儿，就顺着刚才的话题再聊两句吧。"
         )
+
+    @staticmethod
+    def _apply_conversation_state_guard(intent: ActionIntent, world_ctx: dict) -> ActionIntent:
+        if intent.action_type != "talk":
+            return intent
+
+        conversation_state = world_ctx.get("conversation_state")
+        if not isinstance(conversation_state, dict):
+            return intent
+
+        repeat_count = conversation_state.get("repeat_count")
+        if not isinstance(repeat_count, int) or repeat_count < 2:
+            return intent
+
+        if intent.target_agent_id != world_ctx.get("nearby_agent_id"):
+            return intent
+
+        message = intent.payload.get("message")
+        if not isinstance(message, str) or not message.strip():
+            return intent
+
+        last_proposal = conversation_state.get("last_proposal")
+        last_message_summary = conversation_state.get("last_message_summary")
+        normalized_message = TickOrchestrator._normalize_conversation_text(message)
+        repeated_targets = [
+            value
+            for value in (last_proposal, last_message_summary)
+            if isinstance(value, str) and value.strip()
+        ]
+        if not repeated_targets:
+            return intent
+
+        if any(
+            TickOrchestrator._normalize_conversation_text(value) == normalized_message
+            for value in repeated_targets
+        ):
+            return ActionIntent(
+                agent_id=intent.agent_id,
+                action_type="rest",
+                payload={
+                    "intent_source": "conversation_repeat_guard",
+                    "guard_reason": "repeated_proposal_threshold",
+                },
+            )
+
+        return intent
+
+    @staticmethod
+    def _normalize_conversation_text(text: str) -> str:
+        return "".join(text.split()).strip("，。！？,.!?：:;；\"'“”‘’").lower()
 
     @staticmethod
     def resolve_runtime_agent_id(agent: Agent) -> str:

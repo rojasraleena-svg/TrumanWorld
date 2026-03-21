@@ -70,6 +70,72 @@ async def test_get_agent_returns_state_and_related_data(client, db_session):
 
 
 @pytest.mark.asyncio
+async def test_get_agent_returns_world_rules_summary(client, db_session):
+    run_id = "00000000-0000-0000-0000-000000000110"
+    run = SimulationRun(
+        id=run_id,
+        name="demo",
+        status="running",
+        current_tick=1,
+        tick_minutes=5,
+        metadata_json={
+            "world_effects": {
+                "location_shutdowns": [
+                    {
+                        "location_id": "loc-cafe-summary",
+                        "start_tick": 0,
+                        "end_tick": 4,
+                        "message": "Cafe temporarily closed",
+                    }
+                ]
+            }
+        },
+    )
+    cafe = Location(
+        id="loc-cafe-summary",
+        run_id=run_id,
+        name="Cafe",
+        location_type="cafe",
+        capacity=4,
+    )
+    alice = Agent(
+        id="alice-summary",
+        run_id=run_id,
+        name="Alice",
+        occupation="barista",
+        current_goal="talk",
+        current_location_id="loc-cafe-summary",
+        home_location_id="loc-home-summary",
+        personality={},
+        profile={"workplace_location_id": "loc-cafe-summary"},
+        status={"energy": 0.8},
+        current_plan={},
+    )
+    bob = Agent(
+        id="bob-summary",
+        run_id=run_id,
+        name="Bob",
+        occupation="resident",
+        current_location_id="loc-cafe-summary",
+        home_location_id="loc-home-summary",
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+
+    db_session.add_all([run, cafe, alice, bob])
+    await db_session.commit()
+
+    response = await client.get(f"/api/runs/{run_id}/agents/alice-summary")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["world_rules_summary"]["available_actions"] == ["move", "rest"]
+    assert body["world_rules_summary"]["policy_notices"] == ["Cafe temporarily closed"]
+
+
+@pytest.mark.asyncio
 async def test_list_agents_returns_run_agents(client, db_session):
     run_id = "00000000-0000-0000-0000-000000000104"
     run = SimulationRun(id=run_id, name="demo", status="running")

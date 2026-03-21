@@ -38,6 +38,10 @@ class ActiveConversationState:
     participant_ids: list[str]
     active_speaker_id: str
     last_tick_no: int
+    last_message_summary: str | None = None
+    last_proposal: str | None = None
+    open_question: str | None = None
+    repeat_count: int = 0
 
 
 class WorldState:
@@ -90,6 +94,10 @@ class WorldState:
                     "participant_ids": list(conversation.participant_ids),
                     "active_speaker_id": conversation.active_speaker_id,
                     "last_tick_no": conversation.last_tick_no,
+                    "last_message_summary": conversation.last_message_summary,
+                    "last_proposal": conversation.last_proposal,
+                    "open_question": conversation.open_question,
+                    "repeat_count": conversation.repeat_count,
                 }
                 for conversation_id, conversation in self.active_conversations.items()
             },

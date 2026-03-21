@@ -110,6 +110,14 @@ def build_agent_world_context(
     if pending_reply is not None:
         context["pending_reply"] = pending_reply
 
+    conversation_state = extract_active_conversation_state(
+        world=world,
+        self_agent_id=agent_id,
+        nearby_agent_id=nearby_agent_id,
+    )
+    if conversation_state is not None:
+        context["conversation_state"] = conversation_state
+
     if world_role:
         context["world_role"] = world_role
     _inject_world_effects(context, world, current_location_id)
@@ -126,6 +134,32 @@ def build_agent_world_context(
         context.update(_normalize_director_guidance(director_guidance))
 
     return context
+
+
+def extract_active_conversation_state(
+    *,
+    world: WorldState,
+    self_agent_id: str | None,
+    nearby_agent_id: str | None,
+) -> dict[str, object] | None:
+    if not self_agent_id or not nearby_agent_id:
+        return None
+
+    for conversation in getattr(world, "active_conversations", {}).values():
+        participants = conversation.participant_ids
+        if self_agent_id not in participants or nearby_agent_id not in participants:
+            continue
+        return {
+            "conversation_id": conversation.id,
+            "participant_ids": list(participants),
+            "active_speaker_id": conversation.active_speaker_id,
+            "last_tick_no": conversation.last_tick_no,
+            "last_message_summary": conversation.last_message_summary,
+            "last_proposal": conversation.last_proposal,
+            "open_question": conversation.open_question,
+            "repeat_count": conversation.repeat_count,
+        }
+    return None
 
 
 def extract_pending_reply(

@@ -13,6 +13,13 @@ describe("AgentSignalsPanel", () => {
     run_id: "run-1",
     agent_id: "alice",
     name: "Alice",
+    world_rules_summary: {
+      available_actions: ["move", "rest"],
+      policy_notices: ["Cafe temporarily closed"],
+      blocked_constraints: ["location_closed"],
+      current_risks: ["你最近更容易受到注意，异常行为风险正在升高"],
+      recent_rule_feedback: ["location_closed"],
+    },
     recent_events: [
       {
         id: "event-speech",
@@ -100,5 +107,15 @@ describe("AgentSignalsPanel", () => {
       target: { value: "0.95" },
     });
     expect(screen.getByText("暂无匹配记忆")).toBeInTheDocument();
+  });
+
+  it("renders world rules summary when available", () => {
+    render(<AgentSignalsPanel agent={agent} />);
+
+    expect(screen.getByText("制度摘要")).toBeInTheDocument();
+    expect(screen.getByText("Cafe temporarily closed")).toBeInTheDocument();
+    expect(screen.getAllByText("move").length).toBeGreaterThan(0);
+    expect(screen.getByText("rest")).toBeInTheDocument();
+    expect(screen.getAllByText("location_closed").length).toBeGreaterThan(0);
   });
 });

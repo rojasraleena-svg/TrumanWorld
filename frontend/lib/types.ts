@@ -296,6 +296,14 @@ export type AgentRelationship = {
   relation_type: string;
 };
 
+export type WorldRulesSummary = {
+  available_actions: string[];
+  policy_notices: string[];
+  blocked_constraints: string[];
+  current_risks: string[];
+  recent_rule_feedback: string[];
+};
+
 export type AgentDetails = {
   run_id: string;
   agent_id: string;
@@ -306,6 +314,7 @@ export type AgentDetails = {
   config_id?: string; // agent 配置 ID，用于加载自定义 logo
   personality?: Record<string, unknown>;
   profile?: Record<string, unknown>;
+  world_rules_summary?: WorldRulesSummary;
   recent_events: AgentRecentEvent[];
   memories: AgentMemory[];
   relationships: AgentRelationship[];
