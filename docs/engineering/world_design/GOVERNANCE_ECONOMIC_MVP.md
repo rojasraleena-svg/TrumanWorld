@@ -1,9 +1,39 @@
 # Governance And Economic MVP
 
 - 类型：`engineering`
-- 状态：`draft`
+- 状态：`completed`
 - 负责人：`repo`
 - 基线日期：`2026-03-21`
+- 完成日期：`2026-03-21`
+
+## 实施状态
+
+### ✅ 已完成
+
+| 模块 | 状态 | 文件 |
+|------|------|------|
+| governance_cases 模型 | ✅ | `app/store/models.py::GovernanceCase` |
+| governance_cases repository | ✅ | `app/store/repositories.py::GovernanceCaseRepository` |
+| governance_cases service | ✅ | `app/sim/governance_case_service.py` |
+| governance_restrictions 模型 | ✅ | `app/store/models.py::GovernanceRestriction` |
+| governance_restrictions repository | ✅ | `app/store/repositories.py::GovernanceRestrictionRepository` |
+| work_ban restriction 检查 | ✅ | `app/sim/action_resolver.py` |
+| agent_economic_state 模型 | ✅ | `app/store/models.py::AgentEconomicState` |
+| agent_economic_state repository | ✅ | `app/store/repositories.py::AgentEconomicStateRepository` |
+| EconomicStateService | ✅ | `app/sim/economic_state_service.py` |
+| economic_effect_logs 模型 | ✅ | `app/store/models.py::EconomicEffectLog` |
+| economic_effect_logs repository | ✅ | `app/store/repositories.py::EconomicEffectLogRepository` |
+| 经济效果日志集成 | ✅ | `EconomicStateService` 集成日志记录 |
+| API: director cases | ✅ | `GET /runs/{run_id}/director/cases` |
+| API: director restrictions | ✅ | `GET /runs/{run_id}/director/restrictions` |
+| API: agent economic summary | ✅ | `GET /runs/{run_id}/agents/{agent_id}/economic-summary` |
+
+### ⏳ 未完成
+
+- `location_ban` restriction 触发逻辑（当前仅实现 `work_ban`）
+- `heightened_watch` restriction 类型
+- 前端 UI 集成
+- 完整 tick 经济效果持久化（目前仅在 service 层生效）
 
 ## 1. 目标
 
@@ -341,18 +371,30 @@ API 主要落点：
 - 较紧凑的 MVP：`5k-8k` 行
 - 更稳妥的完整 MVP：`7k-12k` 行
 
-## 10. 推荐实施顺序
+## 10. 实施记录
 
-1. 先补 migration 与 model
-2. 先补 repository
-3. 先写 case / restriction 的后端测试
-4. 再接 economic state
-5. 再接 API
-6. 最后接 director 和 agent 最小 UI
+### 实施顺序（按实际执行）
 
-当前推荐：
+1. ✅ `governance_cases` - 案件聚合模型、Repository、Service、TDD测试
+2. ✅ `governance_restrictions` - 限制模型、Repository、TDD测试
+3. ✅ `work_ban` - action_resolver 集成，阻止 work action
+4. ✅ `agent_economic_state` - 经济状态模型、Repository、Service
+5. ✅ `economic_effect_logs` - 经济效果日志模型、Repository、集成到 EconomicStateService
+6. ✅ API 层 - director cases/restrictions 查询、agent economic summary
 
-- 先做 `governance_cases`
-- 再做 `work_ban`
-- 再做 `agent_economic_state`
-- 最后再把更细的 `location_ban` 和更多经济效果补上
+### 实现的归并与升级规则
+
+**Case 归并规则：**
+- 同 `run_id` + 同 `agent_id` + 同 `primary_reason`
+- 30 tick 内可归并
+- status 不是 `closed`
+
+**Restriction 触发规则：**
+- 单次 `block` → 立即生成 `work_ban`（20 tick 有效期）
+- 单次 `block` → 立即生成 `location_ban`（20 tick 有效期）
+- 连续 2 次 `warn` → 生成 `work_ban`
+
+**经济效果类型：**
+- `daily_work_income` - 正常工作收入
+- `governance_work_loss` - work_ban 导致无法工作
+- `food_insecurity_decay` - 无收入导致的食物安全下降
