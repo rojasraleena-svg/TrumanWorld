@@ -246,6 +246,60 @@ async def test_get_timeline_preserves_rule_evaluation_payload(client, db_session
 
 
 @pytest.mark.asyncio
+async def test_get_timeline_preserves_governance_execution_payload(client, db_session):
+    run_id = "00000000-0000-0000-0000-000000000206"
+    run = SimulationRun(
+        id=run_id,
+        name="timeline-governance-execution",
+        status="running",
+        tick_minutes=5,
+        metadata_json={"world_start_time": "2026-03-02T07:00:00+00:00"},
+    )
+    alice = Agent(
+        id="agent-alice-governance",
+        run_id=run_id,
+        name="Alice",
+        occupation="resident",
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+    db_session.add_all(
+        [
+            run,
+            alice,
+            Event(
+                id="timeline-governance-event",
+                run_id=run_id,
+                tick_no=2,
+                event_type="move",
+                actor_agent_id=alice.id,
+                payload={
+                    "to_location_id": "cafe",
+                    "governance_execution": {
+                        "decision": "warn",
+                        "reason": "location_closed",
+                        "enforcement_action": "warning",
+                        "matched_signals": ["high_attention_location"],
+                    },
+                },
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get(f"/api/runs/{run_id}/timeline")
+
+    assert response.status_code == 200
+    body = response.json()
+    payload = body["events"][0]["payload"]
+    assert payload["actor_name"] == "Alice"
+    assert payload["governance_execution"]["decision"] == "warn"
+    assert payload["governance_execution"]["enforcement_action"] == "warning"
+
+
+@pytest.mark.asyncio
 async def test_get_run_events_supports_category_filters(client, db_session):
     run_id = "00000000-0000-0000-0000-000000000203"
     db_session.add_all(

@@ -85,5 +85,11 @@ def format_event_for_context(
             reason = payload["rule_evaluation"].get("reason")
             if isinstance(reason, str) and reason:
                 result["rule_feedback_reason"] = reason
+    if "governance_execution" in payload:
+        result["governance_execution"] = payload["governance_execution"]
+        if isinstance(payload["governance_execution"], dict):
+            reason = payload["governance_execution"].get("reason")
+            if isinstance(reason, str) and reason:
+                result["governance_feedback_reason"] = reason
 
     return result

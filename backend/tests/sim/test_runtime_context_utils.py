@@ -133,6 +133,12 @@ def test_build_agent_world_context_includes_minimal_world_rules_summary():
                 "tick_no": 3,
                 "payload": {
                     "reason": "location_closed",
+                    "governance_execution": {
+                        "decision": "block",
+                        "reason": "location_closed",
+                        "enforcement_action": "intercept",
+                        "matched_signals": [],
+                    },
                     "rule_evaluation": {
                         "decision": "violates_rule",
                         "primary_rule_id": "closed_location",
@@ -144,8 +150,47 @@ def test_build_agent_world_context_includes_minimal_world_rules_summary():
     )
 
     assert context["world_rules_summary"]["policy_notices"] == ["Cafe blackout"]
+    assert context["world_rules_summary"]["blocked_constraints"] == ["location_closed"]
     assert context["world_rules_summary"]["recent_rule_feedback"] == [
         "location_closed",
+    ]
+
+
+def test_build_agent_world_context_prefers_governance_warning_feedback():
+    world = _build_world()
+
+    context = build_agent_world_context(
+        world=world,
+        current_goal="talk",
+        current_location_id="cafe",
+        home_location_id="home",
+        nearby_agent_id="bob",
+        current_status={"energy": 0.8},
+        recent_events=[
+            {
+                "event_type": "talk",
+                "tick_no": 4,
+                "payload": {
+                    "governance_execution": {
+                        "decision": "warn",
+                        "reason": "high_attention_warning",
+                        "enforcement_action": "warning",
+                        "matched_signals": ["high_attention_location"],
+                    },
+                    "rule_evaluation": {
+                        "decision": "soft_risk",
+                        "primary_rule_id": "late_night_stranger_talk_risk",
+                        "reason": "late_night_talk_risk",
+                    },
+                },
+            }
+        ],
+    )
+
+    assert context["world_rules_summary"]["blocked_constraints"] == []
+    assert context["world_rules_summary"]["recent_rule_feedback"] == [
+        "high_attention_warning",
+        "late_night_talk_risk",
     ]
 
 

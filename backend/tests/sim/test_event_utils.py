@@ -206,6 +206,34 @@ def test_format_event_for_context_includes_light_rule_feedback_fields():
     assert formatted["rule_feedback_reason"] == "location_closed"
 
 
+def test_format_event_for_context_includes_governance_feedback_fields():
+    event = Event(
+        id="event-4",
+        run_id="run-1",
+        tick_no=10,
+        event_type="move",
+        actor_agent_id="alice",
+        payload={
+            "governance_execution": {
+                "decision": "warn",
+                "reason": "location_closed",
+                "enforcement_action": "warning",
+                "matched_signals": ["high_attention_location"],
+            }
+        },
+    )
+
+    formatted = format_event_for_context(
+        event,
+        agent_states={"alice": _AgentState("Alice")},
+        location_states={},
+    )
+
+    assert formatted["actor_name"] == "Alice"
+    assert formatted["governance_execution"]["decision"] == "warn"
+    assert formatted["governance_feedback_reason"] == "location_closed"
+
+
 def test_format_event_for_context_falls_back_for_unknown_actor():
     event = Event(
         id="event-2",

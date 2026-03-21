@@ -200,6 +200,7 @@ def _inject_world_rules_summary(
     recent_events: list[dict],
 ) -> None:
     policy_notices: list[str] = []
+    blocked_constraints: list[str] = []
     recent_rule_feedback: list[str] = []
 
     world_effects = getattr(world, "world_effects", {}) or {}
@@ -223,15 +224,28 @@ def _inject_world_rules_summary(
         payload = event.get("payload") or {}
         if not isinstance(payload, dict):
             continue
+        governance_execution = payload.get("governance_execution") or {}
+        if isinstance(governance_execution, dict):
+            governance_decision = governance_execution.get("decision")
+            governance_reason = governance_execution.get("reason")
+            if governance_decision == "block" and isinstance(governance_reason, str) and governance_reason:
+                blocked_constraints.append(governance_reason)
+            elif (
+                governance_decision == "warn"
+                and isinstance(governance_reason, str)
+                and governance_reason
+            ):
+                recent_rule_feedback.append(governance_reason)
         rule_evaluation = payload.get("rule_evaluation") or {}
         if not isinstance(rule_evaluation, dict):
             continue
         reason = rule_evaluation.get("reason") or payload.get("reason")
-        if isinstance(reason, str) and reason:
+        if isinstance(reason, str) and reason and reason not in recent_rule_feedback:
             recent_rule_feedback.append(reason)
 
-    if policy_notices or recent_rule_feedback:
+    if policy_notices or blocked_constraints or recent_rule_feedback:
         context["world_rules_summary"] = {
             "policy_notices": policy_notices,
+            "blocked_constraints": blocked_constraints,
             "recent_rule_feedback": recent_rule_feedback,
         }

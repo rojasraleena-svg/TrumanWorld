@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 
 RuleDecision = Literal["allowed", "violates_rule", "impossible", "soft_risk"]
+GovernanceDecision = Literal["allow", "warn", "block", "record_only"]
 
 
 class RuleTriggerConfig(BaseModel):
@@ -71,3 +72,11 @@ class RuleEvaluationResult(BaseModel):
     reason: str | None = None
     risk_level: str | None = None
     matched_rule_ids: list[str] = Field(default_factory=list)
+    matched_tags: list[str] = Field(default_factory=list)
+
+
+class GovernanceExecutionResult(BaseModel):
+    decision: GovernanceDecision = "allow"
+    reason: str | None = None
+    enforcement_action: Literal["none", "warning", "intercept", "record"] = "none"
+    matched_signals: list[str] = Field(default_factory=list)

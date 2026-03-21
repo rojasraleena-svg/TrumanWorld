@@ -174,6 +174,7 @@ def test_action_resolver_attaches_rule_evaluation_to_accepted_action():
     assert result.accepted is True
     assert result.event_payload["rule_evaluation"]["decision"] == "allowed"
     assert result.event_payload["rule_evaluation"]["primary_rule_id"] == "rest_is_safe"
+    assert result.event_payload["governance_execution"]["decision"] == "allow"
 
 
 def test_action_resolver_rejects_action_when_rule_evaluator_returns_violation():
@@ -222,6 +223,60 @@ def test_action_resolver_rejects_action_when_rule_evaluator_returns_violation():
     assert result.event_payload["to_location_id"] == "park"
     assert result.event_payload["rule_evaluation"]["decision"] == "violates_rule"
     assert result.event_payload["rule_evaluation"]["primary_rule_id"] == "closed_location"
+    assert result.event_payload["governance_execution"]["decision"] == "block"
+
+
+def test_action_resolver_allows_low_inspection_violation_with_governance_warning():
+    world = build_world()
+    package = WorldDesignRuntimePackage(
+        scenario_id="narrative_world",
+        world_config={},
+        rules_config=RulesConfig(
+            version=1,
+            rules=[
+                RuleConfigItem(
+                    rule_id="closed_location",
+                    name="Closed Location",
+                    trigger=RuleTriggerConfig(action_types=["move"]),
+                    conditions=[
+                        RuleConditionConfig(
+                            fact="target_location.id",
+                            op="in",
+                            value_from="policy.closed_locations",
+                        )
+                    ],
+                    outcome=RuleOutcomeConfig(
+                        decision="violates_rule",
+                        reason="location_closed",
+                    ),
+                    priority=100,
+                )
+            ],
+        ),
+        policy_config=PolicyConfig(
+            version=1,
+            policy_id="default",
+            values={
+                "closed_locations": ["park"],
+                "inspection_level": "low",
+                "high_attention_locations": [],
+                "sensitive_locations": [],
+            },
+        ),
+        constitution_text="",
+    )
+    resolver = ActionResolver(world_design_package=package)
+
+    result = resolver.resolve(
+        world,
+        ActionIntent(agent_id="alice", action_type="move", target_location_id="park"),
+    )
+
+    assert result.accepted is True
+    assert result.reason == "accepted"
+    assert result.event_payload["to_location_id"] == "park"
+    assert result.event_payload["governance_execution"]["decision"] == "warn"
+    assert result.event_payload["governance_execution"]["enforcement_action"] == "warning"
 
 
 def test_action_resolver_includes_soft_risk_metadata_in_event_payload():
@@ -260,6 +315,7 @@ def test_action_resolver_includes_soft_risk_metadata_in_event_payload():
     assert result.event_payload["rule_evaluation"]["decision"] == "soft_risk"
     assert result.event_payload["rule_evaluation"]["reason"] == "late_night_talk_risk"
     assert result.event_payload["rule_evaluation"]["risk_level"] == "low"
+    assert result.event_payload["governance_execution"]["decision"] == "warn"
 
 
 def test_simulation_runner_advances_tick_and_collects_results():

@@ -3,8 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.scenario.runtime.governance_executor import execute_governance
 from app.scenario.runtime.rule_evaluator import evaluate_rules
 from app.scenario.runtime.world_design_models import (
+    GovernanceExecutionResult,
     RuleEvaluationResult,
     WorldDesignRuntimePackage,
 )
@@ -38,6 +40,7 @@ class ActionResult:
     reason: str
     event_payload: dict[str, Any] = field(default_factory=dict)
     rule_evaluation: RuleEvaluationResult | None = None
+    governance_execution: GovernanceExecutionResult | None = None
 
 
 class ActionResolver:
@@ -99,6 +102,7 @@ class ActionResolver:
 
     def resolve(self, world: WorldState, intent: ActionIntent) -> ActionResult:
         rule_evaluation = self._evaluate_rules(world, intent)
+        governance_execution = self._execute_governance(world, intent, rule_evaluation)
         agent = world.get_agent(intent.agent_id)
         if agent is None:
             return self._build_result(
@@ -111,6 +115,7 @@ class ActionResolver:
                     **intent.payload,
                 },
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
 
         if intent.action_type not in self.SUPPORTED_ACTIONS:
@@ -124,10 +129,16 @@ class ActionResolver:
                     **intent.payload,
                 },
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
 
-        if rule_evaluation is not None and rule_evaluation.decision in {"impossible", "violates_rule"}:
-            return self._build_rule_rejection(agent.location_id, intent, rule_evaluation)
+        if governance_execution is not None and governance_execution.decision == "block":
+            return self._build_rule_rejection(
+                agent.location_id,
+                intent,
+                rule_evaluation,
+                governance_execution,
+            )
 
         if self._conversation_roles.get(intent.agent_id) == "listener":
             if intent.action_type == "talk":
@@ -143,6 +154,7 @@ class ActionResolver:
                     "conversation_turn_taken",
                     event_payload=event_payload,
                     rule_evaluation=rule_evaluation,
+                    governance_execution=governance_execution,
                 )
 
         # If this agent is pre-registered as a talk target this tick,
@@ -160,14 +172,30 @@ class ActionResolver:
                 "agent_in_conversation",
                 event_payload=event_payload,
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
 
         if intent.action_type == "move":
-            return self._resolve_move(world, intent, rule_evaluation=rule_evaluation)
+            return self._resolve_move(
+                world,
+                intent,
+                rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
+            )
         if intent.action_type == "talk":
-            return self._resolve_talk(world, intent, rule_evaluation=rule_evaluation)
+            return self._resolve_talk(
+                world,
+                intent,
+                rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
+            )
         if intent.action_type == "work":
-            return self._resolve_work(world, intent, rule_evaluation=rule_evaluation)
+            return self._resolve_work(
+                world,
+                intent,
+                rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
+            )
 
         # rest and other actions
         return self._build_result(
@@ -180,6 +208,7 @@ class ActionResolver:
                 **intent.payload,
             },
             rule_evaluation=rule_evaluation,
+            governance_execution=governance_execution,
         )
 
     def _resolve_move(
@@ -188,6 +217,7 @@ class ActionResolver:
         intent: ActionIntent,
         *,
         rule_evaluation: RuleEvaluationResult | None,
+        governance_execution: GovernanceExecutionResult | None,
     ) -> ActionResult:
         agent = world.get_agent(intent.agent_id)
         if agent is None:
@@ -200,6 +230,7 @@ class ActionResolver:
                     "location_id": None,
                 },
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
 
         if intent.target_location_id is None:
@@ -212,6 +243,7 @@ class ActionResolver:
                     "location_id": agent.location_id,
                 },
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
 
         destination = world.get_location(intent.target_location_id)
@@ -226,6 +258,7 @@ class ActionResolver:
                     "to_location_id": intent.target_location_id,
                 },
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
 
         if agent.location_id == intent.target_location_id:
@@ -239,6 +272,7 @@ class ActionResolver:
                     "to_location_id": intent.target_location_id,
                 },
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
 
         if len(destination.occupants) >= destination.capacity:
@@ -252,6 +286,7 @@ class ActionResolver:
                     "to_location_id": intent.target_location_id,
                 },
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
 
         origin_id = agent.location_id
@@ -266,6 +301,7 @@ class ActionResolver:
                 "to_location_id": intent.target_location_id,
             },
             rule_evaluation=rule_evaluation,
+            governance_execution=governance_execution,
         )
 
     def _resolve_talk(
@@ -274,6 +310,7 @@ class ActionResolver:
         intent: ActionIntent,
         *,
         rule_evaluation: RuleEvaluationResult | None,
+        governance_execution: GovernanceExecutionResult | None,
     ) -> ActionResult:
         agent = world.get_agent(intent.agent_id)
         target = self._resolve_target_agent(world, intent.target_agent_id)
@@ -288,6 +325,7 @@ class ActionResolver:
                     "location_id": None,
                 },
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
         if target is None:
             return self._build_result(
@@ -301,6 +339,7 @@ class ActionResolver:
                     "requested_target_agent_id": requested_target_agent_id,
                 },
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
         if agent.location_id != target.location_id:
             event_payload = {
@@ -316,6 +355,7 @@ class ActionResolver:
                 "target_not_nearby",
                 event_payload=event_payload,
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
 
         # Enforce turn-based conversation: if either participant has already
@@ -332,6 +372,7 @@ class ActionResolver:
                     "target_agent_id": target.id,
                 },
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
 
         self._talked_agents.add(intent.agent_id)
@@ -354,6 +395,7 @@ class ActionResolver:
             reason="accepted",
             event_payload=event_payload,
             rule_evaluation=rule_evaluation,
+            governance_execution=governance_execution,
         )
 
     def _resolve_target_agent(
@@ -400,6 +442,7 @@ class ActionResolver:
         intent: ActionIntent,
         *,
         rule_evaluation: RuleEvaluationResult | None,
+        governance_execution: GovernanceExecutionResult | None,
     ) -> ActionResult:
         agent = world.get_agent(intent.agent_id)
         if agent is None:
@@ -412,6 +455,7 @@ class ActionResolver:
                     "location_id": None,
                 },
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
 
         location = world.get_location(agent.location_id)
@@ -432,6 +476,7 @@ class ActionResolver:
                     **intent.payload,
                 },
                 rule_evaluation=rule_evaluation,
+                governance_execution=governance_execution,
             )
 
         return self._build_result(
@@ -444,6 +489,7 @@ class ActionResolver:
                 **intent.payload,
             },
             rule_evaluation=rule_evaluation,
+            governance_execution=governance_execution,
         )
 
     def _evaluate_rules(
@@ -455,11 +501,27 @@ class ActionResolver:
             return None
         return evaluate_rules(world=world, intent=intent, package=self._world_design_package)
 
+    def _execute_governance(
+        self,
+        world: WorldState,
+        intent: ActionIntent,
+        rule_evaluation: RuleEvaluationResult | None,
+    ) -> GovernanceExecutionResult | None:
+        if self._world_design_package is None:
+            return None
+        return execute_governance(
+            world=world,
+            intent=intent,
+            rule_evaluation=rule_evaluation,
+            package=self._world_design_package,
+        )
+
     def _build_rule_rejection(
         self,
         current_location_id: str | None,
         intent: ActionIntent,
-        rule_evaluation: RuleEvaluationResult,
+        rule_evaluation: RuleEvaluationResult | None,
+        governance_execution: GovernanceExecutionResult | None,
     ) -> ActionResult:
         event_payload = {
             "agent_id": intent.agent_id,
@@ -473,9 +535,18 @@ class ActionResolver:
         return self._build_result(
             accepted=False,
             action_type=intent.action_type,
-            reason=rule_evaluation.reason or rule_evaluation.decision,
+            reason=(
+                (governance_execution.reason if governance_execution is not None else None)
+                or (rule_evaluation.reason if rule_evaluation is not None else None)
+                or (
+                    governance_execution.decision
+                    if governance_execution is not None
+                    else intent.action_type
+                )
+            ),
             event_payload=event_payload,
             rule_evaluation=rule_evaluation,
+            governance_execution=governance_execution,
         )
 
     def _build_result(
@@ -486,16 +557,20 @@ class ActionResolver:
         event_payload: dict[str, Any],
         *,
         rule_evaluation: RuleEvaluationResult | None,
+        governance_execution: GovernanceExecutionResult | None,
     ) -> ActionResult:
         payload = dict(event_payload)
         if rule_evaluation is not None:
             payload["rule_evaluation"] = rule_evaluation.model_dump()
+        if governance_execution is not None:
+            payload["governance_execution"] = governance_execution.model_dump()
         return ActionResult(
             accepted=accepted,
             action_type=action_type,
             reason=reason,
             event_payload=payload,
             rule_evaluation=rule_evaluation,
+            governance_execution=governance_execution,
         )
 
     def _append_conversation_metadata(
