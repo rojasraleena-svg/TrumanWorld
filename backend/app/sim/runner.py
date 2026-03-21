@@ -96,7 +96,7 @@ class SimulationRunner:
         package = getattr(self.resolver, "_world_design_package", None)
         if package is None:
             return {}
-        return dict((package.policy_config.values or {}))
+        return dict(package.policy_config.values or {})
 
     @staticmethod
     def _should_skip_intent(
@@ -221,7 +221,8 @@ class SimulationRunner:
         accepted_speeches_by_conversation_id = {
             item.event_payload["conversation_id"]: item
             for item in accepted
-            if item.action_type == "talk" and isinstance(item.event_payload.get("conversation_id"), str)
+            if item.action_type == "talk"
+            and isinstance(item.event_payload.get("conversation_id"), str)
         }
         self.world.active_conversations = {
             session.id: ActiveConversationState(
@@ -361,7 +362,10 @@ class SimulationRunner:
             return 0
         normalized_message = self._normalize_conversation_text(message)
         previous_message = previous.last_proposal if previous is not None else None
-        if isinstance(previous_message, str) and self._normalize_conversation_text(previous_message) == normalized_message:
+        if (
+            isinstance(previous_message, str)
+            and self._normalize_conversation_text(previous_message) == normalized_message
+        ):
             return (previous.repeat_count if previous is not None else 1) + 1
         return 1
 
@@ -381,8 +385,12 @@ class SimulationRunner:
         self,
         edge: InteractionEdgeState,
     ) -> tuple[str | None, str | None, str | None]:
-        outgoing_tick = edge.last_outgoing_tick_no if isinstance(edge.last_outgoing_tick_no, int) else -1
-        incoming_tick = edge.last_incoming_tick_no if isinstance(edge.last_incoming_tick_no, int) else -1
+        outgoing_tick = (
+            edge.last_outgoing_tick_no if isinstance(edge.last_outgoing_tick_no, int) else -1
+        )
+        incoming_tick = (
+            edge.last_incoming_tick_no if isinstance(edge.last_incoming_tick_no, int) else -1
+        )
         if outgoing_tick >= incoming_tick:
             return edge.last_outgoing_message, edge.last_outgoing_act, "outgoing"
         return edge.last_incoming_message, edge.last_incoming_act, "incoming"
@@ -424,14 +432,19 @@ class SimulationRunner:
     def _interaction_novelty_since_last_turn(self, edge: InteractionEdgeState) -> bool:
         if not edge.last_outgoing_message or not edge.last_incoming_message:
             return True
-        return self._conversation_overlap_score(
-            edge.last_outgoing_message,
-            edge.last_incoming_message,
-        ) < 0.45
+        return (
+            self._conversation_overlap_score(
+                edge.last_outgoing_message,
+                edge.last_incoming_message,
+            )
+            < 0.45
+        )
 
     def _interaction_redundancy_risk(self, edge: InteractionEdgeState) -> float:
         scores = [
-            self._conversation_overlap_score(edge.last_outgoing_message, edge.last_incoming_message),
+            self._conversation_overlap_score(
+                edge.last_outgoing_message, edge.last_incoming_message
+            ),
         ]
         if edge.last_outgoing_act == "closing" and edge.last_incoming_act == "closing":
             scores.append(0.7)
@@ -466,9 +479,15 @@ class SimulationRunner:
         normalized = SimulationRunner._normalize_conversation_text(message)
         if any(token in message for token in ("？", "?", "吗", "要不要", "可以吗", "方便吗")):
             return "question"
-        if any(token in normalized for token in ("下午见", "回头见", "回头再聊", "下次再聊", "先忙", "中午见")):
+        if any(
+            token in normalized
+            for token in ("下午见", "回头见", "回头再聊", "下次再聊", "先忙", "中午见")
+        ):
             return "closing"
-        if any(token in message for token in ("中午", "下午", "晚上", "碰头", "见面", "一起去", "咖啡馆")):
+        if any(
+            token in message
+            for token in ("中午", "下午", "晚上", "碰头", "见面", "一起去", "咖啡馆")
+        ):
             return "coordination"
         if any(token in message for token in ("一起", "要不", "不如")):
             return "proposal"

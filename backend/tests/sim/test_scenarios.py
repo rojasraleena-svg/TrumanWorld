@@ -192,7 +192,9 @@ async def test_narrative_world_scenario_seed_and_state_update(db_session):
 
 
 @pytest.mark.asyncio
-async def test_campus_world_bundle_seeds_from_repo_scenarios(db_session, monkeypatch: pytest.MonkeyPatch):
+async def test_campus_world_bundle_seeds_from_repo_scenarios(
+    db_session, monkeypatch: pytest.MonkeyPatch
+):
     project_root = Path(__file__).resolve().parents[3]
     monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(project_root))
     get_settings.cache_clear()

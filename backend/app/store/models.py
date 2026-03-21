@@ -152,7 +152,9 @@ class GovernanceCase(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     run_id: Mapped[str] = mapped_column(ForeignKey("simulation_runs.id"), nullable=False)
     agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id"), nullable=False)
-    status: Mapped[str] = mapped_column(String(30), default="open")  # open / warned / restricted / closed
+    status: Mapped[str] = mapped_column(
+        String(30), default="open"
+    )  # open / warned / restricted / closed
     opened_tick: Mapped[int] = mapped_column(Integer, default=0)
     last_updated_tick: Mapped[int] = mapped_column(Integer, default=0)
     primary_reason: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -177,9 +179,13 @@ class GovernanceRestriction(Base):
     run_id: Mapped[str] = mapped_column(ForeignKey("simulation_runs.id"), nullable=False)
     agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id"), nullable=False)
     case_id: Mapped[str | None] = mapped_column(ForeignKey("governance_cases.id"), nullable=True)
-    restriction_type: Mapped[str] = mapped_column(String(30), nullable=False)  # work_ban / location_ban / heightened_watch
+    restriction_type: Mapped[str] = mapped_column(
+        String(30), nullable=False
+    )  # work_ban / location_ban / heightened_watch
     status: Mapped[str] = mapped_column(String(20), default="active")  # active / expired / lifted
-    scope_type: Mapped[str] = mapped_column(String(20), default="action")  # action / location / world
+    scope_type: Mapped[str] = mapped_column(
+        String(20), default="action"
+    )  # action / location / world
     scope_value: Mapped[str] = mapped_column(String(100), nullable=True)  # e.g., "work", "loc_cafe"
     reason: Mapped[str | None] = mapped_column(String(255))
     start_tick: Mapped[int] = mapped_column(Integer, default=0)
@@ -201,7 +207,9 @@ class AgentEconomicState(Base):
     run_id: Mapped[str] = mapped_column(ForeignKey("simulation_runs.id"), nullable=False)
     agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id"), nullable=False)
     cash: Mapped[float] = mapped_column(Float, default=100.0)
-    employment_status: Mapped[str] = mapped_column(String(20), default="stable")  # stable / unstable / suspended
+    employment_status: Mapped[str] = mapped_column(
+        String(20), default="stable"
+    )  # stable / unstable / suspended
     food_security: Mapped[float] = mapped_column(Float, default=1.0)  # 0.0 to 1.0
     housing_security: Mapped[float] = mapped_column(Float, default=1.0)  # 0.0 to 1.0
     work_restriction_until_tick: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -228,7 +236,9 @@ class EconomicEffectLog(Base):
     agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id"), nullable=False)
     case_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     tick_no: Mapped[int] = mapped_column(Integer, default=0)
-    effect_type: Mapped[str] = mapped_column(String(50), nullable=False)  # daily_work_income / governance_work_loss / manual_support
+    effect_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # daily_work_income / governance_work_loss / manual_support
     cash_delta: Mapped[float] = mapped_column(Float, default=0.0)
     food_security_delta: Mapped[float] = mapped_column(Float, default=0.0)
     housing_security_delta: Mapped[float] = mapped_column(Float, default=0.0)

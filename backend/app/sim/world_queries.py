@@ -40,9 +40,7 @@ def find_recent_conversation_partner(
     if location is None:
         return None
 
-    candidate_ids = {
-        occupant_id for occupant_id in location.occupants if occupant_id != agent_id
-    }
+    candidate_ids = {occupant_id for occupant_id in location.occupants if occupant_id != agent_id}
     if not candidate_ids:
         return None
 
@@ -58,9 +56,17 @@ def find_recent_conversation_partner(
         actor_agent_id = event.get("actor_agent_id")
         target_agent_id = event.get("target_agent_id")
 
-        if actor_agent_id == agent_id and isinstance(target_agent_id, str) and target_agent_id in candidate_ids:
+        if (
+            actor_agent_id == agent_id
+            and isinstance(target_agent_id, str)
+            and target_agent_id in candidate_ids
+        ):
             return target_agent_id
-        if target_agent_id == agent_id and isinstance(actor_agent_id, str) and actor_agent_id in candidate_ids:
+        if (
+            target_agent_id == agent_id
+            and isinstance(actor_agent_id, str)
+            and actor_agent_id in candidate_ids
+        ):
             return actor_agent_id
 
         payload = event.get("payload")

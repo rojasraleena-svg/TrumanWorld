@@ -180,7 +180,9 @@ async def test_relationship_repository_upserts_and_clamps_values(db_session):
 
 
 @pytest.mark.asyncio
-async def test_relationship_repository_preserves_existing_relation_type_when_not_overridden(db_session):
+async def test_relationship_repository_preserves_existing_relation_type_when_not_overridden(
+    db_session,
+):
     run = SimulationRun(id="run-repo-relationship-type", name="relations", status="running")
     db_session.add(run)
     await db_session.commit()

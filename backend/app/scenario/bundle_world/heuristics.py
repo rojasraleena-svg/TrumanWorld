@@ -69,4 +69,3 @@ def build_bundle_world_decision(
         )
 
     return RuntimeDecision(action_type="rest")
-

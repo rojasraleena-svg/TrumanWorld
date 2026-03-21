@@ -33,7 +33,9 @@ def derive_relationship_level(
         return "friend"
 
     # Weight familiarity highest because it is the most stable signal the runtime has today.
-    strength = (max(0.0, familiarity) * 0.5) + (max(0.0, trust) * 0.25) + (max(0.0, affinity) * 0.25)
+    strength = (
+        (max(0.0, familiarity) * 0.5) + (max(0.0, trust) * 0.25) + (max(0.0, affinity) * 0.25)
+    )
 
     if strength >= 0.85 and familiarity >= 0.75 and trust >= 0.6 and affinity >= 0.6:
         return "close_friend"

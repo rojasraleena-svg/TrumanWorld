@@ -437,7 +437,9 @@ class TickOrchestrator:
         message = TickOrchestrator._build_pending_reply_message(
             target_name=target_name if isinstance(target_name, str) else None,
             previous_message=(
-                pending_reply.get("message") if isinstance(pending_reply.get("message"), str) else ""
+                pending_reply.get("message")
+                if isinstance(pending_reply.get("message"), str)
+                else ""
             ),
             is_question=bool(pending_reply.get("is_question")),
         )
@@ -467,10 +469,7 @@ class TickOrchestrator:
                 f"{name}，可以啊。我刚才听到你的提议了，"
                 "如果你现在方便，我们就顺着刚才的话题继续聊聊。"
             )
-        return (
-            f"{name}，我刚才听到你说的了。"
-            "既然我们还在这儿，就顺着刚才的话题再聊两句吧。"
-        )
+        return f"{name}，我刚才听到你说的了。既然我们还在这儿，就顺着刚才的话题再聊两句吧。"
 
     @staticmethod
     def _apply_conversation_state_guard(intent: ActionIntent, world_ctx: dict) -> ActionIntent:

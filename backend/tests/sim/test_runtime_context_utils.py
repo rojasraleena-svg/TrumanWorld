@@ -7,7 +7,13 @@ from app.sim.runtime_context_utils import (
     extract_subject_alert_from_agent_data,
 )
 from app.sim.types import AgentDecisionSnapshot
-from app.sim.world import ActiveConversationState, AgentState, InteractionEdgeState, LocationState, WorldState
+from app.sim.world import (
+    ActiveConversationState,
+    AgentState,
+    InteractionEdgeState,
+    LocationState,
+    WorldState,
+)
 
 
 def _build_world() -> WorldState:
@@ -66,7 +72,7 @@ def test_build_agent_world_context_includes_location_occupants_and_guidance():
                 "end_tick": 3,
                 "message": "Cafe blackout",
             }
-        ]
+        ],
     }
 
     context = build_agent_world_context(

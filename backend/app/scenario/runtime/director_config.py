@@ -163,9 +163,7 @@ def _parse_config(
         prompt_dict = config_dict["prompt"]
         prompt_config.file = prompt_dict.get("file", "director_prompt.md")
         prompt_config.recent_events_limit = prompt_dict.get("recent_events_limit", 10)
-        prompt_config.recent_interventions_limit = prompt_dict.get(
-            "recent_interventions_limit", 5
-        )
+        prompt_config.recent_interventions_limit = prompt_dict.get("recent_interventions_limit", 5)
 
     strategies: dict[str, DirectorStrategy] = {}
     if "strategies" in config_dict:

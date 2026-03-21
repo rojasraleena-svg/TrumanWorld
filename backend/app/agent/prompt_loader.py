@@ -81,7 +81,9 @@ class PromptLoader:
                 lines.append(f'- 对方刚才说: "{message}"')
             lines.append("")
 
-        conversation_state = _world_ctx.get("conversation_state") if isinstance(_world_ctx, dict) else None
+        conversation_state = (
+            _world_ctx.get("conversation_state") if isinstance(_world_ctx, dict) else None
+        )
         if conversation_state and isinstance(conversation_state, dict):
             lines.append("# 当前对话状态")
             lines.append("如果还在延续同一段对话，请优先推进内容，不要重复上一轮的提议。")

@@ -51,7 +51,9 @@ def evaluate_rules(
         reason=primary_rule.outcome.reason,
         risk_level=primary_rule.outcome.risk_level,
         matched_rule_ids=[rule.rule_id for rule in matched_rules],
-        matched_tags=sorted({tag for rule in matched_rules for tag in rule.tags + rule.outcome.tags}),
+        matched_tags=sorted(
+            {tag for rule in matched_rules for tag in rule.tags + rule.outcome.tags}
+        ),
     )
 
 

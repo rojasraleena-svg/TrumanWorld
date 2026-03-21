@@ -1,9 +1,7 @@
 """Tests for EconomicEffectLog model and repository."""
 
 import pytest
-from datetime import datetime
 
-from sqlalchemy import select
 
 from app.store.models import EconomicEffectLog, SimulationRun, Agent
 from app.store.repositories import EconomicEffectLogRepository
@@ -105,9 +103,7 @@ class TestEconomicEffectLogRepository:
         assert log.effect_type == "daily_work_income"
 
     @pytest.mark.asyncio
-    async def test_list_for_agent(
-        self, db_session, effect_log_repo, sample_run, sample_agent
-    ):
+    async def test_list_for_agent(self, db_session, effect_log_repo, sample_run, sample_agent):
         for i in range(5):
             await effect_log_repo.create(
                 run_id=sample_run.id,
@@ -162,9 +158,7 @@ class TestEconomicEffectLogRepository:
         assert logs[0].effect_type == "governance_work_loss"
 
     @pytest.mark.asyncio
-    async def test_list_for_run(
-        self, db_session, effect_log_repo, sample_run, sample_agent
-    ):
+    async def test_list_for_run(self, db_session, effect_log_repo, sample_run, sample_agent):
         for i in range(3):
             await effect_log_repo.create(
                 run_id=sample_run.id,
@@ -178,9 +172,7 @@ class TestEconomicEffectLogRepository:
         assert len(logs) == 3
 
     @pytest.mark.asyncio
-    async def test_get_recent_logs(
-        self, db_session, effect_log_repo, sample_run, sample_agent
-    ):
+    async def test_get_recent_logs(self, db_session, effect_log_repo, sample_run, sample_agent):
         for i in range(20):
             await effect_log_repo.create(
                 run_id=sample_run.id,
@@ -190,9 +182,7 @@ class TestEconomicEffectLogRepository:
                 cash_delta=10.0,
             )
 
-        logs = await effect_log_repo.get_recent_logs(
-            sample_run.id, sample_agent.id, limit=5
-        )
+        logs = await effect_log_repo.get_recent_logs(sample_run.id, sample_agent.id, limit=5)
         assert len(logs) == 5
         # Most recent first
         assert logs[0].tick_no == 19

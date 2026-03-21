@@ -4,7 +4,6 @@ from datetime import datetime
 from uuid import uuid4
 
 import pytest
-import pytest_asyncio
 
 from app.scenario.runtime.world_design_models import GovernanceExecutionResult
 from app.sim.action_resolver import ActionResult

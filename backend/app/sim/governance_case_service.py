@@ -2,17 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from app.scenario.runtime.world_design_models import GovernanceExecutionResult
 from app.sim.action_resolver import ActionResult
 from app.sim.world import WorldState
 from app.store.models import GovernanceCase, GovernanceRestriction
 from app.store.repositories import GovernanceCaseRepository, GovernanceRestrictionRepository
-
-if TYPE_CHECKING:
-    pass
 
 
 # Default thresholds for restriction generation

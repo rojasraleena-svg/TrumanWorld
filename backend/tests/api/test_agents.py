@@ -2,7 +2,15 @@ import pytest
 
 from app.sim.action_resolver import ActionIntent
 from app.sim.service import SimulationService
-from app.store.models import Agent, Event, GovernanceRecord, Location, Memory, Relationship, SimulationRun
+from app.store.models import (
+    Agent,
+    Event,
+    GovernanceRecord,
+    Location,
+    Memory,
+    Relationship,
+    SimulationRun,
+)
 
 
 @pytest.mark.asyncio
@@ -512,7 +520,9 @@ async def test_get_agent_filters_by_limits_and_memory_type(client, db_session):
 async def test_get_agent_governance_records_returns_ledger_entries(client, db_session):
     run_id = "00000000-0000-0000-0000-000000000111"
     run = SimulationRun(id=run_id, name="demo", status="running")
-    cafe = Location(id="loc-cafe-ledger", run_id=run_id, name="Cafe", location_type="cafe", capacity=4)
+    cafe = Location(
+        id="loc-cafe-ledger", run_id=run_id, name="Cafe", location_type="cafe", capacity=4
+    )
     agent = Agent(
         id="alice-ledger",
         run_id=run_id,

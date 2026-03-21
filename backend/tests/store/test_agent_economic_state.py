@@ -1,9 +1,7 @@
 """Tests for AgentEconomicState model and repository."""
 
 import pytest
-from datetime import datetime
 
-from sqlalchemy import select
 
 from app.store.models import AgentEconomicState, SimulationRun, Agent
 from app.store.repositories import AgentEconomicStateRepository
@@ -85,7 +83,9 @@ class TestAgentEconomicStateRepository:
     """Test AgentEconomicStateRepository CRUD operations."""
 
     @pytest.mark.asyncio
-    async def test_upsert_creates_new(self, db_session, economic_state_repo, sample_run, sample_agent):
+    async def test_upsert_creates_new(
+        self, db_session, economic_state_repo, sample_run, sample_agent
+    ):
         state = await economic_state_repo.upsert(
             run_id=sample_run.id,
             agent_id=sample_agent.id,
@@ -97,7 +97,9 @@ class TestAgentEconomicStateRepository:
         assert state.employment_status == "stable"
 
     @pytest.mark.asyncio
-    async def test_upsert_updates_existing(self, db_session, economic_state_repo, sample_run, sample_agent):
+    async def test_upsert_updates_existing(
+        self, db_session, economic_state_repo, sample_run, sample_agent
+    ):
         # Create first
         await economic_state_repo.upsert(
             run_id=sample_run.id,
@@ -170,7 +172,9 @@ class TestAgentEconomicStateRepository:
         assert updated.cash == 70.0
 
     @pytest.mark.asyncio
-    async def test_deduct_cash_cannot_go_negative(self, db_session, economic_state_repo, sample_run, sample_agent):
+    async def test_deduct_cash_cannot_go_negative(
+        self, db_session, economic_state_repo, sample_run, sample_agent
+    ):
         await economic_state_repo.upsert(
             run_id=sample_run.id,
             agent_id=sample_agent.id,
@@ -188,7 +192,9 @@ class TestAgentEconomicStateRepository:
         assert updated.cash == 0.0
 
     @pytest.mark.asyncio
-    async def test_update_food_security(self, db_session, economic_state_repo, sample_run, sample_agent):
+    async def test_update_food_security(
+        self, db_session, economic_state_repo, sample_run, sample_agent
+    ):
         await economic_state_repo.upsert(
             run_id=sample_run.id,
             agent_id=sample_agent.id,
@@ -206,7 +212,9 @@ class TestAgentEconomicStateRepository:
         assert updated.food_security == 0.8
 
     @pytest.mark.asyncio
-    async def test_update_employment_status(self, db_session, economic_state_repo, sample_run, sample_agent):
+    async def test_update_employment_status(
+        self, db_session, economic_state_repo, sample_run, sample_agent
+    ):
         await economic_state_repo.upsert(
             run_id=sample_run.id,
             agent_id=sample_agent.id,
@@ -223,7 +231,9 @@ class TestAgentEconomicStateRepository:
         assert updated.employment_status == "suspended"
 
     @pytest.mark.asyncio
-    async def test_set_work_restriction(self, db_session, economic_state_repo, sample_run, sample_agent):
+    async def test_set_work_restriction(
+        self, db_session, economic_state_repo, sample_run, sample_agent
+    ):
         await economic_state_repo.upsert(
             run_id=sample_run.id,
             agent_id=sample_agent.id,

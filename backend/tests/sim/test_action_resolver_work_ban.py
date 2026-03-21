@@ -2,7 +2,6 @@
 
 from datetime import datetime
 
-import pytest
 
 from app.sim.action_resolver import ActionIntent, ActionResolver
 from app.sim.world import AgentState, RestrictionState, WorldState
@@ -10,6 +9,7 @@ from app.sim.world import AgentState, RestrictionState, WorldState
 
 def _build_world() -> WorldState:
     from app.sim.world import LocationState
+
     return WorldState(
         current_time=datetime(2026, 3, 7, 8, 0, 0),
         agents={

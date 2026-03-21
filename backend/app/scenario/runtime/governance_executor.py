@@ -16,7 +16,7 @@ if False:  # pragma: no cover
 def execute_governance(
     *,
     world: WorldState,
-    intent: "ActionIntent",
+    intent: ActionIntent,
     rule_evaluation: RuleEvaluationResult | None,
     package: WorldDesignRuntimePackage,
 ) -> GovernanceExecutionResult:
@@ -58,7 +58,9 @@ def execute_governance(
 
     signals = list(rule_evaluation.matched_tags)
     agent = world.get_agent(intent.agent_id)
-    current_location_id = intent.target_location_id or (agent.location_id if agent is not None else None)
+    current_location_id = intent.target_location_id or (
+        agent.location_id if agent is not None else None
+    )
     if current_location_id in high_attention_locations:
         signals.append("high_attention_location")
     if current_location_id in sensitive_locations:

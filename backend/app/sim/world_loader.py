@@ -9,7 +9,12 @@ from app.sim.context import get_run_world_effects, get_run_world_time, load_acti
 from app.sim.location_utils import resolve_agent_location_id
 from app.sim.types import AgentDecisionSnapshot
 from app.sim.world import AgentState, LocationState, WorldState
-from app.store.repositories import AgentRepository, EventRepository, LocationRepository, RunRepository
+from app.store.repositories import (
+    AgentRepository,
+    EventRepository,
+    LocationRepository,
+    RunRepository,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession

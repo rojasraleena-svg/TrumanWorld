@@ -1,9 +1,7 @@
 """Tests for GovernanceCase model and repository."""
 
 import pytest
-from datetime import datetime
 
-from sqlalchemy import select
 
 from app.store.models import GovernanceCase, SimulationRun, Agent
 from app.store.repositories import GovernanceCaseRepository
@@ -183,12 +181,16 @@ class TestGovernanceCaseRepository:
             db_session.add(case)
         await db_session.commit()
 
-        results = await governance_case_repo.list_open_cases_for_agent(sample_run.id, sample_agent.id)
+        results = await governance_case_repo.list_open_cases_for_agent(
+            sample_run.id, sample_agent.id
+        )
         assert len(results) == 2
         assert all(c.status == "open" for c in results)
 
     @pytest.mark.asyncio
-    async def test_update_case_status(self, db_session, governance_case_repo, sample_run, sample_agent):
+    async def test_update_case_status(
+        self, db_session, governance_case_repo, sample_run, sample_agent
+    ):
         case = GovernanceCase(
             id="case-update",
             run_id=sample_run.id,
@@ -213,7 +215,9 @@ class TestGovernanceCaseRepository:
         assert result.last_updated_tick == 0  # tick not set in update
 
     @pytest.mark.asyncio
-    async def test_increment_record_count(self, db_session, governance_case_repo, sample_run, sample_agent):
+    async def test_increment_record_count(
+        self, db_session, governance_case_repo, sample_run, sample_agent
+    ):
         case = GovernanceCase(
             id="case-increment",
             run_id=sample_run.id,

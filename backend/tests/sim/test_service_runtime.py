@@ -614,7 +614,11 @@ async def test_persistence_relationships_apply_social_location_policy_boost(
         lambda _scenario_id: type(
             "Package",
             (),
-            {"policy_config": type("Policy", (), {"values": {"social_boost_locations": {"cafe": 0.3}}})()},
+            {
+                "policy_config": type(
+                    "Policy", (), {"values": {"social_boost_locations": {"cafe": 0.3}}}
+                )()
+            },
         )(),
     )
 
@@ -687,7 +691,9 @@ async def test_persistence_relationships_soft_risk_reduces_social_gain(
 
     monkeypatch.setattr(
         "app.sim.persistence.load_world_design_runtime_package",
-        lambda _scenario_id: type("Package", (), {"policy_config": type("Policy", (), {"values": {}})()})(),
+        lambda _scenario_id: type(
+            "Package", (), {"policy_config": type("Policy", (), {"values": {}})()}
+        )(),
     )
 
     event = Event(
@@ -773,7 +779,9 @@ async def test_persistence_relationships_governance_warn_further_reduces_social_
 
     monkeypatch.setattr(
         "app.sim.persistence.load_world_design_runtime_package",
-        lambda _scenario_id: type("Package", (), {"policy_config": type("Policy", (), {"values": {}})()})(),
+        lambda _scenario_id: type(
+            "Package", (), {"policy_config": type("Policy", (), {"values": {}})()}
+        )(),
     )
 
     event = Event(
@@ -854,7 +862,9 @@ async def test_persistence_relationships_governance_block_turns_social_result_ne
 
     monkeypatch.setattr(
         "app.sim.persistence.load_world_design_runtime_package",
-        lambda _scenario_id: type("Package", (), {"policy_config": type("Policy", (), {"values": {}})()})(),
+        lambda _scenario_id: type(
+            "Package", (), {"policy_config": type("Policy", (), {"values": {}})()}
+        )(),
     )
 
     event = Event(
@@ -935,7 +945,9 @@ async def test_persistence_relationships_actor_attention_reduces_social_gain(
 
     monkeypatch.setattr(
         "app.sim.persistence.load_world_design_runtime_package",
-        lambda _scenario_id: type("Package", (), {"policy_config": type("Policy", (), {"values": {}})()})(),
+        lambda _scenario_id: type(
+            "Package", (), {"policy_config": type("Policy", (), {"values": {}})()}
+        )(),
     )
 
     event = Event(
@@ -957,8 +969,7 @@ async def test_persistence_relationships_actor_attention_reduces_social_gain(
     assert alice_relationships[0].affinity == pytest.approx(0.04)
     assert "attention_elevated" in event.payload["relationship_impact"]["modifiers"]
     assert (
-        event.payload["relationship_impact"]["summary"]
-        == "制度关注使这次互动的关系增益有所减弱。"
+        event.payload["relationship_impact"]["summary"] == "制度关注使这次互动的关系增益有所减弱。"
     )
 
 
@@ -1010,7 +1021,9 @@ async def test_persistence_relationships_target_high_attention_further_reduces_s
 
     monkeypatch.setattr(
         "app.sim.persistence.load_world_design_runtime_package",
-        lambda _scenario_id: type("Package", (), {"policy_config": type("Policy", (), {"values": {}})()})(),
+        lambda _scenario_id: type(
+            "Package", (), {"policy_config": type("Policy", (), {"values": {}})()}
+        )(),
     )
 
     event = Event(

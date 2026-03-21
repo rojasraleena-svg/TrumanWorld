@@ -127,7 +127,9 @@ class RunRepository:
     async def delete_with_related(self, run: SimulationRun) -> None:
         run_id = run.id
         await self.session.execute(delete(Relationship).where(Relationship.run_id == run_id))
-        await self.session.execute(delete(GovernanceRecord).where(GovernanceRecord.run_id == run_id))
+        await self.session.execute(
+            delete(GovernanceRecord).where(GovernanceRecord.run_id == run_id)
+        )
         await self.session.execute(delete(Memory).where(Memory.run_id == run_id))
         await self.session.execute(delete(DirectorMemory).where(DirectorMemory.run_id == run_id))
         await self.session.execute(delete(Event).where(Event.run_id == run_id))
@@ -312,7 +314,6 @@ class EventRepository:
             stmt = stmt.where(Event.tick_no > since_tick)
         result = await self.session.execute(stmt)
         return self._to_event_api_rows(result.all())
-
 
     async def list_timeline_events(
         self,
@@ -528,9 +529,9 @@ class GovernanceRecordRepository:
             stmt = stmt.where(GovernanceRecord.decision == decision)
         if agent_id:
             stmt = stmt.where(GovernanceRecord.agent_id == agent_id)
-        stmt = stmt.order_by(GovernanceRecord.tick_no.desc(), GovernanceRecord.created_at.desc()).limit(
-            limit
-        )
+        stmt = stmt.order_by(
+            GovernanceRecord.tick_no.desc(), GovernanceRecord.created_at.desc()
+        ).limit(limit)
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
@@ -710,9 +711,7 @@ class GovernanceRestrictionRepository:
         self,
         case_id: str,
     ) -> Sequence[GovernanceRestriction]:
-        stmt = select(GovernanceRestriction).where(
-            GovernanceRestriction.case_id == case_id
-        )
+        stmt = select(GovernanceRestriction).where(GovernanceRestriction.case_id == case_id)
         result = await self.session.execute(stmt)
         return result.scalars().all()
 

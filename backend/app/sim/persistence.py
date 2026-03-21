@@ -139,7 +139,9 @@ class PersistenceManager:
                     reason=reason if isinstance(reason, str) else None,
                     observed=bool(observed),
                     observation_score=(
-                        float(observation_score) if isinstance(observation_score, (int, float)) else 0.0
+                        float(observation_score)
+                        if isinstance(observation_score, (int, float))
+                        else 0.0
                     ),
                     intervention_score=(
                         float(intervention_score)
@@ -148,7 +150,9 @@ class PersistenceManager:
                     ),
                     metadata_json={
                         "enforcement_action": governance_execution.get("enforcement_action"),
-                        "matched_signals": matched_signals if isinstance(matched_signals, list) else [],
+                        "matched_signals": matched_signals
+                        if isinstance(matched_signals, list)
+                        else [],
                     },
                 )
             )
@@ -535,7 +539,9 @@ class PersistenceManager:
     ) -> tuple[SimulationRun | None, dict[str, str], dict[str, dict]]:
         active_session = session or self.session
         run_repo = self.run_repo if session is None else RunRepository(active_session)
-        location_repo = self.location_repo if session is None else LocationRepository(active_session)
+        location_repo = (
+            self.location_repo if session is None else LocationRepository(active_session)
+        )
         agent_repo = self.agent_repo if session is None else AgentRepository(active_session)
         run, locations, agents = await asyncio.gather(
             run_repo.get(run_id),
@@ -587,23 +593,19 @@ class PersistenceManager:
                 governance_reason = governance_reason_value
         if event.actor_agent_id:
             actor_attention_score = float(
-                (
-                    agent_status_map.get(event.actor_agent_id, {}).get(
-                        "governance_attention_score",
-                        0.0,
-                    )
-                    or 0.0
+                agent_status_map.get(event.actor_agent_id, {}).get(
+                    "governance_attention_score",
+                    0.0,
                 )
+                or 0.0
             )
         if event.target_agent_id:
             target_attention_score = float(
-                (
-                    agent_status_map.get(event.target_agent_id, {}).get(
-                        "governance_attention_score",
-                        0.0,
-                    )
-                    or 0.0
+                agent_status_map.get(event.target_agent_id, {}).get(
+                    "governance_attention_score",
+                    0.0,
                 )
+                or 0.0
             )
         return compute_relationship_delta(
             event_type=event.event_type,
@@ -739,14 +741,18 @@ class PersistenceManager:
         if event.event_type == "move":
             destination = location_name(str(payload.get("to_location_id", "")) or None)
             origin = location_name(str(payload.get("from_location_id", "")) or None)
-            return [
-                (
-                    event.actor_agent_id,
-                    f"Moved from {origin} to {destination}.",
-                    f"Moved to {destination}",
-                    None,
-                )
-            ] + governance_records + rule_feedback_records
+            return (
+                [
+                    (
+                        event.actor_agent_id,
+                        f"Moved from {origin} to {destination}.",
+                        f"Moved to {destination}",
+                        None,
+                    )
+                ]
+                + governance_records
+                + rule_feedback_records
+            )
 
         if event.event_type in {"conversation_started", "conversation_joined"}:
             return []
@@ -798,24 +804,32 @@ class PersistenceManager:
                     for listener_id in listeners
                 ]
 
-            return [
-                (event.actor_agent_id, actor_content, actor_summary, event.target_agent_id),
-                *listener_records,
-            ] + governance_records + rule_feedback_records
+            return (
+                [
+                    (event.actor_agent_id, actor_content, actor_summary, event.target_agent_id),
+                    *listener_records,
+                ]
+                + governance_records
+                + rule_feedback_records
+            )
 
         if event.event_type == "listen":
             speaker_id = str(payload.get("target_agent_id") or event.target_agent_id or "")
             loc_id = str(payload.get("location_id") or "")
             speaker = agent_name(speaker_id)
             loc = location_name(loc_id)
-            return [
-                (
-                    event.actor_agent_id,
-                    f"Listened to {speaker} at {loc}.",
-                    f"Listened to {speaker}",
-                    event.target_agent_id,
-                )
-            ] + governance_records + rule_feedback_records
+            return (
+                [
+                    (
+                        event.actor_agent_id,
+                        f"Listened to {speaker} at {loc}.",
+                        f"Listened to {speaker}",
+                        event.target_agent_id,
+                    )
+                ]
+                + governance_records
+                + rule_feedback_records
+            )
 
         if event.event_type == "work":
             return [
@@ -831,14 +845,18 @@ class PersistenceManager:
                 *rule_feedback_records,
             ]
 
-        return [
-            (
-                event.actor_agent_id,
-                f"Experienced event {event.event_type}.",
-                f"Event: {event.event_type}",
-                event.target_agent_id,
-            )
-        ] + governance_records + rule_feedback_records
+        return (
+            [
+                (
+                    event.actor_agent_id,
+                    f"Experienced event {event.event_type}.",
+                    f"Event: {event.event_type}",
+                    event.target_agent_id,
+                )
+            ]
+            + governance_records
+            + rule_feedback_records
+        )
 
     @staticmethod
     def _build_governance_memory_records(
@@ -858,7 +876,11 @@ class PersistenceManager:
 
         decision = governance_execution.get("decision")
         reason = governance_execution.get("reason")
-        if decision not in {"record_only", "warn", "block"} or not isinstance(reason, str) or not reason:
+        if (
+            decision not in {"record_only", "warn", "block"}
+            or not isinstance(reason, str)
+            or not reason
+        ):
             return []
 
         loc_id = str(payload.get("location_id") or event.location_id or "")

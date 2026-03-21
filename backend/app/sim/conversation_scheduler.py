@@ -192,8 +192,6 @@ class ConversationScheduler:
         return sorted(
             talk_intents,
             key=lambda intent: (
-                0
-                if intent.payload.get("intent_source") == "pending_reply_bias"
-                else 1
+                0 if intent.payload.get("intent_source") == "pending_reply_bias" else 1
             ),
         )

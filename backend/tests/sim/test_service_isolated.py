@@ -328,7 +328,10 @@ async def test_prepare_intents_from_data_biases_rest_to_reply_for_recent_questio
         assert intents[0].action_type == "talk"
         assert intents[0].target_agent_id == "bob"
         assert intents[0].payload["intent_source"] == "pending_reply_bias"
-        assert provider.captured_invocations[0].context["world"]["pending_reply"]["from_agent_id"] == "bob"
+        assert (
+            provider.captured_invocations[0].context["world"]["pending_reply"]["from_agent_id"]
+            == "bob"
+        )
     finally:
         shutil.rmtree(tmp_path)
 
@@ -1214,7 +1217,9 @@ async def test_run_tick_isolated_reuses_conversation_id_across_adjacent_ticks():
         await session.commit()
 
     service = SimulationService.create_for_scheduler(
-        AgentRuntime(registry=AgentRegistry(Path(tempfile.mkdtemp())), backend=HeuristicAgentBackend())
+        AgentRuntime(
+            registry=AgentRegistry(Path(tempfile.mkdtemp())), backend=HeuristicAgentBackend()
+        )
     )
 
     try:

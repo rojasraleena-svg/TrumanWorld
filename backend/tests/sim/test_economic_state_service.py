@@ -1,12 +1,10 @@
 """Tests for economic_state_service."""
 
 from datetime import datetime
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
 
-from app.sim.action_resolver import ActionResult
 from app.sim.economic_state_service import EconomicStateService
 from app.sim.world import AgentState, RestrictionState, WorldState
 from app.store.models import AgentEconomicState

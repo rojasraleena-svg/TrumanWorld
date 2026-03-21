@@ -4,7 +4,11 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.scenario.runtime.world_design_models import PolicyConfig, RulesConfig, WorldDesignRuntimePackage
+from app.scenario.runtime.world_design_models import (
+    PolicyConfig,
+    RulesConfig,
+    WorldDesignRuntimePackage,
+)
 from app.sim.action_resolver import ActionIntent
 from app.sim.world import AgentState, LocationState, WorldState
 

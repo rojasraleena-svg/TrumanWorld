@@ -1145,7 +1145,9 @@ def test_simulation_runner_reuses_conversation_id_across_adjacent_ticks():
             )
         ]
     )
-    started_tick1 = next(item for item in tick1.accepted if item.action_type == "conversation_started")
+    started_tick1 = next(
+        item for item in tick1.accepted if item.action_type == "conversation_started"
+    )
     speech_tick1 = next(item for item in tick1.accepted if item.action_type == "talk")
 
     tick2 = runner.tick(
@@ -1161,8 +1163,14 @@ def test_simulation_runner_reuses_conversation_id_across_adjacent_ticks():
     speech_tick2 = next(item for item in tick2.accepted if item.action_type == "talk")
 
     assert not any(item.action_type == "conversation_started" for item in tick2.accepted)
-    assert speech_tick1.event_payload["conversation_id"] == started_tick1.event_payload["conversation_id"]
-    assert speech_tick2.event_payload["conversation_id"] == started_tick1.event_payload["conversation_id"]
+    assert (
+        speech_tick1.event_payload["conversation_id"]
+        == started_tick1.event_payload["conversation_id"]
+    )
+    assert (
+        speech_tick2.event_payload["conversation_id"]
+        == started_tick1.event_payload["conversation_id"]
+    )
 
 
 def test_simulation_runner_tracks_directional_interaction_edge_state_across_turns():
@@ -1191,7 +1199,9 @@ def test_simulation_runner_tracks_directional_interaction_edge_state_across_turn
     )
 
     first_conversation_id = next(
-        item.event_payload["conversation_id"] for item in tick1.accepted if item.action_type == "talk"
+        item.event_payload["conversation_id"]
+        for item in tick1.accepted
+        if item.action_type == "talk"
     )
     alice_to_bob = world.interaction_edges["alice->bob"]
     bob_to_alice = world.interaction_edges["bob->alice"]

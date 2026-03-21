@@ -5,7 +5,9 @@ import pytest
 from app.infra.settings import get_settings
 
 
-def test_runtime_director_config_loads_bundle_specific_config(tmp_path, monkeypatch: pytest.MonkeyPatch):
+def test_runtime_director_config_loads_bundle_specific_config(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     bundle_root = tmp_path / "scenarios" / "hero_world"
     bundle_root.mkdir(parents=True)
     (bundle_root / "scenario.yml").write_text(

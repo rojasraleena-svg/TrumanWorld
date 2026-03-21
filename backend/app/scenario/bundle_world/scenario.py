@@ -34,15 +34,11 @@ class BundleWorldScenario(Scenario):
             "seed_policy": modules.seed_policy if modules is not None else None,
             "state_update_policy": modules.state_update_policy if modules is not None else None,
             "director_policy": modules.director_policy if modules is not None else None,
-            "agent_context_policy": (
-                modules.agent_context_policy if modules is not None else None
-            ),
+            "agent_context_policy": (modules.agent_context_policy if modules is not None else None),
             "allowed_actions_policy": (
                 modules.allowed_actions_policy if modules is not None else None
             ),
-            "profile_merge_policy": (
-                modules.profile_merge_policy if modules is not None else None
-            ),
+            "profile_merge_policy": (modules.profile_merge_policy if modules is not None else None),
         }
         self.subject_alert_tracking_enabled = (
             capabilities.subject_alert_tracking

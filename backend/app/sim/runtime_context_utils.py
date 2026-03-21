@@ -190,12 +190,16 @@ def extract_conversation_diagnostics(
     last_proposal = _clean_optional_text(conversation_state.get("last_proposal"))
     open_question = _clean_optional_text(conversation_state.get("open_question"))
     repeat_count = conversation_state.get("repeat_count")
-    normalized_repeat_count = repeat_count if isinstance(repeat_count, int) and repeat_count > 0 else 0
+    normalized_repeat_count = (
+        repeat_count if isinstance(repeat_count, int) and repeat_count > 0 else 0
+    )
 
     diagnostics: dict[str, object] = {
         "conversation_focus": last_proposal or open_question or last_message_summary,
         "other_party_latest_new_info": last_message_summary,
-        "other_party_latest_intent": _infer_conversation_intent(last_message_summary, last_proposal),
+        "other_party_latest_intent": _infer_conversation_intent(
+            last_message_summary, last_proposal
+        ),
         "conversation_phase": _infer_conversation_phase(last_message_summary, open_question),
         "self_recent_repetition": {
             "is_repeating": normalized_repeat_count >= 2,
@@ -242,13 +246,21 @@ def extract_interaction_edge_diagnostics(
     interaction_edge_state: dict[str, object],
 ) -> dict[str, object]:
     repeat_count = conversation_state.get("repeat_count")
-    normalized_repeat_count = repeat_count if isinstance(repeat_count, int) and repeat_count > 0 else 0
-    last_incoming_message = _clean_optional_text(interaction_edge_state.get("last_incoming_message"))
-    last_outgoing_message = _clean_optional_text(interaction_edge_state.get("last_outgoing_message"))
+    normalized_repeat_count = (
+        repeat_count if isinstance(repeat_count, int) and repeat_count > 0 else 0
+    )
+    last_incoming_message = _clean_optional_text(
+        interaction_edge_state.get("last_incoming_message")
+    )
+    last_outgoing_message = _clean_optional_text(
+        interaction_edge_state.get("last_outgoing_message")
+    )
     closure_state = _clean_optional_text(interaction_edge_state.get("closure_state")) or "open"
     unresolved_item = _clean_optional_text(interaction_edge_state.get("unresolved_item"))
     latest_focus = unresolved_item or last_incoming_message or last_outgoing_message
-    last_incoming_act = _clean_optional_text(interaction_edge_state.get("last_incoming_act")) or "social"
+    last_incoming_act = (
+        _clean_optional_text(interaction_edge_state.get("last_incoming_act")) or "social"
+    )
     redundancy_risk = interaction_edge_state.get("redundancy_risk")
     redundancy_value = redundancy_risk if isinstance(redundancy_risk, (int, float)) else 0.0
 
@@ -288,8 +300,10 @@ def extract_pending_reply(
         if not isinstance(tick_no, int):
             continue
 
-        if event_type == "speech" and actor_agent_id == self_agent_id and isinstance(
-            target_agent_id, str
+        if (
+            event_type == "speech"
+            and actor_agent_id == self_agent_id
+            and isinstance(target_agent_id, str)
         ):
             previous_tick = latest_outgoing_tick_by_target.get(target_agent_id, -1)
             latest_outgoing_tick_by_target[target_agent_id] = max(previous_tick, tick_no)
@@ -321,9 +335,7 @@ def extract_pending_reply(
     if newest_direct_speech is None or newest_direct_speech["is_closing"]:
         return None
 
-    newest_direct_speech["priority"] = (
-        "high" if newest_direct_speech["is_question"] else "medium"
-    )
+    newest_direct_speech["priority"] = "high" if newest_direct_speech["is_question"] else "medium"
     return newest_direct_speech
 
 
@@ -361,7 +373,8 @@ def _infer_conversation_phase(
     open_question: str | None,
 ) -> str:
     if latest_message and (
-        _looks_like_closing_message(latest_message) or _looks_like_coordination_message(latest_message)
+        _looks_like_closing_message(latest_message)
+        or _looks_like_coordination_message(latest_message)
     ):
         return "closing"
     if open_question:
@@ -548,7 +561,7 @@ def _inject_world_rules_summary(
         agent = get_agent(world, agent_id)
         if agent is not None:
             attention_score = float(
-                ((agent.status or {}).get("governance_attention_score", 0.0) or 0.0)
+                (agent.status or {}).get("governance_attention_score", 0.0) or 0.0
             )
             if attention_score >= 0.8:
                 current_risks.append("你正处于高关注状态，进一步试探边界的代价会更高")
@@ -565,7 +578,11 @@ def _inject_world_rules_summary(
         if isinstance(governance_execution, dict):
             governance_decision = governance_execution.get("decision")
             governance_reason = governance_execution.get("reason")
-            if governance_decision == "block" and isinstance(governance_reason, str) and governance_reason:
+            if (
+                governance_decision == "block"
+                and isinstance(governance_reason, str)
+                and governance_reason
+            ):
                 blocked_constraints.append(governance_reason)
             elif (
                 governance_decision in {"warn", "record_only"}
@@ -580,7 +597,13 @@ def _inject_world_rules_summary(
         if isinstance(reason, str) and reason and reason not in recent_rule_feedback:
             recent_rule_feedback.append(reason)
 
-    if available_actions or policy_notices or blocked_constraints or current_risks or recent_rule_feedback:
+    if (
+        available_actions
+        or policy_notices
+        or blocked_constraints
+        or current_risks
+        or recent_rule_feedback
+    ):
         context["world_rules_summary"] = {
             "available_actions": available_actions,
             "policy_notices": policy_notices,
@@ -649,7 +672,11 @@ def _derive_available_actions(
         )
     )
 
-    if (is_at_workplace or work_friendly_location) and not location_has_power_outage and not location_has_shutdown:
+    if (
+        (is_at_workplace or work_friendly_location)
+        and not location_has_power_outage
+        and not location_has_shutdown
+    ):
         actions.append("work")
 
     return actions

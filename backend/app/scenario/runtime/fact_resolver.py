@@ -28,7 +28,9 @@ def build_rule_facts(
         "actor": _build_agent_facts(actor),
         "target_agent": _build_agent_facts(
             target_agent,
-            relationship_context=_build_relationship_facts(world, intent.agent_id, intent.target_agent_id),
+            relationship_context=_build_relationship_facts(
+                world, intent.agent_id, intent.target_agent_id
+            ),
         ),
         "target_location": _build_location_facts(target_location, intent.target_location_id),
         "world": _build_world_facts(world),
