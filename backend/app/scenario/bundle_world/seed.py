@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -17,13 +19,19 @@ if TYPE_CHECKING:
 
     from app.store.models import SimulationRun
 
-_WORLD_CONFIG_CACHE: dict[str, dict] = {}
+_WORLD_CONFIG_CACHE: dict[tuple[str, str], dict] = {}
 
 
 def _get_world_config(scenario_id: str) -> dict:
-    if scenario_id not in _WORLD_CONFIG_CACHE:
-        _WORLD_CONFIG_CACHE[scenario_id] = load_world_config(scenario_id)
-    return _WORLD_CONFIG_CACHE[scenario_id]
+    project_root = get_settings().project_root
+    cache_key = _build_world_config_cache_key(project_root, scenario_id)
+    if cache_key not in _WORLD_CONFIG_CACHE:
+        _WORLD_CONFIG_CACHE[cache_key] = load_world_config(scenario_id)
+    return _WORLD_CONFIG_CACHE[cache_key]
+
+
+def _build_world_config_cache_key(project_root: Path, scenario_id: str) -> tuple[str, str]:
+    return (str(project_root.resolve()), scenario_id)
 
 
 def _get_location_configs(scenario_id: str) -> list[dict]:
@@ -36,6 +44,25 @@ def _get_location_id_map(scenario_id: str) -> dict:
 
 def _get_occupation_names(scenario_id: str) -> dict[str, str]:
     return _get_world_config(scenario_id).get("occupation_names", {})
+
+
+def _get_world_start_time_iso(scenario_id: str) -> str:
+    raw_start = _get_world_config(scenario_id).get("world_start_time")
+    if isinstance(raw_start, datetime):
+        start_time = raw_start
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=UTC)
+        return start_time.isoformat()
+    if isinstance(raw_start, str):
+        try:
+            start_time = datetime.fromisoformat(raw_start)
+        except ValueError:
+            start_time = DEFAULT_WORLD_START_TIME
+        else:
+            if start_time.tzinfo is None:
+                start_time = start_time.replace(tzinfo=UTC)
+        return start_time.isoformat()
+    return DEFAULT_WORLD_START_TIME.isoformat()
 
 
 class BundleWorldSeedBuilder:
@@ -184,7 +211,7 @@ class BundleWorldSeedBuilder:
 
         if "world_start_time" not in (run.metadata_json or {}):
             metadata = dict(run.metadata_json or {})
-            metadata["world_start_time"] = DEFAULT_WORLD_START_TIME.isoformat()
+            metadata["world_start_time"] = _get_world_start_time_iso(self.scenario_id)
             run.metadata_json = metadata
 
         self.session.add_all(list(locations.values()))

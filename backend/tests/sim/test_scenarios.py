@@ -868,6 +868,152 @@ async def test_narrative_world_adapter_seed_demo_run_uses_active_bundle_files(
     assert agents[0].occupation == "住户"
     assert agents[0].home_location_id == f"{run.id}-library"
     assert agents[0].status["suspicion_score"] == 0.0
+    assert run.metadata_json["world_start_time"] == "2026-03-02T06:00:00+00:00"
+
+
+@pytest.mark.asyncio
+async def test_bundle_seed_uses_world_start_time_from_scenario_world_config(
+    db_session, tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    bundle_root = tmp_path / "scenarios" / "late_world"
+    agent_dir = bundle_root / "agents" / "hero"
+    agent_dir.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: late_world",
+                "name: Late World",
+                "version: 1",
+                "runtime_adapter: narrative_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (bundle_root / "world.yml").write_text(
+        "\n".join(
+            [
+                "world_start_time: 2030-01-15T09:30:00+00:00",
+                "locations:",
+                "  - id_suffix: apartment",
+                "    name: Harbor Flat",
+                "    location_type: home",
+                "    capacity: 2",
+                "    x: 1",
+                "    y: 1",
+                "    attributes:",
+                "      kind: private",
+                "location_id_map:",
+                "  apartment: apartment",
+                "occupation_names:",
+                "  resident: Resident",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "agent.yml").write_text(
+        "\n".join(
+            [
+                "id: hero",
+                "name: Hero",
+                "world_role: truman",
+                "occupation: resident",
+                "home: apartment",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "prompt.md").write_text("# Hero\nBase prompt", encoding="utf-8")
+    (agent_dir / "bio.md").write_text("Late world hero", encoding="utf-8")
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    run = SimulationRun(
+        id="run-late-world",
+        name="late-world",
+        status="running",
+        scenario_type="late_world",
+    )
+    db_session.add(run)
+    await db_session.commit()
+
+    scenario = create_scenario("late_world", db_session)
+    await scenario.seed_demo_run(run)
+
+    assert run.metadata_json["world_start_time"] == "2030-01-15T09:30:00+00:00"
+
+
+@pytest.mark.asyncio
+async def test_bundle_seed_preserves_explicit_run_world_start_time(
+    db_session, tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    bundle_root = tmp_path / "scenarios" / "override_world"
+    agent_dir = bundle_root / "agents" / "hero"
+    agent_dir.mkdir(parents=True)
+    (bundle_root / "scenario.yml").write_text(
+        "\n".join(
+            [
+                "id: override_world",
+                "name: Override World",
+                "version: 1",
+                "runtime_adapter: narrative_world",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (bundle_root / "world.yml").write_text(
+        "\n".join(
+            [
+                "world_start_time: 2035-06-01T08:00:00+00:00",
+                "locations:",
+                "  - id_suffix: apartment",
+                "    name: Lantern House",
+                "    location_type: home",
+                "    capacity: 2",
+                "    x: 1",
+                "    y: 1",
+                "    attributes:",
+                "      kind: private",
+                "location_id_map:",
+                "  apartment: apartment",
+                "occupation_names:",
+                "  resident: Resident",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "agent.yml").write_text(
+        "\n".join(
+            [
+                "id: hero",
+                "name: Hero",
+                "world_role: truman",
+                "occupation: resident",
+                "home: apartment",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "prompt.md").write_text("# Hero\nBase prompt", encoding="utf-8")
+    (agent_dir / "bio.md").write_text("Override world hero", encoding="utf-8")
+
+    monkeypatch.setenv("TRUMANWORLD_PROJECT_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+
+    run = SimulationRun(
+        id="run-override-world",
+        name="override-world",
+        status="running",
+        scenario_type="override_world",
+        metadata_json={"world_start_time": "2040-12-31T23:55:00+00:00"},
+    )
+    db_session.add(run)
+    await db_session.commit()
+
+    scenario = create_scenario("override_world", db_session)
+    await scenario.seed_demo_run(run)
+
+    assert run.metadata_json["world_start_time"] == "2040-12-31T23:55:00+00:00"
 
 
 @pytest.mark.asyncio
