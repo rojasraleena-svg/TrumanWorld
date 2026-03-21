@@ -126,6 +126,7 @@ class ContextBuilder:
         world_role: str | None = None,
         director_guidance: ScenarioGuidance | None = None,
         relationship_context: dict[str, dict[str, object]] | None = None,
+        recent_events: list[dict] | None = None,
     ) -> dict:
         """Build context dict for agent decision making.
 
@@ -154,6 +155,7 @@ class ContextBuilder:
             world_role=world_role,
             director_guidance=director_guidance,
             relationship_context=relationship_context,
+            recent_events=recent_events,
         )
 
     def find_nearby_agent(self, world: WorldState, agent_id: str, location_id: str) -> str | None:

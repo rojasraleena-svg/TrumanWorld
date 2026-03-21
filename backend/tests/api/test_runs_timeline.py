@@ -191,6 +191,61 @@ async def test_get_timeline_preserves_relationship_impact_payload(client, db_ses
 
 
 @pytest.mark.asyncio
+async def test_get_timeline_preserves_rule_evaluation_payload(client, db_session):
+    run_id = "00000000-0000-0000-0000-000000000205"
+    run = SimulationRun(
+        id=run_id,
+        name="timeline-rule-evaluation",
+        status="running",
+        tick_minutes=5,
+        metadata_json={"world_start_time": "2026-03-02T07:00:00+00:00"},
+    )
+    alice = Agent(
+        id="agent-alice-rule-eval",
+        run_id=run_id,
+        name="Alice",
+        occupation="resident",
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+    db_session.add_all(
+        [
+            run,
+            alice,
+            Event(
+                id="timeline-rule-eval-event",
+                run_id=run_id,
+                tick_no=2,
+                event_type="move_rejected",
+                actor_agent_id=alice.id,
+                payload={
+                    "reason": "location_closed",
+                    "to_location_id": "cafe",
+                    "rule_evaluation": {
+                        "decision": "violates_rule",
+                        "primary_rule_id": "closed_location",
+                        "reason": "location_closed",
+                        "matched_rule_ids": ["closed_location"],
+                    },
+                },
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get(f"/api/runs/{run_id}/timeline")
+
+    assert response.status_code == 200
+    body = response.json()
+    payload = body["events"][0]["payload"]
+    assert payload["actor_name"] == "Alice"
+    assert payload["rule_evaluation"]["decision"] == "violates_rule"
+    assert payload["rule_evaluation"]["primary_rule_id"] == "closed_location"
+
+
+@pytest.mark.asyncio
 async def test_get_run_events_supports_category_filters(client, db_session):
     run_id = "00000000-0000-0000-0000-000000000203"
     db_session.add_all(

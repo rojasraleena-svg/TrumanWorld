@@ -177,6 +177,35 @@ def test_format_event_for_context_uses_names_and_defaults():
     }
 
 
+def test_format_event_for_context_includes_light_rule_feedback_fields():
+    event = Event(
+        id="event-3",
+        run_id="run-1",
+        tick_no=9,
+        event_type="move_rejected",
+        actor_agent_id="alice",
+        payload={
+            "reason": "location_closed",
+            "rule_evaluation": {
+                "decision": "violates_rule",
+                "primary_rule_id": "closed_location",
+                "reason": "location_closed",
+                "matched_rule_ids": ["closed_location"],
+            },
+        },
+    )
+
+    formatted = format_event_for_context(
+        event,
+        agent_states={"alice": _AgentState("Alice")},
+        location_states={},
+    )
+
+    assert formatted["actor_name"] == "Alice"
+    assert formatted["rule_evaluation"]["decision"] == "violates_rule"
+    assert formatted["rule_feedback_reason"] == "location_closed"
+
+
 def test_format_event_for_context_falls_back_for_unknown_actor():
     event = Event(
         id="event-2",

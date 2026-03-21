@@ -79,5 +79,11 @@ def format_event_for_context(
             result["speaker_name"] = agent_states[speaker_agent_id].name
     if "participant_ids" in payload:
         result["participant_ids"] = payload["participant_ids"]
+    if "rule_evaluation" in payload:
+        result["rule_evaluation"] = payload["rule_evaluation"]
+        if isinstance(payload["rule_evaluation"], dict):
+            reason = payload["rule_evaluation"].get("reason")
+            if isinstance(reason, str) and reason:
+                result["rule_feedback_reason"] = reason
 
     return result

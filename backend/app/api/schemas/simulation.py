@@ -203,6 +203,16 @@ class TickResponse(BaseModel):
     rejected_count: int = Field(..., description="拒绝的动作数量")
 
 
+class RuleEvaluationResponse(BaseModel):
+    decision: Literal["allowed", "violates_rule", "impossible", "soft_risk"] = Field(
+        ...,
+        description="规则裁决结果",
+    )
+    primary_rule_id: str | None = Field(None, description="主裁决规则 ID")
+    reason: str | None = Field(None, description="规则裁决原因")
+    matched_rule_ids: list[str] = Field(default_factory=list, description="命中的规则 ID 列表")
+
+
 class TimelineEventResponse(BaseModel):
     id: str = Field(..., description="事件 ID", examples=["evt_001"])
     tick_no: int = Field(..., description="Tick 编号", examples=[42])

@@ -107,6 +107,48 @@ def test_build_agent_world_context_includes_location_occupants_and_guidance():
     assert context["current_location_effects"][0]["effect_type"] == "power_outage"
 
 
+def test_build_agent_world_context_includes_minimal_world_rules_summary():
+    world = _build_world()
+    world.world_effects = {
+        "power_outages": [
+            {
+                "location_id": "cafe",
+                "start_tick": 0,
+                "end_tick": 3,
+                "message": "Cafe blackout",
+            }
+        ]
+    }
+
+    context = build_agent_world_context(
+        world=world,
+        current_goal="talk",
+        current_location_id="cafe",
+        home_location_id="home",
+        nearby_agent_id="bob",
+        current_status={"energy": 0.8},
+        recent_events=[
+            {
+                "event_type": "move_rejected",
+                "tick_no": 3,
+                "payload": {
+                    "reason": "location_closed",
+                    "rule_evaluation": {
+                        "decision": "violates_rule",
+                        "primary_rule_id": "closed_location",
+                        "reason": "location_closed",
+                    },
+                },
+            }
+        ],
+    )
+
+    assert context["world_rules_summary"]["policy_notices"] == ["Cafe blackout"]
+    assert context["world_rules_summary"]["recent_rule_feedback"] == [
+        "location_closed",
+    ]
+
+
 def test_build_agent_world_context_omits_subject_alert_score_when_disabled():
     world = _build_world()
 

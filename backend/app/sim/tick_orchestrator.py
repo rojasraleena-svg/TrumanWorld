@@ -358,6 +358,7 @@ class TickOrchestrator:
             workplace_location_id=workplace_location_id,
             current_plan=current_plan,
             relationship_context=relationship_context,
+            recent_events=recent_events,
         )
         inject_profile_fields_into_context(world_ctx, profile)
         intent = await self.agent_runtime.react(

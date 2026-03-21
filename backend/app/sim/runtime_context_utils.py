@@ -26,6 +26,7 @@ def build_agent_world_context(
     workplace_location_id: str | None = None,
     current_plan: dict | None = None,
     relationship_context: dict[str, dict[str, object]] | None = None,
+    recent_events: list[dict] | None = None,
 ) -> RuntimeWorldContext:
     # Identify social locations (plaza / cafe) for talk-goal navigation
     social_location_ids = [
@@ -76,6 +77,7 @@ def build_agent_world_context(
     if world_role:
         context["world_role"] = world_role
     _inject_world_effects(context, world, current_location_id)
+    _inject_world_rules_summary(context, world, current_location_id, recent_events or [])
     if director_guidance:
         context.update(_normalize_director_guidance(director_guidance))
 
@@ -189,3 +191,47 @@ def _inject_world_effects(
     if current_location_effects:
         context["current_location_effects"] = current_location_effects
         context["current_location_power_status"] = "off"
+
+
+def _inject_world_rules_summary(
+    context: dict,
+    world: WorldState,
+    current_location_id: str | None,
+    recent_events: list[dict],
+) -> None:
+    policy_notices: list[str] = []
+    recent_rule_feedback: list[str] = []
+
+    world_effects = getattr(world, "world_effects", {}) or {}
+    current_tick = getattr(world, "current_tick", 0)
+    for outage in world_effects.get("power_outages", []):
+        if not isinstance(outage, dict):
+            continue
+        if current_location_id and outage.get("location_id") != current_location_id:
+            continue
+        start_tick = outage.get("start_tick")
+        end_tick = outage.get("end_tick")
+        if isinstance(start_tick, int) and current_tick < start_tick:
+            continue
+        if isinstance(end_tick, int) and current_tick >= end_tick:
+            continue
+        message = outage.get("message")
+        if isinstance(message, str) and message:
+            policy_notices.append(message)
+
+    for event in recent_events:
+        payload = event.get("payload") or {}
+        if not isinstance(payload, dict):
+            continue
+        rule_evaluation = payload.get("rule_evaluation") or {}
+        if not isinstance(rule_evaluation, dict):
+            continue
+        reason = rule_evaluation.get("reason") or payload.get("reason")
+        if isinstance(reason, str) and reason:
+            recent_rule_feedback.append(reason)
+
+    if policy_notices or recent_rule_feedback:
+        context["world_rules_summary"] = {
+            "policy_notices": policy_notices,
+            "recent_rule_feedback": recent_rule_feedback,
+        }
