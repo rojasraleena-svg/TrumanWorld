@@ -11,7 +11,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from app.scenario.bundle_registry import load_world_config_for_scenario
+from app.scenario.runtime.world_config import (
+    build_world_common_knowledge as build_runtime_world_common_knowledge,
+)
+from app.scenario.runtime.world_config import load_world_config as load_runtime_world_config
 from app.scenario.runtime_config import (
     ScenarioRuntimeConfig,
     build_scenario_runtime_config,
@@ -28,8 +31,6 @@ if TYPE_CHECKING:
     from app.sim.world import WorldState
     from app.store.models import Relationship
 
-_WORLD_CONFIG_CACHE: dict[str, dict[str, Any]] = {}
-
 RuntimeRoleSemantics = ScenarioRuntimeConfig
 
 
@@ -38,17 +39,8 @@ def build_runtime_role_semantics(scenario_id: str) -> RuntimeRoleSemantics:
 
 
 def load_world_config(scenario_id: str = "narrative_world") -> dict[str, Any]:
-    """Load world configuration from YAML file.
-
-    Uses caching to avoid repeated file reads.
-    This is the public API for accessing world configuration.
-    """
-    if scenario_id not in _WORLD_CONFIG_CACHE:
-        config = load_world_config_for_scenario(scenario_id)
-        if not config and scenario_id != "narrative_world":
-            config = load_world_config_for_scenario("narrative_world")
-        _WORLD_CONFIG_CACHE[scenario_id] = config
-    return _WORLD_CONFIG_CACHE[scenario_id]
+    """Compatibility wrapper around the runtime-level world config loader."""
+    return load_runtime_world_config(scenario_id)
 
 
 def build_perception_context(
@@ -151,21 +143,8 @@ def build_role_context(
 
 
 def build_world_common_knowledge(scenario_id: str = "narrative_world") -> dict[str, Any]:
-    """Build world common knowledge shared by all agents in the narrative world.
-
-    This defines the shared understanding of how the world works,
-    including daily rhythms, location purposes, and social norms.
-
-    Configuration is loaded from world_config.yml for easy management.
-    """
-    config = load_world_config(scenario_id)
-    return {
-        "daily_rhythm": config.get("daily_rhythm", {}),
-        "location_purposes": config.get("location_purposes", {}),
-        "social_norms": config.get("social_norms", []),
-        "location_descriptions": config.get("location_descriptions", {}),
-        "time_suggestions": config.get("time_suggestions", {}),
-    }
+    """Compatibility wrapper around the runtime-level common knowledge builder."""
+    return build_runtime_world_common_knowledge(scenario_id)
 
 
 def build_scene_guidance(

@@ -5,11 +5,8 @@ from uuid import uuid4
 
 from app.agent.registry import AgentRegistry
 from app.infra.settings import get_settings
-from app.scenario.bundle_registry import (
-    load_world_config_for_scenario,
-    resolve_agents_root_for_scenario,
-)
-from app.scenario.narrative_world.rules import load_world_config
+from app.scenario.bundle_registry import resolve_agents_root_for_scenario
+from app.scenario.runtime.world_config import load_world_config
 from app.scenario.runtime_config import build_runtime_role_semantics
 from app.scenario.narrative_world.types import build_agent_profile
 from app.sim.context import DEFAULT_WORLD_START_TIME
@@ -28,10 +25,7 @@ _WORLD_CONFIG_CACHE: dict[str, dict] = {}
 def _get_world_config(scenario_id: str) -> dict:
     """Lazy load world configuration."""
     if scenario_id not in _WORLD_CONFIG_CACHE:
-        config = load_world_config_for_scenario(scenario_id)
-        if not config:
-            config = load_world_config()
-        _WORLD_CONFIG_CACHE[scenario_id] = config
+        _WORLD_CONFIG_CACHE[scenario_id] = load_world_config(scenario_id)
     return _WORLD_CONFIG_CACHE[scenario_id]
 
 

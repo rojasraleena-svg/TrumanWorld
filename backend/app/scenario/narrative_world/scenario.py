@@ -147,3 +147,7 @@ class NarrativeWorldScenario(Scenario):
             msg = "NarrativeWorldScenario.update_state_from_events requires a database session"
             raise RuntimeError(msg)
         await self.state_updater.persist_subject_alert(run_id, events)
+
+
+class BundleWorldScenario(NarrativeWorldScenario):
+    """Neutral adapter alias for bundle-driven worlds."""

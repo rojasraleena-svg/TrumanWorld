@@ -9,6 +9,7 @@ from app.scenario.adapter_registry import (
 )
 from app.scenario.factory import create_scenario
 from app.scenario.open_world.scenario import OpenWorldScenario
+from app.scenario.narrative_world.scenario import BundleWorldScenario
 from app.scenario.narrative_world.scenario import NarrativeWorldScenario
 
 
@@ -151,7 +152,7 @@ def test_default_adapter_registry_keeps_bundle_world_and_legacy_alias_in_sync():
     bundle_world = registry.build("bundle_world", scenario_id="hero_world")
 
     assert isinstance(narrative_world, NarrativeWorldScenario)
-    assert isinstance(bundle_world, NarrativeWorldScenario)
+    assert isinstance(bundle_world, BundleWorldScenario)
     assert narrative_world.scenario_id == "narrative_world"
     assert bundle_world.scenario_id == "hero_world"
 
