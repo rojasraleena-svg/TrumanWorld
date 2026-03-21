@@ -12,6 +12,7 @@ import { WorldHealthPanel } from "@/components/world-health-panel";
 import { StoryTimeline } from "@/components/story-timeline";
 import { TimelineModal } from "@/components/timeline-modal";
 import { AgentDetailModal } from "@/components/agent-detail-modal";
+import { ScrollArea } from "@/components/scroll-area";
 import { useWorld } from "@/components/world-context";
 import {
   calculateWorldHealthMetrics,
@@ -119,6 +120,7 @@ export function WorldCanvas({ runId }: Props) {
   const selectedLocationHeadlineEvents = selectedLocation
     ? getLocationHeadlineEvents(selectedLocation.id, world.recent_events, 2)
     : [];
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
       <div className="grid h-full min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px_320px]">
@@ -138,17 +140,19 @@ export function WorldCanvas({ runId }: Props) {
         </div>
 
         {/* 中间列：世界健康度 + 地点详情 */}
-        <div className="flex min-h-0 flex-col gap-4 overflow-auto">
+        <ScrollArea className="flex min-h-0 flex-col gap-5 overflow-y-auto overflow-x-hidden pr-3 pb-6">
           {/* 世界健康度面板 */}
           {healthMetrics && <WorldHealthPanel metrics={healthMetrics} runId={runId} world={world} />}
 
           {/* 地点详情卡片 */}
           <div className="rounded-[28px] border border-slate-200 bg-white/80 p-4 shadow-xs">
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-ink">{selectedLocation?.name ?? "暂无地点"}</h2>
+              <div className="flex min-w-0 items-center gap-2">
+                <h2 className="min-w-0 text-[15px] font-semibold tracking-[-0.01em] text-ink">
+                  {selectedLocation?.name ?? "暂无地点"}
+                </h2>
                 {selectedLocation && (
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${locationTone(selectedLocation.location_type)}`}>
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${locationTone(selectedLocation.location_type)}`}>
                     {selectedLocation.occupants.length} / {selectedLocation.capacity} 人
                   </span>
                 )}
@@ -181,7 +185,7 @@ export function WorldCanvas({ runId }: Props) {
               <div className="mt-4 space-y-2">
                 {selectedLocationHeadlineEvents.length > 0 ? (
                   <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                    <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
                       刚刚发生
                     </p>
                     <div className="mt-2 space-y-1.5">
@@ -253,15 +257,15 @@ export function WorldCanvas({ runId }: Props) {
               runId={runId}
             />
           )}
-        </div>
+        </ScrollArea>
 
         {/* 第三列：故事时间线 */}
-        <div className="flex h-full min-h-0 flex-col">
+        <ScrollArea className="flex h-full min-h-0 flex-col overflow-y-auto overflow-x-hidden pr-3 pb-6">
           <StoryTimeline
             chapters={storyChapters}
             onExpand={() => replaceSearchParams({ modal: "timeline" })}
           />
-        </div>
+        </ScrollArea>
 
         {/* 事件回放弹窗 */}
         <TimelineModal

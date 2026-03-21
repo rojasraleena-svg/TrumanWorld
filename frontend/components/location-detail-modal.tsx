@@ -14,6 +14,7 @@ import {
   tickToSimDayTime,
 } from "@/lib/world-utils";
 import { Modal } from "@/components/modal";
+import { ScrollArea } from "@/components/scroll-area";
 
 type LocationDetailModalProps = {
   isOpen: boolean;
@@ -111,7 +112,7 @@ export function LocationDetailModal({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <ScrollArea className="flex-1 overflow-y-auto">
           <div className="border-b border-slate-100 p-6">
             <div className="mb-3 flex items-center gap-2">
               <h3 className="text-sm font-medium text-ink">当前居民</h3>
@@ -194,7 +195,7 @@ export function LocationDetailModal({
               </div>
             )}
           </div>
-        </div>
+        </ScrollArea>
     </Modal>
   );
 }

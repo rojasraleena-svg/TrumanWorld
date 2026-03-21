@@ -8,6 +8,7 @@ import { DirectorEventForm } from "@/components/director-event-form";
 import { ErrorState } from "@/components/error-state";
 import { LoadingState } from "@/components/loading-state";
 import { Modal, WorkspaceModalShell } from "@/components/modal";
+import { ScrollArea } from "@/components/scroll-area";
 import { getDirectorMemoriesResult, getDirectorObservationResult } from "@/lib/api";
 import type { DirectorMemory, DirectorObservation } from "@/lib/types";
 
@@ -49,10 +50,10 @@ export function DirectorStats({ stats, onClick }: DirectorStatsProps) {
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-700">🎬 导演干预</span>
+          <span className="text-[13px] font-medium text-slate-700">🎬 导演干预</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`text-xs font-medium ${hasIssue ? "text-amber-600" : "text-slate-500"}`}>
+          <span className={`text-[11px] font-medium ${hasIssue ? "text-amber-600" : "text-slate-500"}`}>
             {stats.executionRate}% 消费率
           </span>
           <svg
@@ -69,20 +70,20 @@ export function DirectorStats({ stats, onClick }: DirectorStatsProps) {
 
       <div className="mt-2 flex items-center gap-4">
         <div className="flex items-center gap-1.5">
-          <span className="text-lg font-semibold text-slate-800">{stats.total}</span>
-          <span className="text-xs text-slate-500">计划</span>
+          <span className="text-[15px] font-semibold text-slate-800">{stats.total}</span>
+          <span className="text-[11px] text-slate-500">计划</span>
         </div>
         <div className="h-4 w-px bg-slate-200" />
         <div className="flex items-center gap-1.5">
-          <span className="text-lg font-semibold text-emerald-600">{stats.executed}</span>
-          <span className="text-xs text-slate-500">已消费</span>
+          <span className="text-[15px] font-semibold text-emerald-600">{stats.executed}</span>
+          <span className="text-[11px] text-slate-500">已消费</span>
         </div>
         <div className="h-4 w-px bg-slate-200" />
         <div className="flex items-center gap-1.5">
-          <span className={`text-lg font-semibold ${hasIssue ? "text-amber-600" : "text-slate-600"}`}>
+          <span className={`text-[15px] font-semibold ${hasIssue ? "text-amber-600" : "text-slate-600"}`}>
             {queuedCount}
           </span>
-          <span className="text-xs text-slate-500">待消费</span>
+          <span className="text-[11px] text-slate-500">待消费</span>
         </div>
       </div>
 
@@ -211,7 +212,7 @@ export function DirectorInterventionModal({
                   />
                 </div>
 
-                <div className="flex-1 overflow-auto p-4">
+                <ScrollArea className="flex-1 overflow-auto p-4">
                   <div className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
                     干预明细
                   </div>
@@ -248,7 +249,7 @@ export function DirectorInterventionModal({
                       tone="slate"
                     />
                   </div>
-                </div>
+                </ScrollArea>
 
                 <div className="border-t border-slate-100 p-4">
                   <div className="rounded-2xl bg-white p-4 shadow-xs">

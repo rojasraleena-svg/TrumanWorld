@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
+import { ScrollArea } from "@/components/scroll-area";
 import type { StoryChapter, StoryEvent } from "@/lib/world-insights";
 
 interface StoryTimelineProps {
@@ -38,7 +39,7 @@ export function StoryTimeline({ chapters, onExpand }: StoryTimelineProps) {
   if (chapters.length === 0) {
     return (
       <div className="flex h-full flex-col rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-xs backdrop-blur-sm">
-        <h2 className="text-lg font-semibold text-ink">📖 今日故事线</h2>
+        <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">📖 今日故事线</h2>
         <p className="mt-4 text-sm text-slate-500">暂无故事数据</p>
       </div>
     );
@@ -47,7 +48,7 @@ export function StoryTimeline({ chapters, onExpand }: StoryTimelineProps) {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-xs backdrop-blur-sm">
       <div className="flex shrink-0 items-center justify-between">
-        <h2 className="text-lg font-semibold text-ink">📖 今日故事线</h2>
+        <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">📖 今日故事线</h2>
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-400">{chapters.length} 个时段</span>
           {onExpand && (
@@ -65,7 +66,7 @@ export function StoryTimeline({ chapters, onExpand }: StoryTimelineProps) {
         </div>
       </div>
 
-      <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+      <ScrollArea className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-2 pb-2">
         {chapters.map((chapter, index) => (
           <ChapterCard
             key={chapter.id}
@@ -75,7 +76,7 @@ export function StoryTimeline({ chapters, onExpand }: StoryTimelineProps) {
             isLatest={index === 0}
           />
         ))}
-      </div>
+      </ScrollArea>
     </div>
   );
 }

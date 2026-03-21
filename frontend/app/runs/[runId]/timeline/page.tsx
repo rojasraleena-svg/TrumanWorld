@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { ScrollArea } from "@/components/scroll-area";
 import { getTimelineResult, listAgentsResult } from "@/lib/api";
 import type { AgentSummary, TimelineEvent, TimelineFilter, TimelineResponse } from "@/lib/types";
 import { describeTimelineEvent, getEventMeta } from "@/lib/event-utils";
@@ -185,10 +186,13 @@ export default function TimelinePage() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
+      <ScrollArea className="min-h-0 flex-1 overflow-y-auto px-8 py-6 lg:pr-10 lg:pb-8">
         <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
           {/* 左侧栏 */}
-          <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start xl:max-h-[calc(100vh-9rem)] xl:overflow-y-auto xl:pr-1">
+          <ScrollArea
+            as="aside"
+            className="space-y-4 xl:sticky xl:top-6 xl:self-start xl:max-h-[calc(100vh-9rem)] xl:overflow-y-auto xl:pr-2 xl:pb-4"
+          >
             {/* 摘要卡片 */}
             <section className="rounded-[28px] border border-white/70 bg-white/80 p-5 shadow-xs backdrop-blur-sm">
               <p className="text-xs uppercase tracking-[0.22em] text-moss">回放摘要</p>
@@ -352,7 +356,7 @@ export default function TimelinePage() {
                 <p>想确认空间位置时，返回世界视图会更直观。</p>
               </div>
             </section>
-          </aside>
+          </ScrollArea>
 
           {/* 右侧主内容 */}
           <section className="rounded-[32px] border border-white/70 bg-white/78 p-5 shadow-xs backdrop-blur-sm">
@@ -479,7 +483,7 @@ export default function TimelinePage() {
             )}
           </section>
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }

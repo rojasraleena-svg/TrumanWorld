@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useState, useEffect } from "react";
 import { DemoAccessControl } from "@/components/demo-access-control";
 import { useDemoAccess } from "@/components/demo-access-provider";
+import { ScrollArea } from "@/components/scroll-area";
 import { deleteRunResult } from "@/lib/api";
 import { useRuns } from "@/components/runs-provider";
 import type { RunSummary } from "@/lib/types";
@@ -78,7 +79,7 @@ export function AppShell({ children }: AppShellProps) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto py-3">
+        <ScrollArea className="flex-1 overflow-y-auto py-3">
           <div className="px-3">
             {NAV_ITEMS.map((item) => (
               <SidebarNavItemWide
@@ -101,7 +102,7 @@ export function AppShell({ children }: AppShellProps) {
           ) : null}
 
           {runs && runs.length > 0 && (
-            <div className="mt-3 px-3">
+          <div className="mt-3 px-3">
               <div className="mb-2 flex items-center justify-between px-2">
                 <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-slate-400">
                   世界列表
@@ -115,7 +116,7 @@ export function AppShell({ children }: AppShellProps) {
               </div>
             </div>
           )}
-        </div>
+        </ScrollArea>
 
         <div className="border-t border-white/60 p-3">
           <div className="flex items-center justify-between rounded-xl bg-white/50 px-3 py-2">

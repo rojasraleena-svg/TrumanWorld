@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AgentAvatar } from "@/components/agent-avatar";
 import { AgentSignalsPanel } from "@/components/agent-signals-panel";
+import { ScrollArea } from "@/components/scroll-area";
 import {
   inferAgentStatus,
   relationshipTone,
@@ -114,7 +115,7 @@ export default async function AgentPage({ params, searchParams }: AgentPageProps
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
+      <ScrollArea className="min-h-0 flex-1 overflow-y-auto px-8 py-6 lg:pr-10 lg:pb-8">
         <div className="space-y-6">
           <section className="rounded-[30px] border border-white/70 bg-white/78 p-6 shadow-xs backdrop-blur-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -233,7 +234,7 @@ export default async function AgentPage({ params, searchParams }: AgentPageProps
             <AgentSignalsPanel agent={agent} world={world} initialFilter={initialFilter} />
           </div>
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }

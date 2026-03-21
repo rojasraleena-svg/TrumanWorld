@@ -5,6 +5,7 @@ import { CreateRunForm } from "@/components/create-run-form";
 import { RunList } from "@/components/run-list";
 import { DeleteAllButton } from "@/components/delete-all-button";
 import { useDemoAccess } from "@/components/demo-access-provider";
+import { ScrollArea } from "@/components/scroll-area";
 import { RunControls } from "@/components/run-controls";
 import { useRuns } from "@/components/runs-provider";
 
@@ -23,7 +24,7 @@ export function HomeView() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top,#f7f3e8,#eef5f1_48%,#f8fafc)]">
-      <div className="flex-1 overflow-y-auto">
+      <ScrollArea className="flex-1 overflow-y-auto">
         <div className="px-8 py-10">
 
           {/* 品牌标题区 */}
@@ -113,7 +114,7 @@ export function HomeView() {
           </div>
 
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }

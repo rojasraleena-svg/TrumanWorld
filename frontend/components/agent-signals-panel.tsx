@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { ScrollArea } from "@/components/scroll-area";
 import {
   formatAgentScore,
   formatMemoryCategory,
@@ -182,7 +183,7 @@ export function AgentSignalsPanel({
         )}
 
         {/* 事件列表 */}
-        <div className="min-h-[160px] flex-1 overflow-y-auto px-3 py-2">
+        <ScrollArea className="min-h-[160px] flex-1 overflow-y-auto px-3 py-2">
           {filteredEvents.length === 0 ? (
             <p className="py-6 text-center text-sm text-slate-400">暂无匹配事件</p>
           ) : (
@@ -258,7 +259,7 @@ export function AgentSignalsPanel({
               })}
             </div>
           )}
-        </div>
+        </ScrollArea>
       </section>
 
       {/* ── 记忆栈 ── */}
@@ -334,7 +335,7 @@ export function AgentSignalsPanel({
         )}
 
         {/* 记忆列表 */}
-        <div className="min-h-[160px] flex-1 overflow-y-auto px-3 py-2">
+        <ScrollArea className="min-h-[160px] flex-1 overflow-y-auto px-3 py-2">
           {filteredMemories.length === 0 ? (
             <p className="py-6 text-center text-sm text-slate-400">暂无匹配记忆</p>
           ) : (
@@ -391,9 +392,8 @@ export function AgentSignalsPanel({
               })}
             </div>
           )}
-        </div>
+        </ScrollArea>
       </section>
     </div>
   );
 }
-

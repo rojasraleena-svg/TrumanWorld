@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "@/components/modal";
 import { AgentAvatar } from "@/components/agent-avatar";
 import { AgentSignalsPanel } from "@/components/agent-signals-panel";
+import { ScrollArea } from "@/components/scroll-area";
 import {
   inferAgentStatus,
   relationshipTone,
@@ -111,7 +112,7 @@ export function AgentDetailModal({ isOpen, onClose, runId, agentId }: AgentDetai
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* ── 左侧：身份档案 ── */}
         <aside className="flex w-72 shrink-0 flex-col border-r border-slate-100 bg-slate-50/60">
-          <div className="flex-1 space-y-3 overflow-y-auto p-4">
+          <ScrollArea className="flex-1 space-y-3 overflow-y-auto p-4">
 
             {/* 头像 + 状态 badge + 目标 */}
             <section className="rounded-2xl border border-white/70 bg-white p-4 shadow-xs">
@@ -217,7 +218,7 @@ export function AgentDetailModal({ isOpen, onClose, runId, agentId }: AgentDetai
                 )}
               </section>
             )}
-          </div>
+          </ScrollArea>
         </aside>
 
         {/* ── 右侧：行为流 + 记忆 ── */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
+import { ScrollArea } from "@/components/scroll-area";
 import { useModal } from "@/lib/hooks";
 
 interface ModalProps {
@@ -126,7 +127,7 @@ export function WorkspaceModalShell({
       ) : null}
       <div className="min-w-0 flex-1 overflow-hidden bg-white">
         {toolbar ? <div className="border-b border-slate-100 bg-slate-50/60 px-6 py-3">{toolbar}</div> : null}
-        <div className={`h-full overflow-auto ${contentClassName}`}>{children}</div>
+        <ScrollArea className={`h-full overflow-auto ${contentClassName}`}>{children}</ScrollArea>
         {footer ? <div className="border-t border-slate-100 bg-white px-6 py-3">{footer}</div> : null}
       </div>
     </div>

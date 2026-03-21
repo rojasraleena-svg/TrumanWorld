@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence } from "framer-motion";
 
 import { Modal, WorkspaceModalShell } from "@/components/modal";
+import { ScrollArea } from "@/components/scroll-area";
 import { getLlmPricing } from "@/lib/llm-pricing";
 import type { SystemMetrics, SystemOverview } from "@/lib/types";
 
@@ -43,7 +44,7 @@ export function SystemStatusPanel({
     return (
       <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-medium text-slate-700">🖥️ 系统状态</div>
+          <div className="text-[13px] font-medium text-slate-700">🖥️ 系统状态</div>
           <div className="text-[11px] text-slate-400">指标加载中</div>
         </div>
       </div>
@@ -57,14 +58,14 @@ export function SystemStatusPanel({
       className="w-full rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-slate-100/80"
     >
       <div className="flex items-center justify-between">
-        <div className="text-sm font-medium text-slate-700">🖥️ 系统状态</div>
+        <div className="text-[13px] font-medium text-slate-700">🖥️ 系统状态</div>
         <div className="flex items-center gap-2">
           {llmModel ? (
-            <div className="hidden rounded-full bg-white px-2 py-0.5 text-[11px] text-slate-500 md:block">
+            <div className="hidden rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500 md:block">
               {llmModel}
             </div>
           ) : null}
-          <div className="text-[11px] text-slate-400">
+          <div className="text-[10px] text-slate-400">
             刷新于 {refreshedAt ? formatAge(refreshedAt) : "—"}
           </div>
           <svg
@@ -211,7 +212,7 @@ export function SystemStatusModal({
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-auto p-4">
+                  <ScrollArea className="flex-1 overflow-auto p-4">
                     <div className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
                       统计视图
                     </div>
@@ -240,7 +241,7 @@ export function SystemStatusModal({
                         tone="emerald"
                       />
                     </div>
-                  </div>
+                  </ScrollArea>
                 </>
               }
               contentClassName="overflow-y-auto p-6"

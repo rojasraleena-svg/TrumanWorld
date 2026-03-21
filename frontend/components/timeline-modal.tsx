@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "@/components/modal";
+import { ScrollArea } from "@/components/scroll-area";
 import { getApiBaseUrl } from "@/lib/api";
 import type { AgentSummary, TimelineEvent, TimelineResponse } from "@/lib/types";
 import { describeTimelineEvent, getEventExplanations, getEventMeta } from "@/lib/event-utils";
@@ -268,7 +269,7 @@ export function TimelineModal({ isOpen, onClose, runId, agents = [] }: TimelineM
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* 左侧过滤面板 */}
         <aside className="flex w-72 shrink-0 flex-col border-r border-slate-100 bg-slate-50/50">
-          <div className="flex-1 overflow-y-auto p-4">
+          <ScrollArea className="flex-1 overflow-y-auto p-4">
             {/* 摘要卡片 */}
             <section className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-xs backdrop-blur-sm">
               <p className="text-[11px] uppercase tracking-[0.15em] text-moss">回放摘要</p>
@@ -407,7 +408,7 @@ export function TimelineModal({ isOpen, onClose, runId, agents = [] }: TimelineM
                 </div>
               </div>
             </section>
-          </div>
+          </ScrollArea>
         </aside>
 
         {/* 右侧事件列表 */}
@@ -431,7 +432,7 @@ export function TimelineModal({ isOpen, onClose, runId, agents = [] }: TimelineM
           )}
 
           {/* 事件列表 */}
-          <div ref={listContainerRef} className="flex-1 overflow-y-auto p-4">
+          <ScrollArea ref={listContainerRef} className="flex-1 overflow-y-auto p-4">
             {loading ? (
               <div className="space-y-4">
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -493,7 +494,7 @@ export function TimelineModal({ isOpen, onClose, runId, agents = [] }: TimelineM
                 {(hasMoreGroups || hasMoreEvents) ? <div ref={loadMoreRef} className="h-1 w-full" /> : null}
               </div>
             )}
-          </div>
+          </ScrollArea>
         </div>
       </div>
     </Modal>

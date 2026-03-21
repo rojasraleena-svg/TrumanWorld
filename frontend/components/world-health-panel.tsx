@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { DirectorInterventionModal, DirectorStats } from "@/components/world-health-director";
 import { SystemStatusModal, SystemStatusPanel } from "@/components/world-health-system";
 import { Modal } from "@/components/modal";
+import { ScrollArea } from "@/components/scroll-area";
 import { useUiSearchParams } from "@/lib/ui-url-state";
 import { useWorld } from "@/components/world-context";
 import { getScoreBgColor, getScoreColor, getTrendColor, getTrendIcon } from "@/lib/world-insights";
@@ -134,7 +135,7 @@ export function WorldHealthPanel({ metrics, runId, world }: WorldHealthPanelProp
   return (
     <div className="rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-xs backdrop-blur-sm">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-ink">🌍 世界健康度</h2>
+        <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">🌍 世界健康度</h2>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-600">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
           实时
@@ -204,7 +205,7 @@ export function WorldHealthPanel({ metrics, runId, world }: WorldHealthPanelProp
       </div>
 
       <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/50 p-3">
-        <div className="text-xs font-medium text-slate-500">当前活动分布</div>
+        <div className="text-[11px] font-medium tracking-[0.04em] text-slate-500">当前活动分布</div>
         <div className="mt-2 grid grid-cols-4 gap-2">
           <ActivityBadge
             icon="⚒️"
@@ -267,7 +268,7 @@ interface ActivityDetailModalProps {
 function ActivityDetailModal({ isOpen, onClose, title, agents }: ActivityDetailModalProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} variant="panel" showCloseButton={false} title={title}>
-      <div className="max-h-[60vh] overflow-y-auto">
+      <ScrollArea className="max-h-[60vh] overflow-y-auto pr-1 pb-1">
         {agents.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-400">暂无{title}的智能体</p>
         ) : (
@@ -283,7 +284,7 @@ function ActivityDetailModal({ isOpen, onClose, title, agents }: ActivityDetailM
             ))}
           </div>
         )}
-      </div>
+      </ScrollArea>
     </Modal>
   );
 }
@@ -307,11 +308,11 @@ function MetricBar({ label, value, trend, warning, suggestion, description }: Me
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-700">{label}</span>
+          <span className="text-[15px] font-medium text-slate-700">{label}</span>
           {description ? <Tooltip text={description} /> : null}
         </div>
         <div className="flex items-center gap-2">
-          <span className={`text-sm font-semibold ${scoreColor}`}>{value}%</span>
+          <span className={`text-[15px] font-semibold ${scoreColor}`}>{value}%</span>
           <span className={`text-xs ${trendColor}`}>{trendIcon}</span>
         </div>
       </div>
@@ -365,9 +366,9 @@ function ActivityBadge({ icon, label, count, color, onClick }: ActivityBadgeProp
         onClick ? "cursor-pointer" : ""
       }`}
     >
-      <span className="text-base">{icon}</span>
-      <span className="text-sm font-semibold">{count}</span>
-      <span className="text-[10px] text-slate-500">{label}</span>
+      <span className="text-[15px]">{icon}</span>
+      <span className="text-[15px] font-semibold tabular-nums">{count}</span>
+      <span className="text-[11px] text-slate-500">{label}</span>
     </Component>
   );
 }
@@ -386,11 +387,11 @@ function StatItem({ icon, value, label, highlight }: StatItemProps) {
         highlight ? "border border-amber-100 bg-amber-50" : "bg-slate-100/50"
       }`}
     >
-      <span className="text-sm">{icon}</span>
-      <span className={`text-sm font-semibold ${highlight ? "text-amber-700" : "text-slate-700"}`}>
+      <span className="text-[15px]">{icon}</span>
+      <span className={`text-[15px] font-semibold tabular-nums ${highlight ? "text-amber-700" : "text-slate-700"}`}>
         {value}
       </span>
-      <span className="text-[10px] text-slate-500">{label}</span>
+      <span className="text-[11px] text-slate-500">{label}</span>
     </div>
   );
 }
