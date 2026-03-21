@@ -100,6 +100,7 @@ class ConversationScheduler:
                 and actor_session_id in session_by_id
             ):
                 session = session_by_id[actor_session_id]
+                session.location_id = actor.location_id
                 session.active_speaker_id = actor.id
                 occupied_agents.add(actor.id)
                 assignments[actor.id] = ConversationAssignment(
@@ -122,6 +123,7 @@ class ConversationScheduler:
 
             if target_session_id is not None:
                 session = session_by_id[target_session_id]
+                session.location_id = actor.location_id
                 # If actor is already the active speaker in this session (e.g., Lin
                 # continues talking to Mei across ticks), keep them as speaker so their
                 # talk intent is not wrongly rejected.

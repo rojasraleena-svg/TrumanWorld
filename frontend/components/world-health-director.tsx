@@ -9,8 +9,16 @@ import { ErrorState } from "@/components/error-state";
 import { LoadingState } from "@/components/loading-state";
 import { Modal, WorkspaceModalShell } from "@/components/modal";
 import { ScrollArea } from "@/components/scroll-area";
-import { getDirectorMemoriesResult, getDirectorObservationResult } from "@/lib/api";
-import type { DirectorMemory, DirectorObservation } from "@/lib/types";
+import {
+  getDirectorGovernanceRecordsResult,
+  getDirectorMemoriesResult,
+  getDirectorObservationResult,
+} from "@/lib/api";
+import type {
+  DirectorGovernanceRecord,
+  DirectorMemory,
+  DirectorObservation,
+} from "@/lib/types";
 
 interface DirectorStatsProps {
   stats: {
@@ -37,6 +45,8 @@ interface DirectorInterventionModalProps {
 }
 
 type DirectorFilter = "all" | "queued" | "consumed" | "expired";
+type DirectorView = "memories" | "governance";
+type GovernanceFilter = "all" | "record_only" | "warn" | "block";
 
 export function DirectorStats({ stats, onClick }: DirectorStatsProps) {
   const hasIssue = stats.executionRate < 50 && stats.total > 0;
@@ -107,16 +117,25 @@ export function DirectorInterventionModal({
   locations = [],
   agentNameMap = {},
 }: DirectorInterventionModalProps) {
+  const [selectedView, setSelectedView] = useState<DirectorView>("memories");
   const [selectedFilter, setSelectedFilter] = useState<DirectorFilter>("all");
+  const [selectedGovernanceFilter, setSelectedGovernanceFilter] =
+    useState<GovernanceFilter>("all");
   const [memories, setMemories] = useState<DirectorMemory[]>([]);
+  const [governanceRecords, setGovernanceRecords] = useState<DirectorGovernanceRecord[]>([]);
   const [observation, setObservation] = useState<DirectorObservation | null>(null);
   const [isLoadingObservation, setIsLoadingObservation] = useState(false);
   const [observationError, setObservationError] = useState<string | null>(null);
   const [isLoadingMemories, setIsLoadingMemories] = useState(false);
   const [memoryError, setMemoryError] = useState<string | null>(null);
+  const [isLoadingGovernance, setIsLoadingGovernance] = useState(false);
+  const [governanceError, setGovernanceError] = useState<string | null>(null);
   const queuedCount = memories.filter((memory) => memory.delivery_status === "queued").length;
   const consumedCount = memories.filter((memory) => memory.delivery_status === "consumed").length;
   const expiredCount = memories.filter((memory) => memory.delivery_status === "expired").length;
+  const recordOnlyCount = governanceRecords.filter((record) => record.decision === "record_only").length;
+  const warnCount = governanceRecords.filter((record) => record.decision === "warn").length;
+  const blockCount = governanceRecords.filter((record) => record.decision === "block").length;
   const hasIssue = stats.executionRate < 50 && stats.total > 0;
 
   useEffect(() => {
@@ -138,6 +157,22 @@ export function DirectorInterventionModal({
       setIsLoadingMemories(false);
     }
 
+    async function loadGovernanceRecords() {
+      setIsLoadingGovernance(true);
+      setGovernanceError(null);
+      const result = await getDirectorGovernanceRecordsResult(runId, {
+        limit: maxMemories ?? 100,
+      });
+      if (cancelled) return;
+      if (result.data) {
+        setGovernanceRecords(result.data.records);
+      } else {
+        setGovernanceRecords([]);
+        setGovernanceError(result.error === "network_error" ? "后端不可达" : "治理记录加载失败");
+      }
+      setIsLoadingGovernance(false);
+    }
+
     async function loadObservation() {
       setIsLoadingObservation(true);
       setObservationError(null);
@@ -153,6 +188,7 @@ export function DirectorInterventionModal({
     }
 
     void loadMemories();
+    void loadGovernanceRecords();
     void loadObservation();
 
     return () => {
@@ -173,15 +209,26 @@ export function DirectorInterventionModal({
     return memories;
   }, [memories, selectedFilter]);
 
+  const filteredGovernanceRecords = useMemo(() => {
+    if (selectedGovernanceFilter === "all") {
+      return governanceRecords;
+    }
+    return governanceRecords.filter((record) => record.decision === selectedGovernanceFilter);
+  }, [governanceRecords, selectedGovernanceFilter]);
+
   const handleInjected = () => {
     onInjected();
     void (async () => {
-      const [memoriesResult, observationResult] = await Promise.all([
+      const [memoriesResult, governanceResult, observationResult] = await Promise.all([
         getDirectorMemoriesResult(runId, maxMemories ?? 100),
+        getDirectorGovernanceRecordsResult(runId, { limit: maxMemories ?? 100 }),
         getDirectorObservationResult(runId),
       ]);
       if (memoriesResult.data) {
         setMemories(memoriesResult.data.memories);
+      }
+      if (governanceResult.data) {
+        setGovernanceRecords(governanceResult.data.records);
       }
       if (observationResult.data) {
         setObservation(observationResult.data);
@@ -214,40 +261,98 @@ export function DirectorInterventionModal({
 
                 <ScrollArea className="flex-1 overflow-auto p-4">
                   <div className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
-                    干预明细
+                    运营视图
                   </div>
                   <div className="space-y-1">
                     <NavItem
-                      icon="📋"
-                      label="全部"
+                      icon="🎬"
+                      label="干预明细"
                       count={memories.length}
-                      active={selectedFilter === "all"}
-                      onClick={() => setSelectedFilter("all")}
+                      active={selectedView === "memories"}
+                      onClick={() => setSelectedView("memories")}
                     />
                     <NavItem
-                      icon="✅"
-                      label="已消费"
-                      count={consumedCount}
-                      active={selectedFilter === "consumed"}
-                      onClick={() => setSelectedFilter("consumed")}
-                      tone="emerald"
+                      icon="🛂"
+                      label="治理记录"
+                      count={governanceRecords.length}
+                      active={selectedView === "governance"}
+                      onClick={() => setSelectedView("governance")}
+                      tone="amber"
                     />
-                    <NavItem
-                      icon="⏳"
-                      label="待消费"
-                      count={queuedCount}
-                      active={selectedFilter === "queued"}
-                      onClick={() => setSelectedFilter("queued")}
-                      tone={hasIssue ? "amber" : "slate"}
-                    />
-                    <NavItem
-                      icon="⌛"
-                      label="已过期"
-                      count={expiredCount}
-                      active={selectedFilter === "expired"}
-                      onClick={() => setSelectedFilter("expired")}
-                      tone="slate"
-                    />
+                  </div>
+
+                  <div className="mt-4 mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
+                    {selectedView === "memories" ? "干预筛选" : "治理筛选"}
+                  </div>
+                  <div className="space-y-1">
+                    {selectedView === "memories" ? (
+                      <>
+                        <NavItem
+                          icon="📋"
+                          label="全部"
+                          count={memories.length}
+                          active={selectedFilter === "all"}
+                          onClick={() => setSelectedFilter("all")}
+                        />
+                        <NavItem
+                          icon="✅"
+                          label="已消费"
+                          count={consumedCount}
+                          active={selectedFilter === "consumed"}
+                          onClick={() => setSelectedFilter("consumed")}
+                          tone="emerald"
+                        />
+                        <NavItem
+                          icon="⏳"
+                          label="待消费"
+                          count={queuedCount}
+                          active={selectedFilter === "queued"}
+                          onClick={() => setSelectedFilter("queued")}
+                          tone={hasIssue ? "amber" : "slate"}
+                        />
+                        <NavItem
+                          icon="⌛"
+                          label="已过期"
+                          count={expiredCount}
+                          active={selectedFilter === "expired"}
+                          onClick={() => setSelectedFilter("expired")}
+                          tone="slate"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <NavItem
+                          icon="📋"
+                          label="全部"
+                          count={governanceRecords.length}
+                          active={selectedGovernanceFilter === "all"}
+                          onClick={() => setSelectedGovernanceFilter("all")}
+                        />
+                        <NavItem
+                          icon="📝"
+                          label="仅记录"
+                          count={recordOnlyCount}
+                          active={selectedGovernanceFilter === "record_only"}
+                          onClick={() => setSelectedGovernanceFilter("record_only")}
+                        />
+                        <NavItem
+                          icon="⚠️"
+                          label="警告"
+                          count={warnCount}
+                          active={selectedGovernanceFilter === "warn"}
+                          onClick={() => setSelectedGovernanceFilter("warn")}
+                          tone="amber"
+                        />
+                        <NavItem
+                          icon="⛔"
+                          label="阻断"
+                          count={blockCount}
+                          active={selectedGovernanceFilter === "block"}
+                          onClick={() => setSelectedGovernanceFilter("block")}
+                          tone="amber"
+                        />
+                      </>
+                    )}
                   </div>
                 </ScrollArea>
 
@@ -300,43 +405,85 @@ export function DirectorInterventionModal({
 
             <div className="mb-4 flex items-center gap-2">
               <span className="text-lg font-semibold text-ink">
-                {selectedFilter === "all" && "全部干预"}
-                {selectedFilter === "consumed" && "已消费"}
-                {selectedFilter === "queued" && "待消费"}
-                {selectedFilter === "expired" && "已过期"}
+                {selectedView === "memories" && selectedFilter === "all" && "全部干预"}
+                {selectedView === "memories" && selectedFilter === "consumed" && "已消费"}
+                {selectedView === "memories" && selectedFilter === "queued" && "待消费"}
+                {selectedView === "memories" && selectedFilter === "expired" && "已过期"}
+                {selectedView === "governance" && selectedGovernanceFilter === "all" && "全部治理记录"}
+                {selectedView === "governance" &&
+                  selectedGovernanceFilter === "record_only" &&
+                  "仅记录"}
+                {selectedView === "governance" && selectedGovernanceFilter === "warn" && "警告记录"}
+                {selectedView === "governance" && selectedGovernanceFilter === "block" && "阻断记录"}
               </span>
               <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-medium text-slate-600">
-                {filteredMemories.length}
+                {selectedView === "memories"
+                  ? filteredMemories.length
+                  : filteredGovernanceRecords.length}
               </span>
             </div>
 
             <div className="space-y-3">
-              {isLoadingMemories ? (
-                <LoadingState message="正在加载导演明细..." size="sm" />
-              ) : memoryError ? (
+              {selectedView === "memories" ? (
+                isLoadingMemories ? (
+                  <LoadingState message="正在加载导演明细..." size="sm" />
+                ) : memoryError ? (
+                  <ErrorState
+                    message={memoryError}
+                    onRetry={() => {
+                      void (async () => {
+                        setIsLoadingMemories(true);
+                        setMemoryError(null);
+                        const result = await getDirectorMemoriesResult(runId, maxMemories ?? 100);
+                        if (result.data) {
+                          setMemories(result.data.memories);
+                        } else {
+                          setMemoryError(result.error === "network_error" ? "后端不可达" : "明细加载失败");
+                        }
+                        setIsLoadingMemories(false);
+                      })();
+                    }}
+                    size="sm"
+                  />
+                ) : filteredMemories.length === 0 ? (
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                    暂无{selectedFilter === "all" ? "" : "此类"}干预记录
+                  </div>
+                ) : (
+                  filteredMemories.map((memory) => <DirectorMemoryCard key={memory.id} memory={memory} />)
+                )
+              ) : isLoadingGovernance ? (
+                <LoadingState message="正在加载治理记录..." size="sm" />
+              ) : governanceError ? (
                 <ErrorState
-                  message={memoryError}
+                  message={governanceError}
                   onRetry={() => {
                     void (async () => {
-                      setIsLoadingMemories(true);
-                      setMemoryError(null);
-                      const result = await getDirectorMemoriesResult(runId, maxMemories ?? 100);
+                      setIsLoadingGovernance(true);
+                      setGovernanceError(null);
+                      const result = await getDirectorGovernanceRecordsResult(runId, {
+                        limit: maxMemories ?? 100,
+                      });
                       if (result.data) {
-                        setMemories(result.data.memories);
+                        setGovernanceRecords(result.data.records);
                       } else {
-                        setMemoryError(result.error === "network_error" ? "后端不可达" : "明细加载失败");
+                        setGovernanceError(
+                          result.error === "network_error" ? "后端不可达" : "治理记录加载失败"
+                        );
                       }
-                      setIsLoadingMemories(false);
+                      setIsLoadingGovernance(false);
                     })();
                   }}
                   size="sm"
                 />
-              ) : filteredMemories.length === 0 ? (
+              ) : filteredGovernanceRecords.length === 0 ? (
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                  暂无{selectedFilter === "all" ? "" : "此类"}干预记录
+                  暂无{selectedGovernanceFilter === "all" ? "" : "此类"}治理记录
                 </div>
               ) : (
-                filteredMemories.map((memory) => <DirectorMemoryCard key={memory.id} memory={memory} />)
+                filteredGovernanceRecords.map((record) => (
+                  <GovernanceRecordCard key={record.id} record={record} />
+                ))
               )}
             </div>
           </WorkspaceModalShell>
@@ -457,6 +604,76 @@ function DirectorMemoryCard({ memory }: { memory: DirectorMemory }) {
             <span className="font-medium text-slate-700">执行对象：</span>
             {memory.target_agent_names.join("、")}
           </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function GovernanceRecordCard({ record }: { record: DirectorGovernanceRecord }) {
+  const statusMeta =
+    record.decision === "block"
+      ? {
+          label: "阻断",
+          tone: "bg-rose-50 text-rose-700 border-rose-100",
+        }
+      : record.decision === "warn"
+        ? {
+            label: "警告",
+            tone: "bg-amber-50 text-amber-700 border-amber-100",
+          }
+        : record.decision === "record_only"
+          ? {
+              label: "仅记录",
+              tone: "bg-sky-50 text-sky-700 border-sky-100",
+            }
+          : {
+              label: record.decision,
+              tone: "bg-slate-100 text-slate-700 border-slate-200",
+            };
+
+  const matchedSignals = Array.isArray(record.metadata.matched_signals)
+    ? record.metadata.matched_signals.filter((item): item is string => typeof item === "string")
+    : [];
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusMeta.tone}`}>
+            {statusMeta.label}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+            时间步 {record.tick_no}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+            {record.action_type}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <ObservationMetric
+          label="观察分"
+          value={record.observation_score.toFixed(2)}
+          tone={record.observation_score >= 0.7 ? "text-amber-700" : "text-slate-900"}
+        />
+        <ObservationMetric
+          label="干预分"
+          value={record.intervention_score.toFixed(2)}
+          tone={record.intervention_score >= 0.8 ? "text-rose-700" : "text-slate-900"}
+        />
+      </div>
+
+      <div className="mt-3 space-y-2 text-sm text-slate-600">
+        <p><span className="font-medium text-slate-700">对象：</span>{record.agent_name ?? record.agent_id}</p>
+        {record.location_name || record.location_id ? (
+          <p><span className="font-medium text-slate-700">地点：</span>{record.location_name ?? record.location_id}</p>
+        ) : null}
+        <p><span className="font-medium text-slate-700">被观察：</span>{record.observed ? "是" : "否"}</p>
+        {record.reason ? <p><span className="font-medium text-slate-700">原因：</span>{record.reason}</p> : null}
+        {matchedSignals.length > 0 ? (
+          <p><span className="font-medium text-slate-700">信号：</span>{matchedSignals.join("、")}</p>
         ) : null}
       </div>
     </div>

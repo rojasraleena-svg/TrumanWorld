@@ -25,7 +25,7 @@ from app.sim.runtime_context_utils import (
     inject_profile_fields_into_context,
 )
 from app.sim.world import WorldState
-from app.sim.world_queries import find_nearby_agent, get_agent
+from app.sim.world_queries import find_recent_conversation_partner, get_agent
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -245,6 +245,7 @@ class TickOrchestrator:
                     world=world,
                     profile=profile if isinstance(profile, dict) else {},
                     current_status=state.status,
+                    recent_events=agent_snapshot.recent_events,
                 )
                 logger.warning(
                     "agent_decision_recovered_with_fallback run_id=%s tick_no=%s agent_id=%s "
@@ -298,9 +299,15 @@ class TickOrchestrator:
         world: WorldState,
         profile: dict,
         current_status: dict | None,
+        recent_events: list[dict],
     ) -> ActionIntent:
         nearby_agent_id = (
-            find_nearby_agent(world, agent_id, current_location_id)
+            find_recent_conversation_partner(
+                world,
+                agent_id,
+                current_location_id,
+                recent_events=recent_events,
+            )
             if current_location_id is not None
             else None
         )
@@ -340,7 +347,12 @@ class TickOrchestrator:
         relationship_context: dict[str, dict[str, object]] | None = None,
     ) -> ActionIntent:
         nearby_agent_id = (
-            find_nearby_agent(world, agent_id, current_location_id)
+            find_recent_conversation_partner(
+                world,
+                agent_id,
+                current_location_id,
+                recent_events=recent_events,
+            )
             if current_location_id is not None
             else None
         )

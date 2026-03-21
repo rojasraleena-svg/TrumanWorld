@@ -30,6 +30,56 @@ def find_nearby_agent(world: WorldState, agent_id: str, location_id: str) -> str
     return None
 
 
+def find_recent_conversation_partner(
+    world: WorldState,
+    agent_id: str,
+    location_id: str,
+    recent_events: list[dict[str, Any]] | None = None,
+) -> str | None:
+    location = get_location(world, location_id)
+    if location is None:
+        return None
+
+    candidate_ids = {
+        occupant_id for occupant_id in location.occupants if occupant_id != agent_id
+    }
+    if not candidate_ids:
+        return None
+
+    for event in reversed(recent_events or []):
+        if event.get("event_type") not in {
+            "speech",
+            "listen",
+            "conversation_started",
+            "conversation_joined",
+        }:
+            continue
+
+        actor_agent_id = event.get("actor_agent_id")
+        target_agent_id = event.get("target_agent_id")
+
+        if actor_agent_id == agent_id and isinstance(target_agent_id, str) and target_agent_id in candidate_ids:
+            return target_agent_id
+        if target_agent_id == agent_id and isinstance(actor_agent_id, str) and actor_agent_id in candidate_ids:
+            return actor_agent_id
+
+        payload = event.get("payload")
+        if not isinstance(payload, dict):
+            continue
+        participant_ids = payload.get("participant_ids")
+        if not isinstance(participant_ids, list) or agent_id not in participant_ids:
+            continue
+        speaker_agent_id = payload.get("speaker_agent_id")
+        if (
+            isinstance(speaker_agent_id, str)
+            and speaker_agent_id != agent_id
+            and speaker_agent_id in candidate_ids
+        ):
+            return speaker_agent_id
+
+    return find_nearby_agent(world, agent_id, location_id)
+
+
 def list_other_occupants(
     world: WorldState, viewer_agent_id: str, location_id: str | None
 ) -> list[str]:

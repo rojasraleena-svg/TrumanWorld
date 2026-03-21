@@ -509,6 +509,27 @@ class GovernanceRecordRepository:
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+    async def list_for_run(
+        self,
+        run_id: str,
+        *,
+        limit: int = 50,
+        decision: str | None = None,
+        agent_id: str | None = None,
+    ) -> Sequence[GovernanceRecord]:
+        stmt: Select[tuple[GovernanceRecord]] = select(GovernanceRecord).where(
+            GovernanceRecord.run_id == run_id
+        )
+        if decision:
+            stmt = stmt.where(GovernanceRecord.decision == decision)
+        if agent_id:
+            stmt = stmt.where(GovernanceRecord.agent_id == agent_id)
+        stmt = stmt.order_by(GovernanceRecord.tick_no.desc(), GovernanceRecord.created_at.desc()).limit(
+            limit
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
 
 class AgentRepository:
     def __init__(self, session: AsyncSession) -> None:

@@ -501,6 +501,193 @@ async def test_prepare_intents_from_data_suppresses_repeated_conversation_propos
         shutil.rmtree(tmp_path)
 
 
+@pytest.mark.asyncio
+async def test_prepare_intents_from_data_suppresses_high_overlap_paraphrase_proposal():
+    tmp_path = Path(tempfile.mkdtemp())
+    try:
+        agent_dir = tmp_path / "agent-repeat-paraphrase"
+        agent_dir.mkdir(parents=True)
+        (agent_dir / "agent.yml").write_text(
+            "id: agent-repeat-paraphrase\nname: Alice\noccupation: resident\nhome: loc-1\n",
+            encoding="utf-8",
+        )
+        (agent_dir / "prompt.md").write_text("# Alice\nBase prompt", encoding="utf-8")
+
+        provider = FixedTalkDecisionProvider(
+            message=(
+                "好，那咱们就分头行动。我这就去把图表数据整理好发给你，"
+                "你那边先搭好核心论点的大纲，等陈教授有空你再去请教一下。"
+            ),
+            target_agent_id="bob",
+        )
+        runtime = AgentRuntime(
+            registry=AgentRegistry(tmp_path),
+            backend=HeuristicAgentBackend(provider),
+        )
+        orchestrator = TickOrchestrator(agent_runtime=runtime, scenario=FakeScenario())
+
+        world = WorldState(current_time=datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc))
+        world.current_tick = 6
+        world.locations["loc-1"] = LocationState(
+            id="loc-1",
+            name="Dorm",
+            location_type="home",
+            occupants={"alice", "bob"},
+        )
+        world.agents["alice"] = AgentState(
+            id="alice",
+            name="Alice",
+            location_id="loc-1",
+            occupation="resident",
+            workplace_id=None,
+            status={},
+        )
+        world.agents["bob"] = AgentState(
+            id="bob",
+            name="Bob",
+            location_id="loc-1",
+            occupation="friend",
+            workplace_id=None,
+            status={},
+        )
+        world.active_conversations = {
+            "conv-1": type(
+                "ConversationState",
+                (),
+                {
+                    "id": "conv-1",
+                    "location_id": "loc-1",
+                    "participant_ids": ["alice", "bob"],
+                    "active_speaker_id": "alice",
+                    "last_tick_no": 5,
+                    "last_message_summary": (
+                        "行，那就这么定了。陈教授在附近确实得低调点，"
+                        "我这就去把图表数据整理好发给你，你那边先搭好核心论点的大纲。"
+                    ),
+                    "last_proposal": (
+                        "行，那就这么定了。陈教授在附近确实得低调点，"
+                        "我这就去把图表数据整理好发给你，你那边先搭好核心论点的大纲。"
+                    ),
+                    "open_question": None,
+                    "repeat_count": 1,
+                },
+            )()
+        }
+
+        snapshot = AgentDecisionSnapshot(
+            id="alice",
+            current_goal="talk",
+            current_location_id="loc-1",
+            home_location_id="loc-1",
+            profile={"agent_config_id": "agent-repeat-paraphrase"},
+            recent_events=[],
+        )
+
+        intents, _ = await orchestrator.prepare_intents_from_data(
+            world=world,
+            agent_data=[snapshot],
+            engine=None,
+            run_id="run-repeat-paraphrase-guard",
+            tick_no=6,
+        )
+
+        assert len(intents) == 1
+        assert intents[0].action_type == "rest"
+        assert intents[0].payload["intent_source"] == "conversation_repeat_guard"
+    finally:
+        shutil.rmtree(tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_prepare_intents_from_data_prefers_recent_conversation_partner_over_sorted_occupant():
+    tmp_path = Path(tempfile.mkdtemp())
+    try:
+        agent_dir = tmp_path / "agent-partner"
+        agent_dir.mkdir(parents=True)
+        (agent_dir / "agent.yml").write_text(
+            "id: agent-partner\nname: Alice\noccupation: resident\nhome: loc-1\n",
+            encoding="utf-8",
+        )
+        (agent_dir / "prompt.md").write_text("# Alice\nBase prompt", encoding="utf-8")
+
+        provider = TokenCapturingDecisionProvider()
+        runtime = AgentRuntime(
+            registry=AgentRegistry(tmp_path),
+            backend=HeuristicAgentBackend(provider),
+        )
+        orchestrator = TickOrchestrator(agent_runtime=runtime, scenario=FakeScenario())
+
+        world = WorldState(current_time=datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc))
+        world.current_tick = 8
+        world.locations["loc-1"] = LocationState(
+            id="loc-1",
+            name="Dorm",
+            location_type="home",
+            occupants={"alice", "bob", "aaron"},
+        )
+        world.agents["alice"] = AgentState(
+            id="alice",
+            name="Alice",
+            location_id="loc-1",
+            occupation="resident",
+            workplace_id=None,
+            status={},
+        )
+        world.agents["bob"] = AgentState(
+            id="bob",
+            name="Bob",
+            location_id="loc-1",
+            occupation="friend",
+            workplace_id=None,
+            status={},
+        )
+        world.agents["aaron"] = AgentState(
+            id="aaron",
+            name="Aaron",
+            location_id="loc-1",
+            occupation="mentor",
+            workplace_id=None,
+            status={},
+        )
+
+        snapshot = AgentDecisionSnapshot(
+            id="alice",
+            current_goal="talk",
+            current_location_id="loc-1",
+            home_location_id="loc-1",
+            profile={"agent_config_id": "agent-partner"},
+            recent_events=[
+                {
+                    "event_type": "speech",
+                    "tick_no": 7,
+                    "actor_agent_id": "bob",
+                    "actor_name": "Bob",
+                    "target_agent_id": "alice",
+                    "target_name": "Alice",
+                    "message": "我们继续刚才那份大纲吧。",
+                    "payload": {
+                        "conversation_id": "conv-1",
+                        "participant_ids": ["alice", "bob", "aaron"],
+                        "speaker_agent_id": "bob",
+                    },
+                }
+            ],
+        )
+
+        intents, _ = await orchestrator.prepare_intents_from_data(
+            world=world,
+            agent_data=[snapshot],
+            engine=None,
+            run_id="run-partner-resolution",
+            tick_no=8,
+        )
+
+        assert len(intents) == 1
+        assert provider.captured_invocations[0].context["world"]["nearby_agent_id"] == "bob"
+    finally:
+        shutil.rmtree(tmp_path)
+
+
 class UnavailableApiBackend:
     async def decide_action(self, invocation, runtime_ctx=None):
         raise UpstreamApiUnavailableError("rate_limit_error")

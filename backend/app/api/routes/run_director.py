@@ -2,7 +2,7 @@ import asyncio
 import json
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.api.errors import api_error
 from app.api.auth import require_demo_admin_access
@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.routes.runs import get_required_run
 from app.api.schemas.simulation import (
     COMMON_RESPONSES,
+    DirectorGovernanceRecordResponse,
+    DirectorGovernanceRecordsResponse,
     DirectorEventRequest,
     DirectorMemoriesResponse,
     DirectorMemoryResponse,
@@ -23,6 +25,7 @@ from app.sim.service import SimulationService
 from app.store.repositories import (
     AgentRepository,
     DirectorMemoryRepository,
+    GovernanceRecordRepository,
     LocationRepository,
 )
 
@@ -72,6 +75,72 @@ def serialize_director_memory(
         cooldown_ticks=memory.cooldown_ticks,
         cooldown_until_tick=memory.cooldown_until_tick,
         created_at=memory.created_at,
+    )
+
+
+@router.get(
+    "/{run_id}/director/governance-records",
+    response_model=DirectorGovernanceRecordsResponse,
+    summary="获取导演治理记录",
+    description="获取 run 级治理 ledger，支持导演按 agent 或 decision 查看制度执行历史。",
+    responses={
+        **COMMON_RESPONSES,
+        200: {"description": "导演治理记录", "model": DirectorGovernanceRecordsResponse},
+    },
+)
+async def get_director_governance_records(
+    run_id: UUID,
+    limit: int = Query(50, ge=1, le=200),
+    decision: str | None = Query(None, description="按治理决策过滤"),
+    agent_id: str | None = Query(None, description="按 agent 过滤"),
+    session: AsyncSession = Depends(get_db_session),
+) -> DirectorGovernanceRecordsResponse:
+    await get_required_run(session, run_id)
+
+    agent_repo = AgentRepository(session)
+    location_repo = LocationRepository(session)
+    governance_repo = GovernanceRecordRepository(session)
+
+    agents, locations, records = await asyncio.gather(
+        agent_repo.list_names_for_run(str(run_id)),
+        location_repo.list_names_for_run(str(run_id)),
+        governance_repo.list_for_run(
+            str(run_id),
+            limit=limit,
+            decision=decision,
+            agent_id=agent_id,
+        ),
+    )
+
+    agent_name_map = {agent.id: agent.name for agent in agents}
+    location_name_map = {location.id: location.name for location in locations}
+
+    return DirectorGovernanceRecordsResponse(
+        run_id=str(run_id),
+        records=[
+            DirectorGovernanceRecordResponse(
+                id=record.id,
+                tick_no=record.tick_no,
+                source_event_id=record.source_event_id,
+                agent_id=record.agent_id,
+                agent_name=agent_name_map.get(record.agent_id),
+                location_id=record.location_id,
+                location_name=(
+                    location_name_map.get(record.location_id, record.location_id)
+                    if record.location_id
+                    else None
+                ),
+                action_type=record.action_type,
+                decision=record.decision,
+                reason=record.reason,
+                observed=record.observed,
+                observation_score=record.observation_score,
+                intervention_score=record.intervention_score,
+                metadata=record.metadata_json or {},
+            )
+            for record in records
+        ],
+        total=len(records),
     )
 
 

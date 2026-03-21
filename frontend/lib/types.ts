@@ -216,6 +216,23 @@ export type DirectorObservation = {
   notes: string[];
 };
 
+export type DirectorGovernanceRecord = {
+  id: string;
+  tick_no: number;
+  source_event_id?: string | null;
+  agent_id: string;
+  agent_name?: string | null;
+  location_id?: string | null;
+  location_name?: string | null;
+  action_type: string;
+  decision: string;
+  reason?: string | null;
+  observed: boolean;
+  observation_score: number;
+  intervention_score: number;
+  metadata: Record<string, unknown>;
+};
+
 export type SystemMetrics = {
   processResidentMemoryBytes: number;
   processVirtualMemoryBytes: number;

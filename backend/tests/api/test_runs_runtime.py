@@ -7,6 +7,7 @@ from app.store.models import (
     Agent,
     DirectorMemory,
     Event,
+    GovernanceRecord,
     Location,
     Memory,
     Relationship,
@@ -172,6 +173,109 @@ async def test_get_director_memories_marks_consumed_and_expired_entries(client, 
     assert "trigger_suspicion_score" not in memories["director-memory-consumed"]
     assert memories["director-memory-consumed"]["location_name"] == "Plaza"
     assert memories["director-memory-expired"]["delivery_status"] == "expired"
+
+
+@pytest.mark.asyncio
+async def test_get_director_governance_records_returns_filtered_ledger(client, db_session):
+    run_id = "00000000-0000-0000-0000-000000000206"
+    db_session.add_all(
+        [
+            SimulationRun(id=run_id, name="director-governance-ledger", status="running"),
+            Agent(
+                id="agent-governance-alice",
+                run_id=run_id,
+                name="Alice",
+                occupation="resident",
+                personality={},
+                profile={},
+                status={},
+                current_plan={},
+            ),
+            Agent(
+                id="agent-governance-bob",
+                run_id=run_id,
+                name="Bob",
+                occupation="resident",
+                personality={},
+                profile={},
+                status={},
+                current_plan={},
+            ),
+            Location(
+                id="loc-governance-plaza",
+                run_id=run_id,
+                name="Plaza",
+                location_type="plaza",
+                capacity=8,
+            ),
+            GovernanceRecord(
+                id="gov-director-warn",
+                run_id=run_id,
+                agent_id="agent-governance-alice",
+                tick_no=9,
+                source_event_id=None,
+                location_id="loc-governance-plaza",
+                action_type="talk",
+                decision="warn",
+                reason="Repeated monitored speech",
+                observed=True,
+                observation_score=0.77,
+                intervention_score=0.84,
+                metadata_json={"matched_signals": ["social"], "enforcement_action": "warning"},
+            ),
+            GovernanceRecord(
+                id="gov-director-record",
+                run_id=run_id,
+                agent_id="agent-governance-bob",
+                tick_no=8,
+                source_event_id=None,
+                location_id="loc-governance-plaza",
+                action_type="move",
+                decision="record_only",
+                reason="Suspicious route only",
+                observed=True,
+                observation_score=0.51,
+                intervention_score=0.3,
+                metadata_json={"matched_signals": ["sensitive_location"]},
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get(
+        f"/api/runs/{run_id}/director/governance-records",
+        params={"decision": "warn", "agent_id": "agent-governance-alice", "limit": "10"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run_id"] == run_id
+    assert body["total"] == 1
+    assert body["records"][0] == {
+        "id": "gov-director-warn",
+        "tick_no": 9,
+        "source_event_id": None,
+        "agent_id": "agent-governance-alice",
+        "agent_name": "Alice",
+        "location_id": "loc-governance-plaza",
+        "location_name": "Plaza",
+        "action_type": "talk",
+        "decision": "warn",
+        "reason": "Repeated monitored speech",
+        "observed": True,
+        "observation_score": 0.77,
+        "intervention_score": 0.84,
+        "metadata": {"matched_signals": ["social"], "enforcement_action": "warning"},
+    }
+
+
+@pytest.mark.asyncio
+async def test_get_director_governance_records_returns_404_when_run_missing(client):
+    response = await client.get(
+        "/api/runs/00000000-0000-0000-0000-000000000299/director/governance-records"
+    )
+
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio

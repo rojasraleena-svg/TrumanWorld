@@ -2,7 +2,7 @@ from datetime import datetime
 
 from app.sim.action_resolver import ActionIntent
 from app.sim.conversation_scheduler import ConversationScheduler
-from app.sim.world import AgentState, LocationState, WorldState
+from app.sim.world import ActiveConversationState, AgentState, LocationState, WorldState
 
 
 def _build_collocated_world() -> WorldState:
@@ -103,3 +103,30 @@ def test_conversation_scheduler_prioritizes_pending_reply_and_skips_reciprocal_r
     assert assignments["bob"].role == "speaker"
     assert assignments["alice"].role == "listener"
     assert assignments["alice"].reason == "reciprocal_talk_listener"
+
+
+def test_conversation_scheduler_refreshes_existing_session_location_on_continuation():
+    world = _build_collocated_world()
+    world.current_tick = 6
+    world.active_conversations = {
+        "conv-1": ActiveConversationState(
+            id="conv-1",
+            location_id="dorm",
+            participant_ids=["alice", "bob"],
+            active_speaker_id="alice",
+            last_tick_no=5,
+        )
+    }
+
+    scheduler = ConversationScheduler()
+    sessions, assignments = scheduler.schedule(
+        [
+            ActionIntent(agent_id="alice", action_type="talk", target_agent_id="bob"),
+        ],
+        world,
+    )
+
+    assert len(sessions) == 1
+    assert sessions[0].id == "conv-1"
+    assert sessions[0].location_id == "plaza"
+    assert assignments["alice"].conversation_id == "conv-1"

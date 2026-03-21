@@ -8,6 +8,7 @@ import {
   pauseRunResult,
   resumeRunResult,
   injectDirectorEventResult,
+  getDirectorGovernanceRecordsResult,
   deleteRunResult,
   restoreAllRunsResult,
   type RunSummary,
@@ -191,6 +192,38 @@ describe('API', () => {
       expect(String(url)).toContain('min_memory_importance=0.8')
       expect(String(url)).toContain('related_agent_id=bob')
       expect(String(url)).toContain('memory_limit=3')
+    })
+  })
+
+  describe('getDirectorGovernanceRecordsResult', () => {
+    it('includes governance filter params in request url', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          run_id: 'run-1',
+          records: [],
+          total: 0,
+        }),
+      } as unknown as Response)
+
+      await getDirectorGovernanceRecordsResult('run-1', {
+        limit: 20,
+        decision: 'warn',
+        agent_id: 'agent-1',
+      })
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/runs/run-1/director/governance-records?'),
+        expect.objectContaining({
+          cache: 'no-store',
+        }),
+      )
+
+      const requestUrl = mockFetch.mock.calls.at(-1)?.[0] as string
+      expect(requestUrl).toContain('limit=20')
+      expect(requestUrl).toContain('decision=warn')
+      expect(requestUrl).toContain('agent_id=agent-1')
     })
   })
 

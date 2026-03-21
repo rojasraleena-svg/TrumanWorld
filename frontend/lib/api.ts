@@ -4,6 +4,7 @@ import type {
   AgentSummary,
   CreateRunResponse,
   DemoAccessStatus,
+  DirectorGovernanceRecord,
   DirectorObservation,
   DirectorMemory,
   RunSummary,
@@ -24,6 +25,7 @@ export type {
   AgentSummary,
   CreateRunResponse,
   DemoAccessStatus,
+  DirectorGovernanceRecord,
   DirectorObservation,
   DirectorMemory,
   RunSummary,
@@ -299,6 +301,24 @@ export async function getDirectorObservationResult(
   runId: string,
 ): Promise<ApiResult<DirectorObservation>> {
   return fetchResult<DirectorObservation>(`/runs/${runId}/director/observation`);
+}
+
+export async function getDirectorGovernanceRecordsResult(
+  runId: string,
+  filter?: {
+    limit?: number;
+    decision?: string;
+    agent_id?: string;
+  },
+): Promise<ApiResult<{ run_id: string; records: DirectorGovernanceRecord[]; total: number }>> {
+  const params = new URLSearchParams();
+  if (filter?.limit != null) params.set("limit", String(filter.limit));
+  if (filter?.decision) params.set("decision", filter.decision);
+  if (filter?.agent_id) params.set("agent_id", filter.agent_id);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return fetchResult<{ run_id: string; records: DirectorGovernanceRecord[]; total: number }>(
+    `/runs/${runId}/director/governance-records${query}`,
+  );
 }
 
 export async function getAgentResult(
