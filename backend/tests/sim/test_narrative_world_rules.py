@@ -140,7 +140,15 @@ def test_build_perception_context_for_agent_uses_location_and_relationships():
             ),
         },
     )
-    relationships = [SimpleNamespace(other_agent_id="meryl", familiarity=0.8)]
+    relationships = [
+        SimpleNamespace(
+            other_agent_id="meryl",
+            familiarity=0.9,
+            trust=0.8,
+            affinity=0.75,
+            relation_type="close_friend",
+        )
+    ]
 
     perception = build_perception_context_for_agent("truman", world, relationships, "cafe")
 
@@ -148,7 +156,45 @@ def test_build_perception_context_for_agent_uses_location_and_relationships():
     perceived = perception["perceived_others"][0]
     assert perceived["id"] == "meryl"
     assert perceived["occupation"] == "hospital staff"
-    assert perceived["familiarity"] == 0.8
+    assert perceived["known_workplace"] == "hospital"
+    assert perceived["relationship_level"] == "close_friend"
+    assert perceived["familiarity"] == 0.9
+
+
+def test_build_perception_context_hides_private_details_for_strangers():
+    world = WorldState(
+        current_time=datetime(2026, 1, 1, 9, 0, tzinfo=UTC),
+        locations={
+            "plaza": LocationState(
+                id="plaza",
+                name="Plaza",
+                location_type="plaza",
+                occupants={"truman", "unknown"},
+            )
+        },
+        agents={
+            "truman": AgentState(
+                id="truman",
+                name="Truman",
+                location_id="plaza",
+                occupation="insurance clerk",
+            ),
+            "unknown": AgentState(
+                id="unknown",
+                name="Unknown",
+                location_id="plaza",
+                occupation="vendor",
+                workplace_id="stall",
+            ),
+        },
+    )
+
+    perception = build_perception_context_for_agent("truman", world, [], "plaza")
+
+    perceived = perception["perceived_others"][0]
+    assert perceived["relationship_level"] == "stranger"
+    assert perceived["occupation"] is None
+    assert perceived["known_workplace"] is None
 
 
 def test_heuristics_support_semantics_for_support_roles():

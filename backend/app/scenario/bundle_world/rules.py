@@ -10,8 +10,9 @@ from app.scenario.runtime.world_config import (
 )
 from app.scenario.runtime.world_config import load_world_config as load_runtime_world_config
 from app.scenario.runtime_config import ScenarioRuntimeConfig, build_scenario_runtime_config
+from app.sim.relationship_policy import derive_relationship_level
 from app.sim.world_queries import (
-    build_familiarity_map,
+    build_relationship_context_map,
     get_agent,
     get_location,
     list_other_occupants,
@@ -35,7 +36,7 @@ def load_world_config(scenario_id: str | None = None) -> dict[str, Any]:
 def build_perception_context(
     viewer_id: str,
     nearby_agents: list[dict[str, Any]],
-    relationships: dict[str, float],
+    relationships: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     perceived_agents = []
 
@@ -44,15 +45,35 @@ def build_perception_context(
             continue
 
         agent_id = agent.get("id", "")
-        familiarity = relationships.get(agent_id, 0.0)
+        relation = relationships.get(agent_id, {})
+        familiarity = float(relation.get("familiarity", 0.0) or 0.0)
+        trust = float(relation.get("trust", 0.0) or 0.0)
+        affinity = float(relation.get("affinity", 0.0) or 0.0)
+        relation_type = relation.get("relation_type")
+        relationship_level = derive_relationship_level(
+            familiarity=familiarity,
+            trust=trust,
+            affinity=affinity,
+            relation_type=relation_type,
+        )
+        known_occupation = agent.get("occupation") if relationship_level != "stranger" else None
+        known_workplace = (
+            agent.get("workplace_id") if relationship_level in {"close_friend", "family"} else None
+        )
 
         perceived = {
             "id": agent_id,
             "name": agent.get("name"),
-            "occupation": agent.get("occupation"),
-            "workplace_id": agent.get("workplace_id"),
+            "occupation": known_occupation,
+            "workplace_id": known_workplace,
+            "known_occupation": known_occupation,
+            "known_workplace": known_workplace,
             "is_at_workplace": agent.get("is_at_workplace", False),
             "familiarity": familiarity,
+            "trust": trust,
+            "affinity": affinity,
+            "relation_type": relation_type,
+            "relationship_level": relationship_level,
         }
 
         perceived_agents.append(perceived)
@@ -207,7 +228,7 @@ def build_perception_context_for_agent(
     if not nearby_agent_ids:
         return {"perceived_others": []}
 
-    relationship_map = build_familiarity_map(relationships)
+    relationship_map = build_relationship_context_map(relationships)
     nearby_agents = []
     for agent_id in nearby_agent_ids:
         agent = get_agent(world, agent_id)

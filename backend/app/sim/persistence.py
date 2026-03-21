@@ -14,11 +14,13 @@ from uuid import uuid4
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.scenario.runtime.world_design import load_world_design_runtime_package
 from app.sim.event_utils import build_event
+from app.sim.relationship_policy import compute_relationship_delta
 from app.sim.memory_constants import calculate_memory_importance, determine_memory_category
 from app.sim.runner import TickResult
 from app.sim.world import WorldState
-from app.store.models import Event, Memory, Relationship
+from app.store.models import Event, Memory, Relationship, SimulationRun
 from app.store.repositories import (
     AgentRepository,
     EventRepository,
@@ -282,25 +284,29 @@ class PersistenceManager:
 
     async def persist_tick_relationships(self, run_id: str, events: list[Event]) -> None:
         """Persist relationships from social speech events."""
+        run_context = await self._load_relationship_run_context(run_id)
         updated = False
         for event in events:
+            delta = self._compute_relationship_delta(event, run_context)
+            if delta is None:
+                continue
             for actor_agent_id, other_agent_id in self._iter_relationship_pairs(event):
                 await self.relationship_repo.upsert_interaction(
                     run_id=run_id,
                     agent_id=actor_agent_id,
                     other_agent_id=other_agent_id,
-                    familiarity_delta=0.1,
-                    trust_delta=0.05,
-                    affinity_delta=0.05,
+                    familiarity_delta=delta.familiarity_delta,
+                    trust_delta=delta.trust_delta,
+                    affinity_delta=delta.affinity_delta,
                 )
                 updated = True
                 await self.relationship_repo.upsert_interaction(
                     run_id=run_id,
                     agent_id=other_agent_id,
                     other_agent_id=actor_agent_id,
-                    familiarity_delta=0.1,
-                    trust_delta=0.05,
-                    affinity_delta=0.05,
+                    familiarity_delta=delta.familiarity_delta,
+                    trust_delta=delta.trust_delta,
+                    affinity_delta=delta.affinity_delta,
                 )
                 updated = True
         if updated:
@@ -314,29 +320,69 @@ class PersistenceManager:
     ) -> None:
         """Persist relationships using a provided session."""
         rel_repo = RelationshipRepository(session)
+        run_context = await self._load_relationship_run_context(run_id, session=session)
         updated = False
         for event in events:
+            delta = self._compute_relationship_delta(event, run_context)
+            if delta is None:
+                continue
             for actor_agent_id, other_agent_id in self._iter_relationship_pairs(event):
                 await rel_repo.upsert_interaction(
                     run_id=run_id,
                     agent_id=actor_agent_id,
                     other_agent_id=other_agent_id,
-                    familiarity_delta=0.1,
-                    trust_delta=0.05,
-                    affinity_delta=0.05,
+                    familiarity_delta=delta.familiarity_delta,
+                    trust_delta=delta.trust_delta,
+                    affinity_delta=delta.affinity_delta,
                 )
                 updated = True
                 await rel_repo.upsert_interaction(
                     run_id=run_id,
                     agent_id=other_agent_id,
                     other_agent_id=actor_agent_id,
-                    familiarity_delta=0.1,
-                    trust_delta=0.05,
-                    affinity_delta=0.05,
+                    familiarity_delta=delta.familiarity_delta,
+                    trust_delta=delta.trust_delta,
+                    affinity_delta=delta.affinity_delta,
                 )
                 updated = True
         if updated:
             await session.commit()
+
+    async def _load_relationship_run_context(
+        self,
+        run_id: str,
+        *,
+        session: AsyncSession | None = None,
+    ) -> tuple[SimulationRun | None, dict[str, str]]:
+        active_session = session or self.session
+        run_repo = self.run_repo if session is None else RunRepository(active_session)
+        location_repo = self.location_repo if session is None else LocationRepository(active_session)
+        run, locations = await asyncio.gather(
+            run_repo.get(run_id),
+            location_repo.list_for_run(run_id),
+        )
+        location_type_map = {location.id: location.location_type for location in locations}
+        return run, location_type_map
+
+    @staticmethod
+    def _compute_relationship_delta(
+        event: Event,
+        run_context: tuple[SimulationRun | None, dict[str, str]],
+    ):
+        run, location_type_map = run_context
+        location_id = event.location_id
+        location_type = location_type_map.get(location_id) if location_id else None
+        policy_values: dict[str, object] | None = None
+        if run is not None:
+            package = load_world_design_runtime_package(run.scenario_type)
+            policy_values = package.policy_config.values
+        return compute_relationship_delta(
+            event_type=event.event_type,
+            world_time=event.world_time,
+            location_id=location_id,
+            location_type=location_type,
+            policy_values=policy_values,
+        )
 
     @staticmethod
     def _iter_relationship_pairs(event: Event) -> list[tuple[str, str]]:

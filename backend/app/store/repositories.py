@@ -723,7 +723,7 @@ class RelationshipRepository:
         familiarity_delta: float,
         trust_delta: float,
         affinity_delta: float,
-        relation_type: str = "acquaintance",
+        relation_type: str | None = None,
     ) -> Relationship:
         relation = await self.get_pair(run_id, agent_id, other_agent_id)
         now = datetime.now(UTC)
@@ -737,7 +737,7 @@ class RelationshipRepository:
                 familiarity=0.0,
                 trust=0.0,
                 affinity=0.0,
-                relation_type=relation_type,
+                relation_type=relation_type or "acquaintance",
                 last_interaction_at=now,
             )
             self.session.add(relation)
@@ -745,7 +745,8 @@ class RelationshipRepository:
         relation.familiarity = min(1.0, max(0.0, relation.familiarity + familiarity_delta))
         relation.trust = min(1.0, max(-1.0, relation.trust + trust_delta))
         relation.affinity = min(1.0, max(-1.0, relation.affinity + affinity_delta))
-        relation.relation_type = relation_type
+        if relation_type:
+            relation.relation_type = relation_type
         relation.last_interaction_at = now
 
         await self.session.flush()

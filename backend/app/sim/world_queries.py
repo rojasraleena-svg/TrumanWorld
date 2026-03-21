@@ -81,3 +81,18 @@ def build_familiarity_map(relationships: Iterable[Any]) -> dict[str, float]:
         for relationship in relationships
         if getattr(relationship, "other_agent_id", None) is not None
     }
+
+
+def build_relationship_context_map(relationships: Iterable[Any]) -> dict[str, dict[str, Any]]:
+    context_map: dict[str, dict[str, Any]] = {}
+    for relationship in relationships:
+        other_agent_id = getattr(relationship, "other_agent_id", None)
+        if other_agent_id is None:
+            continue
+        context_map[other_agent_id] = {
+            "familiarity": float(getattr(relationship, "familiarity", 0.0) or 0.0),
+            "trust": float(getattr(relationship, "trust", 0.0) or 0.0),
+            "affinity": float(getattr(relationship, "affinity", 0.0) or 0.0),
+            "relation_type": getattr(relationship, "relation_type", None),
+        }
+    return context_map

@@ -7,8 +7,9 @@ from app.infra.settings import get_settings
 from app.scenario.bundle_world.coordinator import BundleWorldCoordinator
 from app.scenario.runtime_config import RuntimeRoleSemantics
 from app.sim.action_resolver import ActionIntent
+from app.sim.persistence import PersistenceManager
 from app.sim.service import SimulationService
-from app.store.models import Agent, Location, SimulationRun
+from app.store.models import Agent, Event, Location, SimulationRun
 from app.store.repositories import AgentRepository, DirectorMemoryRepository, EventRepository
 
 from .test_service import (
@@ -559,6 +560,79 @@ async def test_simulation_service_updates_relationships_from_talk_events(db_sess
     assert bob_relationships[0].trust == 0.05
     assert alice_memories[0].summary.startswith("Said to Bob")
     assert bob_memories[0].summary.startswith("Talked with Alice")
+
+
+@pytest.mark.asyncio
+async def test_persistence_relationships_apply_social_location_policy_boost(
+    db_session, monkeypatch: pytest.MonkeyPatch
+):
+    run = SimulationRun(
+        id="run-service-relationship-policy",
+        name="relationship-policy",
+        status="running",
+        current_tick=0,
+        tick_minutes=5,
+        scenario_type="narrative_world",
+    )
+    cafe = Location(
+        id="loc-cafe-policy",
+        run_id=run.id,
+        name="Cafe",
+        location_type="cafe",
+        capacity=4,
+    )
+    alice = Agent(
+        id="alice-policy",
+        run_id=run.id,
+        name="Alice",
+        occupation="resident",
+        home_location_id=cafe.id,
+        current_location_id=cafe.id,
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+    bob = Agent(
+        id="bob-policy",
+        run_id=run.id,
+        name="Bob",
+        occupation="resident",
+        home_location_id=cafe.id,
+        current_location_id=cafe.id,
+        personality={},
+        profile={},
+        status={},
+        current_plan={},
+    )
+    db_session.add_all([run, cafe, alice, bob])
+    await db_session.commit()
+
+    monkeypatch.setattr(
+        "app.sim.persistence.load_world_design_runtime_package",
+        lambda _scenario_id: type(
+            "Package",
+            (),
+            {"policy_config": type("Policy", (), {"values": {"social_boost_locations": {"cafe": 0.3}}})()},
+        )(),
+    )
+
+    event = Event(
+        id="event-policy-speech",
+        run_id=run.id,
+        tick_no=1,
+        event_type="speech",
+        actor_agent_id=alice.id,
+        target_agent_id=bob.id,
+        location_id=cafe.id,
+        world_time=None,
+        payload={},
+    )
+
+    await PersistenceManager(db_session).persist_tick_relationships(run.id, [event])
+
+    alice_relationships = await AgentRepository(db_session).list_relationships(run.id, alice.id)
+    assert alice_relationships[0].affinity == pytest.approx(0.08)
 
 
 @pytest.mark.asyncio

@@ -180,6 +180,35 @@ async def test_relationship_repository_upserts_and_clamps_values(db_session):
 
 
 @pytest.mark.asyncio
+async def test_relationship_repository_preserves_existing_relation_type_when_not_overridden(db_session):
+    run = SimulationRun(id="run-repo-relationship-type", name="relations", status="running")
+    db_session.add(run)
+    await db_session.commit()
+
+    repo = RelationshipRepository(db_session)
+    created = await repo.upsert_interaction(
+        run_id=run.id,
+        agent_id="alice",
+        other_agent_id="bob",
+        familiarity_delta=0.2,
+        trust_delta=0.1,
+        affinity_delta=0.1,
+        relation_type="family",
+    )
+    updated = await repo.upsert_interaction(
+        run_id=run.id,
+        agent_id="alice",
+        other_agent_id="bob",
+        familiarity_delta=0.1,
+        trust_delta=0.1,
+        affinity_delta=0.1,
+    )
+
+    assert created.relation_type == "family"
+    assert updated.relation_type == "family"
+
+
+@pytest.mark.asyncio
 async def test_list_recent_events_prioritises_social_and_move_over_work_rest(db_session):
     """speech/move events must be returned before work/rest events even when the
     work/rest events occurred in more recent ticks, so that LLM context windows
