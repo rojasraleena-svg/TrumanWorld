@@ -16,3 +16,4 @@
 - [EVENTS_INCREMENTAL_QUERY.md](EVENTS_INCREMENTAL_QUERY.md) - 事件增量查询（✅ 已实现）
 - [AGENT_BACKEND_ABSTRACTION.md](AGENT_BACKEND_ABSTRACTION.md) - Agent backend 解耦与 Claude/LangGraph 双选设计
 - [SCENARIO_DECOUPLING_MIGRATION.md](SCENARIO_DECOUPLING_MIGRATION.md) - 场景解耦迁移结果与当前规范字段
+- [WORLD_RULE_SYSTEM.md](WORLD_RULE_SYSTEM.md) - 平台级世界宪法 / 规则系统 / 社会演化机制设计

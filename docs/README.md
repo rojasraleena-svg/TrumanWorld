@@ -27,8 +27,9 @@
 ### 我想做技术决策
 
 1. 看 [engineering/CURRENT_ARCHITECTURE.md](engineering/CURRENT_ARCHITECTURE.md)
-2. 看 [references/BUILD_VS_BUY.md](references/BUILD_VS_BUY.md)
-3. 如需回看 MVP 方案，看 [references/MVP_ARCHITECTURE.md](references/MVP_ARCHITECTURE.md)
+2. 看 [engineering/WORLD_RULE_SYSTEM.md](engineering/WORLD_RULE_SYSTEM.md)
+3. 看 [references/BUILD_VS_BUY.md](references/BUILD_VS_BUY.md)
+4. 如需回看 MVP 方案，看 [references/MVP_ARCHITECTURE.md](references/MVP_ARCHITECTURE.md)
 
 ### 我想部署和排障
 
