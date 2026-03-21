@@ -29,7 +29,7 @@ def _build_world() -> WorldState:
                 name="Alice",
                 location_id="cafe",
                 occupation="barista",
-                status={"mood": "calm"},
+                status={"mood": "calm", "governance_attention_score": 0.0},
             ),
             "bob": AgentState(
                 id="bob",
@@ -153,6 +153,7 @@ def test_build_agent_world_context_includes_minimal_world_rules_summary():
 
     assert context["world_rules_summary"]["policy_notices"] == ["Cafe blackout"]
     assert context["world_rules_summary"]["blocked_constraints"] == ["location_closed"]
+    assert context["world_rules_summary"]["current_risks"] == []
     assert context["world_rules_summary"]["recent_rule_feedback"] == [
         "location_closed",
     ]
@@ -191,9 +192,32 @@ def test_build_agent_world_context_prefers_governance_warning_feedback():
     )
 
     assert context["world_rules_summary"]["blocked_constraints"] == []
+    assert context["world_rules_summary"]["current_risks"] == []
     assert context["world_rules_summary"]["recent_rule_feedback"] == [
         "high_attention_warning",
         "late_night_talk_risk",
+    ]
+
+
+def test_build_agent_world_context_derives_current_risks_from_governance_attention():
+    world = _build_world()
+    world.agents["alice"].status["governance_attention_score"] = 0.6
+
+    context = build_agent_world_context(
+        agent_id="alice",
+        world=world,
+        current_goal="rest",
+        current_location_id="cafe",
+        home_location_id="home",
+        nearby_agent_id="bob",
+        current_status={"energy": 0.8},
+        recent_events=[],
+    )
+
+    assert context["world_rules_summary"]["blocked_constraints"] == []
+    assert context["world_rules_summary"]["recent_rule_feedback"] == []
+    assert context["world_rules_summary"]["current_risks"] == [
+        "你最近更容易受到注意，异常行为风险正在升高"
     ]
 
 

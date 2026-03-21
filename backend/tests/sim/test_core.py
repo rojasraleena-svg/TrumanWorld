@@ -318,6 +318,106 @@ def test_action_resolver_includes_soft_risk_metadata_in_event_payload():
     assert result.event_payload["governance_execution"]["decision"] == "warn"
 
 
+def test_simulation_runner_applies_governance_warning_consequences():
+    world = build_world()
+    package = WorldDesignRuntimePackage(
+        scenario_id="narrative_world",
+        world_config={},
+        rules_config=RulesConfig(
+            version=1,
+            rules=[
+                RuleConfigItem(
+                    rule_id="closed_location",
+                    name="Closed Location",
+                    trigger=RuleTriggerConfig(action_types=["move"]),
+                    conditions=[
+                        RuleConditionConfig(
+                            fact="target_location.id",
+                            op="in",
+                            value_from="policy.closed_locations",
+                        )
+                    ],
+                    outcome=RuleOutcomeConfig(
+                        decision="violates_rule",
+                        reason="location_closed",
+                    ),
+                    priority=100,
+                )
+            ],
+        ),
+        policy_config=PolicyConfig(
+            version=1,
+            policy_id="default",
+            values={
+                "closed_locations": ["park"],
+                "inspection_level": "low",
+                "high_attention_locations": [],
+                "sensitive_locations": [],
+            },
+        ),
+        constitution_text="",
+    )
+    runner = SimulationRunner(world, resolver=ActionResolver(world_design_package=package))
+
+    result = runner.tick(
+        [ActionIntent(agent_id="alice", action_type="move", target_location_id="park")]
+    )
+
+    assert len(result.accepted) == 1
+    assert world.agents["alice"].status["warning_count"] == 1
+    assert world.agents["alice"].status["governance_attention_score"] == 0.05
+
+
+def test_simulation_runner_applies_governance_block_consequences():
+    world = build_world()
+    package = WorldDesignRuntimePackage(
+        scenario_id="narrative_world",
+        world_config={},
+        rules_config=RulesConfig(
+            version=1,
+            rules=[
+                RuleConfigItem(
+                    rule_id="closed_location",
+                    name="Closed Location",
+                    trigger=RuleTriggerConfig(action_types=["move"]),
+                    conditions=[
+                        RuleConditionConfig(
+                            fact="target_location.id",
+                            op="in",
+                            value_from="policy.closed_locations",
+                        )
+                    ],
+                    outcome=RuleOutcomeConfig(
+                        decision="violates_rule",
+                        reason="location_closed",
+                    ),
+                    priority=100,
+                )
+            ],
+        ),
+        policy_config=PolicyConfig(
+            version=1,
+            policy_id="default",
+            values={
+                "closed_locations": ["park"],
+                "inspection_level": "medium",
+                "high_attention_locations": [],
+                "sensitive_locations": [],
+            },
+        ),
+        constitution_text="",
+    )
+    runner = SimulationRunner(world, resolver=ActionResolver(world_design_package=package))
+
+    result = runner.tick(
+        [ActionIntent(agent_id="alice", action_type="move", target_location_id="park")]
+    )
+
+    assert len(result.rejected) == 1
+    assert world.agents["alice"].status["warning_count"] == 1
+    assert world.agents["alice"].status["governance_attention_score"] == 0.15
+
+
 def test_simulation_runner_advances_tick_and_collects_results():
     world = build_world()
     runner = SimulationRunner(world)

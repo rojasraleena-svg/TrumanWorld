@@ -113,7 +113,7 @@ def build_agent_world_context(
     if world_role:
         context["world_role"] = world_role
     _inject_world_effects(context, world, current_location_id)
-    _inject_world_rules_summary(context, world, current_location_id, recent_events or [])
+    _inject_world_rules_summary(context, world, agent_id, current_location_id, recent_events or [])
     if director_guidance:
         context.update(_normalize_director_guidance(director_guidance))
 
@@ -302,11 +302,13 @@ def _inject_world_effects(
 def _inject_world_rules_summary(
     context: dict,
     world: WorldState,
+    agent_id: str | None,
     current_location_id: str | None,
     recent_events: list[dict],
 ) -> None:
     policy_notices: list[str] = []
     blocked_constraints: list[str] = []
+    current_risks: list[str] = []
     recent_rule_feedback: list[str] = []
 
     world_effects = getattr(world, "world_effects", {}) or {}
@@ -325,6 +327,19 @@ def _inject_world_rules_summary(
         message = outage.get("message")
         if isinstance(message, str) and message:
             policy_notices.append(message)
+
+    if agent_id:
+        agent = get_agent(world, agent_id)
+        if agent is not None:
+            attention_score = float(
+                ((agent.status or {}).get("governance_attention_score", 0.0) or 0.0)
+            )
+            if attention_score >= 0.8:
+                current_risks.append("你正处于高关注状态，进一步试探边界的代价会更高")
+            elif attention_score >= 0.5:
+                current_risks.append("你最近更容易受到注意，异常行为风险正在升高")
+            elif attention_score >= 0.2:
+                current_risks.append("你最近有一定制度关注，行动需要更谨慎")
 
     for event in recent_events:
         payload = event.get("payload") or {}
@@ -349,9 +364,10 @@ def _inject_world_rules_summary(
         if isinstance(reason, str) and reason and reason not in recent_rule_feedback:
             recent_rule_feedback.append(reason)
 
-    if policy_notices or blocked_constraints or recent_rule_feedback:
+    if policy_notices or blocked_constraints or current_risks or recent_rule_feedback:
         context["world_rules_summary"] = {
             "policy_notices": policy_notices,
             "blocked_constraints": blocked_constraints,
+            "current_risks": current_risks,
             "recent_rule_feedback": recent_rule_feedback,
         }

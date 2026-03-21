@@ -9,6 +9,7 @@ from app.sim.conversation_scheduler import (
     ConversationScheduler,
     ConversationSession,
 )
+from app.sim.governance_consequences import apply_governance_consequences
 from app.sim.world import WorldState
 
 
@@ -56,6 +57,7 @@ class SimulationRunner:
             if self._should_skip_intent(intent, assignments):
                 continue
             result = self.resolver.resolve(self.world, intent)
+            apply_governance_consequences(self.world, result)
             if result.accepted:
                 accepted.append(result)
             else:
