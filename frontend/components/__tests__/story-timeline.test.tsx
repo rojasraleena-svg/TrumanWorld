@@ -38,7 +38,7 @@ describe("StoryTimeline", () => {
             explanations: [
               {
                 kind: "relationship",
-                text: "High-risk social contact reduced trust and affinity gains.",
+                text: "高风险社交接触降低了信任和亲近感的增长。",
                 tone: "rose",
               },
               {
@@ -55,7 +55,7 @@ describe("StoryTimeline", () => {
     render(<StoryTimeline chapters={chapters} />);
 
     expect(
-      screen.getByText("High-risk social contact reduced trust and affinity gains."),
+      screen.getByText("高风险社交接触降低了信任和亲近感的增长。"),
     ).toBeInTheDocument();
     expect(screen.getByText("深夜社交风险")).toBeInTheDocument();
   });

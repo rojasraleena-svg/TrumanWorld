@@ -326,7 +326,7 @@ export function simDayLabelFromIso(worldStartIso: string, currentWorldTimeIso: s
 
 /**
  * 根据当前世界 ISO 时间推算指定 tick 的日历日期与时间。
- * 当缺少 clockIso 时，仅返回 Tick 编号，避免伪造线性时间。
+ * 当缺少 clockIso 时，仅返回时间步编号，避免伪造线性时间。
  */
 export function tickToSimDayTime(
   tickNo: number,
@@ -344,7 +344,7 @@ export function tickToSimDayTime(
     const mm = targetDate.getUTCMinutes().toString().padStart(2, "0");
     return `${month}-${day} ${weekday} ${hh}:${mm}`;
   }
-  return `Tick ${tickNo}`;
+  return `时间步 ${tickNo}`;
 }
 
 /**
@@ -370,7 +370,7 @@ export function tickToSimTime(
     const mm = targetDate.getUTCMinutes().toString().padStart(2, "0");
     return `${hh}:${mm}`;
   }
-  return `Tick ${tickNo}`;
+  return `时间步 ${tickNo}`;
 }
 
 /**

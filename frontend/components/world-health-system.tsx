@@ -225,7 +225,7 @@ export function SystemStatusModal({
                       />
                       <NavItem
                         icon="⏱️"
-                        label="Tick 累计"
+                        label="时间步累计"
                         count={sectionCounts.ticks}
                         active={selectedSection === "ticks"}
                         onClick={() => setSelectedSection("ticks")}
@@ -257,8 +257,8 @@ export function SystemStatusModal({
                     <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
                       <div className="text-sm font-semibold text-slate-700">组件拆分</div>
                       <div className="mt-3 space-y-3">
-                        <ComponentStatusCard label="Backend" component={overview.components.backend} />
-                        <ComponentStatusCard label="Frontend" component={overview.components.frontend} />
+                        <ComponentStatusCard label="后端" component={overview.components.backend} />
+                        <ComponentStatusCard label="前端" component={overview.components.frontend} />
                         <ComponentStatusCard label="PostgreSQL" component={overview.components.postgres} />
                       </div>
                       <p className="mt-3 text-[11px] leading-5 text-slate-400">
@@ -286,18 +286,18 @@ export function SystemStatusModal({
               {selectedSection === "ticks" && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
-                    <MiniStatusChip label="总 Tick" value={formatCount(totalTicks)} />
+                    <MiniStatusChip label="总时间步" value={formatCount(totalTicks)} />
                     <MiniStatusChip label="失败" value={formatCount(totalFailures)} tone="amber" />
-                    <MiniStatusChip label="Inline 成功" value={inlineSuccessValue} />
-                    <MiniStatusChip label="Isolated 成功" value={isolatedSuccessValue} />
+                    <MiniStatusChip label="内联成功" value={inlineSuccessValue} />
+                    <MiniStatusChip label="隔离成功" value={isolatedSuccessValue} />
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
                     <div className="text-sm font-semibold text-slate-700">执行拆分</div>
                     <div className="mt-3 space-y-2">
-                      <StatusRow label="Inline 失败" value={inlineErrorValue} tone="amber" />
-                      <StatusRow label="Isolated 失败" value={isolatedErrorValue} tone="amber" />
-                      <StatusRow label="Inline 成功" value={inlineSuccessValue} />
-                      <StatusRow label="Isolated 成功" value={isolatedSuccessValue} />
+                      <StatusRow label="内联失败" value={inlineErrorValue} tone="amber" />
+                      <StatusRow label="隔离失败" value={isolatedErrorValue} tone="amber" />
+                      <StatusRow label="内联成功" value={inlineSuccessValue} />
+                      <StatusRow label="隔离成功" value={isolatedSuccessValue} />
                     </div>
                   </div>
                 </div>

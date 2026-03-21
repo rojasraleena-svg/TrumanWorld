@@ -286,7 +286,7 @@ export function TimelineModal({ isOpen, onClose, runId, agents = [] }: TimelineM
                   <p className="mt-1 text-base font-semibold text-ink">{importantCount}</p>
                 </div>
                 <div className="rounded-xl bg-mist px-3 py-2.5">
-                  <p className="text-[10px] text-slate-400">Tick 组</p>
+                  <p className="text-[10px] text-slate-400">时间步分组</p>
                   <p className="mt-1 text-base font-semibold text-ink">{groups.length}</p>
                 </div>
               </div>
@@ -301,21 +301,21 @@ export function TimelineModal({ isOpen, onClose, runId, agents = [] }: TimelineM
             <section className="mt-3 rounded-2xl border border-white/70 bg-white/80 p-4 shadow-xs backdrop-blur-sm">
               <p className="text-[11px] uppercase tracking-[0.15em] text-moss">检索过滤</p>
               <div className="mt-3 space-y-3">
-                {/* Tick 范围 - 与世界时间同步 */}
+                {/* 时间步范围 - 与世界时间同步 */}
                 <div>
-                  <label className={labelCls}>Tick 范围</label>
+                  <label className={labelCls}>时间步范围</label>
                   <div className="mt-1.5 space-y-2">
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="number"
-                        placeholder="起始 Tick"
+                        placeholder="起始时间步"
                         className={inputCls}
                         value={pendingFilters.tickFrom}
                         onChange={(e) => updatePending("tickFrom", e.target.value)}
                       />
                       <input
                         type="number"
-                        placeholder="结束 Tick"
+                        placeholder="结束时间步"
                         className={inputCls}
                         value={pendingFilters.tickTo}
                         onChange={(e) => updatePending("tickTo", e.target.value)}
@@ -419,7 +419,7 @@ export function TimelineModal({ isOpen, onClose, runId, agents = [] }: TimelineM
                 <span className="h-1.5 w-1.5 rounded-full bg-moss/60" />
                 世界时间 {simDayLabelFromIso(timeline.run_info.world_start_iso, timeline.run_info.current_world_time_iso)} {timeline.run_info.current_world_time_iso.substring(11, 16)}
                 <span className="text-slate-300">·</span>
-                每 Tick {timeline.run_info.tick_minutes} 分钟
+                每个时间步 {timeline.run_info.tick_minutes} 分钟
               </div>
               {isRefreshing ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-500">
@@ -501,7 +501,7 @@ export function TimelineModal({ isOpen, onClose, runId, agents = [] }: TimelineM
 }
 
 // ============================================================================
-// Tick 分组组件
+// 时间步分组组件
 // ============================================================================
 
 interface TickGroupProps {
@@ -517,7 +517,7 @@ function TickGroup({ tick, events, tickMinutes, currentTick, currentWorldTimeIso
     <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
       <div className="mb-3 flex items-center gap-3">
         <span className="rounded-lg bg-moss/10 px-2 py-1 text-xs font-medium text-moss">
-          Tick {tick}
+          时间步 {tick}
         </span>
         <span className="text-xs text-slate-400">
           {tickToSimDayTime(tick, tickMinutes, currentTick, currentWorldTimeIso)} · {events.length} 个事件

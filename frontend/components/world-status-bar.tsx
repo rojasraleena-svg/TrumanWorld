@@ -172,7 +172,7 @@ export function WorldStatusBar() {
         <span
           className={`h-2 w-2 rounded-full ${isValidating ? "animate-pulse bg-emerald-300" : isRunning ? "bg-emerald-400" : "bg-slate-300"}`}
         />
-        Tick {activeRun?.current_tick ?? 0}
+        时间步 {activeRun?.current_tick ?? 0}
       </span>
 
       {/* Wall-clock elapsed time — only shown while running or just paused */}

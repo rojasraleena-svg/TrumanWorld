@@ -454,12 +454,12 @@ class PersistenceManager:
     def _build_relationship_impact_summary(delta) -> str:
         modifiers = set(delta.modifiers)
         if "soft_risk" in modifiers:
-            return "High-risk social contact reduced trust and affinity gains."
+            return "高风险社交接触降低了信任和亲近感的增长。"
         if any(modifier.startswith("social_boost:") for modifier in modifiers):
-            return "Social venue increased affinity gain."
+            return "社交场景提升了亲近感的增长。"
         if "sensitive_location" in modifiers:
-            return "Sensitive location reduced social trust and affinity gains."
-        return "Social interaction increased familiarity and relationship strength."
+            return "敏感地点削弱了信任和亲近感的增长。"
+        return "社交互动提升了熟悉度和关系强度。"
 
     async def persist_agent_locations(self, run_id: str, world: WorldState) -> None:
         """Update agent locations after tick."""

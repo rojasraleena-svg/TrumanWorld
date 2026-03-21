@@ -223,7 +223,7 @@ export function IntelligenceStreamModal({
         <div className="grid grid-cols-4 gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
           {[
             { label: "全量事件", value: allEvents.length },
-            { label: "当前 Tick", value: world.run.current_tick ?? 0 },
+            { label: "当前时间步", value: world.run.current_tick ?? 0 },
             { label: "活跃地点", value: world.locations.filter((location) => location.occupants.length > 0).length },
             { label: "居民总数", value: world.locations.reduce((sum, location) => sum + location.occupants.length, 0) },
           ].map(({ label, value }) => (

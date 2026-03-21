@@ -27,6 +27,15 @@ type RunListProps = {
   runs: Run[];
 };
 
+function formatRunStatus(status: string) {
+  if (status === "running") return "运行中";
+  if (status === "paused") return "已暂停";
+  if (status === "completed") return "已完成";
+  if (status === "failed") return "失败";
+  if (status === "created") return "已创建";
+  return status;
+}
+
 export function RunList({ runs }: RunListProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -165,12 +174,12 @@ export function RunList({ runs }: RunListProps) {
                 </div>
               </div>
 
-              {/* Tick 号 - 大字体突出显示 */}
+              {/* 时间步编号 - 大字体突出显示 */}
               <div className="mt-4 flex items-baseline gap-1">
                 <span className="text-3xl font-bold tracking-tight text-ink">
                   {run.current_tick ?? 0}
                 </span>
-                <span className="text-xs text-slate-400">ticks</span>
+                <span className="text-xs text-slate-400">时间步</span>
               </div>
               {run.created_at && (
                 <p className="mt-1 text-[11px] text-slate-400">
@@ -190,7 +199,7 @@ export function RunList({ runs }: RunListProps) {
                   }`}
                 >
                   {isRunning && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />}
-                  {isRunning ? "运行中" : isPaused ? "已暂停" : run.status}
+                  {isRunning ? "运行中" : isPaused ? "已暂停" : formatRunStatus(run.status)}
                 </span>
                 {run.was_running_before_restart && !isRunning && (
                   <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-600">

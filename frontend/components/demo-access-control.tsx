@@ -67,7 +67,7 @@ export function DemoAccessControl() {
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                <span className="text-xs font-medium text-emerald-700">Admin 已解锁</span>
+                <span className="text-xs font-medium text-emerald-700">管理员已解锁</span>
               </div>
               <button
                 type="button"

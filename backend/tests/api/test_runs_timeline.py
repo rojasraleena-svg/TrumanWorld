@@ -171,7 +171,7 @@ async def test_get_timeline_preserves_relationship_impact_payload(client, db_ses
                         "trust_delta": 0.01,
                         "affinity_delta": 0.01,
                         "modifiers": ["soft_risk"],
-                        "summary": "High-risk social contact reduced trust and affinity gains.",
+                        "summary": "高风险社交接触降低了信任和亲近感的增长。",
                     }
                 },
             ),
@@ -186,7 +186,7 @@ async def test_get_timeline_preserves_relationship_impact_payload(client, db_ses
     assert body["events"][0]["payload"]["actor_name"] == "Alice"
     assert body["events"][0]["payload"]["target_name"] == "Bob"
     assert body["events"][0]["payload"]["relationship_impact"]["summary"] == (
-        "High-risk social contact reduced trust and affinity gains."
+        "高风险社交接触降低了信任和亲近感的增长。"
     )
 
 

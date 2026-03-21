@@ -1,6 +1,6 @@
 export function formatScenarioLabel(scenarioType?: string | null): string {
   if (!scenarioType) {
-    return "Unknown World";
+    return "未知世界";
   }
 
   return scenarioType

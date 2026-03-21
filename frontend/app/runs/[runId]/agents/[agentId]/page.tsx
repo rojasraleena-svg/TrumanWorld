@@ -101,10 +101,10 @@ export default async function AgentPage({ params, searchParams }: AgentPageProps
               configId={agent.config_id}
             />
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Resident Profile</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">角色档案</p>
               <h1 className="mt-2 text-3xl font-semibold text-ink">{agent.name}</h1>
               <p className="mt-1 text-sm text-slate-500">
-                {agent.occupation ?? "resident"} · 当前目标 {agent.current_goal ?? "暂无公开目标"}
+                {agent.occupation ?? "居民"} · 当前目标 {agent.current_goal ?? "暂无公开目标"}
               </p>
             </div>
           </div>
@@ -132,11 +132,11 @@ export default async function AgentPage({ params, searchParams }: AgentPageProps
             </div>
 
             <div className="mt-6 grid gap-3 md:grid-cols-5">
-              <MetricChip label="Name" value={agent.name} />
-              <MetricChip label="Occupation" value={agent.occupation ?? "-"} />
-              <MetricChip label="Goal" value={agent.current_goal ?? "-"} />
-              <MetricChip label="Events" value={agent.recent_events.length} />
-              <MetricChip label="Links" value={agent.relationships.length} />
+              <MetricChip label="姓名" value={agent.name} />
+              <MetricChip label="职业" value={agent.occupation ?? "-"} />
+              <MetricChip label="目标" value={agent.current_goal ?? "-"} />
+              <MetricChip label="事件" value={agent.recent_events.length} />
+              <MetricChip label="关系" value={agent.relationships.length} />
             </div>
           </section>
 
@@ -207,7 +207,7 @@ export default async function AgentPage({ params, searchParams }: AgentPageProps
                             </p>
                           </div>
                           <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-500">
-                            familiar {relationship.familiarity.toFixed(2)}
+                            熟悉度 {relationship.familiarity.toFixed(2)}
                           </span>
                         </div>
                         <div className="mt-4 space-y-2">

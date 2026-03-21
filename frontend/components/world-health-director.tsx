@@ -432,7 +432,7 @@ function DirectorMemoryCard({ memory }: { memory: DirectorMemory }) {
             {statusMeta.label}
           </span>
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-            Tick {memory.tick_no}
+            时间步 {memory.tick_no}
           </span>
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
             {memory.scene_goal}

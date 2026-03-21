@@ -58,7 +58,7 @@ describe("aggregateStoryChapters", () => {
           location_id: "cafe",
           payload: {
             relationship_impact: {
-              summary: "High-risk social contact reduced trust and affinity gains.",
+              summary: "高风险社交接触降低了信任和亲近感的增长。",
             },
             rule_evaluation: {
               decision: "soft_risk",
@@ -73,7 +73,7 @@ describe("aggregateStoryChapters", () => {
     expect(chapters[0].events[0].explanations).toEqual([
       {
         kind: "relationship",
-        text: "High-risk social contact reduced trust and affinity gains.",
+        text: "高风险社交接触降低了信任和亲近感的增长。",
         tone: "rose",
       },
       {

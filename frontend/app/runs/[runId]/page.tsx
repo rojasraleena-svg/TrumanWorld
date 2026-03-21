@@ -14,7 +14,7 @@ export default async function RunPage({ params }: RunPageProps) {
 
   if (!runResult.data) {
     // 如果运行不存在，显示错误页面
-    const title = runResult.error === "not_found" ? "未找到 Run" : "Run 加载失败";
+    const title = runResult.error === "not_found" ? "未找到运行" : "运行加载失败";
     const detail =
       runResult.error === "network_error"
         ? "后端当前不可达，请确认 API 服务已启动。"
@@ -34,6 +34,6 @@ export default async function RunPage({ params }: RunPageProps) {
     );
   }
 
-  // 直接跳转到 World Viewer
+  // 直接跳转到世界视图
   redirect(`/runs/${runId}/world`);
 }

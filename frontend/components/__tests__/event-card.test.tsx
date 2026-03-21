@@ -218,7 +218,7 @@ describe("EventCard", () => {
     mockGetEventExplanations.mockReturnValue([
       {
         kind: "relationship",
-        text: "High-risk social contact reduced trust and affinity gains.",
+        text: "高风险社交接触降低了信任和亲近感的增长。",
         tone: "rose",
       },
     ]);
@@ -234,7 +234,7 @@ describe("EventCard", () => {
     );
 
     expect(
-      screen.getByText("High-risk social contact reduced trust and affinity gains."),
+      screen.getByText("高风险社交接触降低了信任和亲近感的增长。"),
     ).toBeInTheDocument();
   });
 });

@@ -166,20 +166,20 @@ export default function TimelinePage() {
       {/* 顶部标题栏 */}
       <div className="border-b border-white/60 bg-white/65 px-8 py-5 backdrop-blur-sm">
         <Link href={`/runs/${runId}/world`} className="text-xs uppercase tracking-[0.25em] text-moss hover:text-ink">
-          ← 返回 World Viewer
+          ← 返回世界视图
         </Link>
         <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Event Replay</p>
-            <h1 className="mt-2 text-3xl font-semibold text-ink">Timeline</h1>
-            <p className="mt-1 text-sm text-slate-500">按 tick 回放事件流，适合复盘剧情节点和角色行为链路。</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">事件回放</p>
+            <h1 className="mt-2 text-3xl font-semibold text-ink">时间线</h1>
+            <p className="mt-1 text-sm text-slate-500">按时间步回放事件流，适合复盘剧情节点和角色行为链路。</p>
           </div>
           {timeline?.run_info && (
             <div className="flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-4 py-2 text-xs text-slate-600 shadow-xs">
               <span className="h-2 w-2 rounded-full bg-moss/60" />
               世界时间 {simDayLabelFromIso(timeline.run_info.world_start_iso, timeline.run_info.current_world_time_iso)} {timeline.run_info.current_world_time_iso.substring(11, 16)}
               <span className="text-slate-400">·</span>
-              每 Tick {timeline.run_info.tick_minutes} 分钟
+              每个时间步 {timeline.run_info.tick_minutes} 分钟
             </div>
           )}
         </div>
@@ -206,7 +206,7 @@ export default function TimelinePage() {
                   <p className="mt-2 text-lg font-semibold text-ink">{importantCount}</p>
                 </div>
                 <div className="rounded-2xl bg-mist px-3 py-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Tick 组数</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">时间步分组</p>
                   <p className="mt-2 text-lg font-semibold text-ink">{groups.length}</p>
                 </div>
               </div>
@@ -262,9 +262,9 @@ export default function TimelinePage() {
                   </div>
                 </div>
 
-                {/* Tick 范围 */}
+                {/* 时间步范围 */}
                 <div>
-                  <label className={labelCls}>Tick 范围</label>
+                  <label className={labelCls}>时间步范围</label>
                   <div className="mt-1 flex items-center gap-2">
                     <input
                       type="number"
@@ -347,9 +347,9 @@ export default function TimelinePage() {
             <section className="rounded-[28px] border border-slate-200 bg-white/80 p-5 shadow-xs">
               <p className="text-xs uppercase tracking-[0.22em] text-slate-400">阅读提示</p>
               <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-                <p>先看最近 tick，再向下回溯，能更快定位一段行为链路是怎么发生的。</p>
+                <p>先看最近时间步，再向下回溯，能更快定位一段行为链路是怎么发生的。</p>
                 <p>导演注入和高重要度事件通常是剧情转折点，优先看这两类更高效。</p>
-                <p>想确认空间位置时，返回 World Viewer 会更直观。</p>
+                <p>想确认空间位置时，返回世界视图会更直观。</p>
               </div>
             </section>
           </aside>
@@ -389,7 +389,7 @@ export default function TimelinePage() {
                       <div key={tick} className="rounded-[28px] border border-slate-200 bg-white/85 p-4 shadow-xs">
                         <div className="mb-4 flex items-center gap-3 rounded-full bg-white/90 px-3 py-2">
                           <span className="rounded-full bg-moss/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-moss">
-                            Tick {tick}
+                            时间步 {tick}
                           </span>
                           <span className="flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1 text-[11px] text-slate-500">
                             🕐 {simDayStr}{worldTime && ` ${worldTime}`}

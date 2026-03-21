@@ -635,7 +635,7 @@ async def test_persistence_relationships_apply_social_location_policy_boost(
     assert alice_relationships[0].affinity == pytest.approx(0.08)
     assert event.payload["relationship_impact"]["affinity_delta"] == pytest.approx(0.08)
     assert "social_boost:cafe" in event.payload["relationship_impact"]["modifiers"]
-    assert event.payload["relationship_impact"]["summary"] == "Social venue increased affinity gain."
+    assert event.payload["relationship_impact"]["summary"] == "社交场景提升了亲近感的增长。"
 
 
 @pytest.mark.asyncio
@@ -720,7 +720,7 @@ async def test_persistence_relationships_soft_risk_reduces_social_gain(
     assert "soft_risk" in event.payload["relationship_impact"]["modifiers"]
     assert (
         event.payload["relationship_impact"]["summary"]
-        == "High-risk social contact reduced trust and affinity gains."
+        == "高风险社交接触降低了信任和亲近感的增长。"
     )
 
 
