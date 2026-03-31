@@ -171,15 +171,23 @@ db-clean:
 # 等待数据库就绪
 db-wait:
 	@echo "⏳ 等待数据库就绪..."
-	@for i in 1 2 3 4 5; do \
+	@for i in $$(seq 1 30); do \
+		if [ -z "$$(docker ps -q -f name=$(DB_CONTAINER_NAME))" ]; then \
+			echo "❌ 数据库容器未运行"; \
+			docker ps -a -f name=$(DB_CONTAINER_NAME); \
+			exit 1; \
+		fi; \
 		if docker exec $(DB_CONTAINER_NAME) pg_isready -U $(DB_USER) -d $(DB_NAME) >/dev/null 2>&1; then \
 			echo "✅ 数据库已就绪"; \
 			exit 0; \
 		fi; \
-		echo "  等待中... ($$i/5)"; \
+		echo "  等待中... ($$i/30)"; \
 		sleep 2; \
 	done; \
 	echo "❌ 数据库启动超时"; \
+	docker ps -a -f name=$(DB_CONTAINER_NAME); \
+	echo "最近数据库日志:"; \
+	docker logs --tail 50 $(DB_CONTAINER_NAME) 2>/dev/null || true; \
 	exit 1
 
 # 执行数据库迁移
