@@ -272,6 +272,14 @@ class PersistenceManager:
                     run_id=run_id,
                 )
 
+            # Process daily consumption (Phase 3: economic pressure)
+            await service.process_tick_consumption(
+                world=world,
+                agent_id=agent_id,
+                tick_no=tick_no,
+                run_id=run_id,
+            )
+
             # Process tick economic effects (food decay, employment status)
             await service.process_tick_economic_effects(
                 world=world,
@@ -280,6 +288,128 @@ class PersistenceManager:
                 run_id=run_id,
                 case_id=case_id,
             )
+
+        # Process free action consequences (consequence_source == "pending")
+        # These are handled by the ConsequenceGenerator in Phase 2
+        await self._process_free_action_consequences(
+            run_id=run_id,
+            result=result,
+            tick_no=result.tick_no,
+        )
+
+    async def _process_free_action_consequences(
+        self,
+        run_id: str,
+        result: TickResult,
+        tick_no: int,
+    ) -> None:
+        """Process free action consequences marked as pending.
+
+        Calls the LLM ConsequenceGenerator to produce StateDelta for each
+        pending free action, then applies the delta via DeltaApplier.
+        """
+        from app.infra.logging import get_logger
+        from app.sim.consequence_generator import generate_consequences
+        from app.sim.delta_applier import DeltaApplier
+        from app.sim.economic_state_service import EconomicStateService
+
+        logger = get_logger(__name__)
+
+        # Find all accepted free actions (not standard actions)
+        standard_actions = {"move", "rest", "work", "talk", "talk_rejected", "listen",
+                          "conversation_started", "conversation_joined"}
+        free_actions = [
+            item for item in result.accepted
+            if item.action_type not in standard_actions
+            and item.event_payload.get("consequence_source") == "pending"
+        ]
+
+        if not free_actions:
+            return
+
+        service = EconomicStateService(self.session)
+        applier = DeltaApplier(self.session)
+
+        for item in free_actions:
+            agent_id = item.event_payload.get("agent_id", "unknown")
+            action_type = item.action_type
+            raw_intent = item.event_payload.get("raw_intent", "")
+            payload = item.event_payload.get("free_action_payload", {})
+            target_agent_id = item.event_payload.get("target_agent_id")
+            location_id = item.event_payload.get("location_id")
+            matched_rules = ""
+
+            # Extract matched rules if present
+            if "rule_evaluation" in item.event_payload:
+                rule_eval = item.event_payload.get("rule_evaluation", {})
+                matched_rules = rule_eval.get("reason", "")
+
+            # Get actor economic state
+            actor_state = await service.ensure_economic_state(
+                world=None, agent_id=agent_id, tick_no=tick_no, run_id=run_id
+            )
+
+            # Get target economic state if applicable
+            target_state = None
+            if target_agent_id:
+                target_state = await service.ensure_economic_state(
+                    world=None, agent_id=target_agent_id, tick_no=tick_no, run_id=run_id
+                )
+
+            # Generate consequences via LLM
+            state_delta = await generate_consequences(
+                action_type=action_type,
+                agent_id=agent_id,
+                target_agent_id=target_agent_id,
+                target_location_id=location_id,
+                raw_intent=raw_intent,
+                payload=payload,
+                actor_cash=actor_state.cash if actor_state else 0.0,
+                actor_employment=actor_state.employment_status if actor_state else "unknown",
+                actor_food_security=actor_state.food_security if actor_state else 1.0,
+                target_cash=target_state.cash if target_state else None,
+                target_employment=target_state.employment_status if target_state else None,
+                target_food_security=target_state.food_security if target_state else None,
+                matched_rules=matched_rules,
+            )
+
+            if state_delta is None:
+                logger.warning(
+                    "free_action_consequence_failed: agent=%s action=%s tick=%d",
+                    agent_id,
+                    action_type,
+                    tick_no,
+                )
+                # Mark consequence source as failed
+                item.event_payload["consequence_source"] = "generation_failed"
+                continue
+
+            # Apply delta via DeltaApplier
+            affected = await applier.apply(
+                state_delta,
+                run_id=run_id,
+                tick_no=tick_no,
+                world=None,
+            )
+
+            # Apply relationship deltas if present
+            if state_delta.relationship_deltas:
+                await applier.apply_relationship_deltas(
+                    state_delta,
+                    run_id=run_id,
+                    tick_no=tick_no,
+                )
+
+            logger.info(
+                "free_action_processed: agent=%s action=%s affected=%s tick=%d",
+                agent_id,
+                action_type,
+                affected,
+                tick_no,
+            )
+
+            # Mark as successfully processed
+            item.event_payload["consequence_source"] = "llm_generated"
 
     def _build_tick_events(self, run_id: str, result: TickResult) -> list[Event]:
         """Build event objects from tick results."""
