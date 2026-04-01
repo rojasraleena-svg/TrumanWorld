@@ -39,7 +39,7 @@ export function WorldCanvas({ runId }: Props) {
   const { world } = useWorld();
   const { searchParams, replaceSearchParams } = useUiSearchParams();
   const [highlightedLocationId, setHighlightedLocationId] = useState<string | null>(null);
-  const [mapView, setMapView] = useState<"svg" | "phaser">("svg");
+  const [mapView, setMapView] = useState<"svg" | "phaser">("phaser");
 
   const modal = searchParams.get("modal");
   const selectedAgentId = searchParams.get("agent");

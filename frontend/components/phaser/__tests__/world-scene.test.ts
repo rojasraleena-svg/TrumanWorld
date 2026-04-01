@@ -14,6 +14,7 @@ jest.mock("phaser", () => ({
         setFillStyle: jest.fn().mockReturnThis(),
         setScale: jest.fn().mockReturnThis(),
         setSize: jest.fn().mockReturnThis(),
+        setVisible: jest.fn().mockReturnThis(),
         on: jest.fn(),
         destroy: jest.fn(),
       })),
@@ -28,6 +29,7 @@ jest.mock("phaser", () => ({
         setFillStyle: jest.fn().mockReturnThis(),
         setScale: jest.fn().mockReturnThis(),
         setPosition: jest.fn().mockReturnThis(),
+        setVisible: jest.fn().mockReturnThis(),
         on: jest.fn(),
         destroy: jest.fn(),
       })),
@@ -44,6 +46,7 @@ jest.mock("phaser", () => ({
         setRotation: jest.fn().mockReturnThis(),
         setPosition: jest.fn().mockReturnThis(),
         setAlpha: jest.fn().mockReturnThis(),
+        setScale: jest.fn().mockReturnThis(),
         destroy: jest.fn(),
       })),
       text: jest.fn(() => ({
@@ -53,6 +56,7 @@ jest.mock("phaser", () => ({
         setText: jest.fn().mockReturnThis(),
         setAlpha: jest.fn().mockReturnThis(),
         setScale: jest.fn().mockReturnThis(),
+        setVisible: jest.fn().mockReturnThis(),
         destroy: jest.fn(),
       })),
     };
@@ -60,6 +64,7 @@ jest.mock("phaser", () => ({
       main: {
         setBackgroundColor: jest.fn(),
         setZoom: jest.fn(),
+        pan: jest.fn(),
       },
     };
     tweens = {

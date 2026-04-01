@@ -13,6 +13,7 @@ const LOCATION_HEIGHT = 58;
 type LocationNode = {
   glow: Phaser.GameObjects.Arc;
   body: Phaser.GameObjects.Rectangle;
+  icon: Phaser.GameObjects.Text;
   label: Phaser.GameObjects.Text;
   badge: Phaser.GameObjects.Text;
   pulseTween?: Phaser.Tweens.Tween;
@@ -20,6 +21,7 @@ type LocationNode = {
 
 type AgentNode = {
   body: Phaser.GameObjects.Arc;
+  marker: Phaser.GameObjects.Text;
   label: Phaser.GameObjects.Text;
   pulseTween?: Phaser.Tweens.Tween;
 };
@@ -35,6 +37,11 @@ type BubbleNode = {
   box: Phaser.GameObjects.Rectangle;
   text: Phaser.GameObjects.Text;
   floatTween?: Phaser.Tweens.Tween;
+};
+
+type TooltipNode = {
+  box: Phaser.GameObjects.Rectangle;
+  text: Phaser.GameObjects.Text;
 };
 
 function mapSvgToCanvas(x: number, y: number) {
@@ -85,6 +92,38 @@ function getAgentColor(status: SceneAgent["status"]) {
   }
 }
 
+function getLocationGlyph(locationType: string) {
+  switch (locationType) {
+    case "cafe":
+      return "C";
+    case "plaza":
+      return "P";
+    case "park":
+      return "G";
+    case "office":
+      return "O";
+    case "home":
+      return "H";
+    default:
+      return "L";
+  }
+}
+
+function getAgentMarker(status: SceneAgent["status"]) {
+  switch (status) {
+    case "moving":
+      return ">";
+    case "talking":
+      return "~";
+    case "working":
+      return "+";
+    case "resting":
+      return "z";
+    default:
+      return ".";
+  }
+}
+
 function getArrowAngleDegrees(fromX: number, fromY: number, toX: number, toY: number) {
   return Phaser.Math.RadToDeg(Phaser.Math.Angle.Between(fromX, fromY, toX, toY)) + 90;
 }
@@ -95,6 +134,8 @@ export class WorldScene extends Phaser.Scene {
   private trailNodes = new Map<string, TrailNode>();
   private bubbleNodes = new Map<string, BubbleNode>();
   private ambienceOverlay: Phaser.GameObjects.Rectangle | null = null;
+  private ambienceLabel: Phaser.GameObjects.Text | null = null;
+  private tooltip: TooltipNode | null = null;
   private currentWorld: SceneWorld | null = null;
   private highlightedLocationId: string | null = null;
   private highlightedAgentId: string | null = null;
@@ -123,6 +164,31 @@ export class WorldScene extends Phaser.Scene {
       .rectangle(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH, CANVAS_HEIGHT, 0xffffff)
       .setDepth(-18)
       .setAlpha(0);
+
+    this.ambienceLabel = this.add
+      .text(20, 20, "World Stage", {
+        color: "#e2e8f0",
+        fontFamily: "ui-monospace, SFMono-Regular, monospace",
+        fontSize: "12px",
+        fontStyle: "600",
+      })
+      .setDepth(60);
+
+    const tooltipBox = this.add
+      .rectangle(0, 0, 160, 32, 0x020617, 0.92)
+      .setStrokeStyle(1, 0x334155, 0.9)
+      .setDepth(90)
+      .setVisible(false);
+    const tooltipText = this.add
+      .text(0, 0, "", {
+        color: "#e2e8f0",
+        fontFamily: "ui-monospace, SFMono-Regular, monospace",
+        fontSize: "11px",
+      })
+      .setOrigin(0.5)
+      .setDepth(91)
+      .setVisible(false);
+    this.tooltip = { box: tooltipBox, text: tooltipText };
   }
 
   syncWorld(world: SceneWorld): void {
@@ -141,11 +207,13 @@ export class WorldScene extends Phaser.Scene {
   setHighlightedLocation(locationId: string | null): void {
     this.highlightedLocationId = locationId;
     this.refreshLocationHighlights();
+    this.focusCameraOnSelection();
   }
 
   setHighlightedAgent(agentId: string | null): void {
     this.highlightedAgentId = agentId;
     this.refreshAgentHighlights();
+    this.focusCameraOnSelection();
   }
 
   private syncLocations(locations: SceneLocation[]): void {
@@ -158,6 +226,7 @@ export class WorldScene extends Phaser.Scene {
       node.pulseTween?.stop();
       node.glow.destroy();
       node.body.destroy();
+      node.icon.destroy();
       node.label.destroy();
       node.badge.destroy();
       this.locationNodes.delete(locationId);
@@ -181,6 +250,8 @@ export class WorldScene extends Phaser.Scene {
         );
         existing.body.setPosition(point.x, point.y);
         existing.body.setFillStyle(fillColor, alpha);
+        existing.icon.setPosition(point.x, point.y - 18);
+        existing.icon.setText(getLocationGlyph(location.locationType));
         existing.label.setPosition(point.x, point.y - 6);
         existing.label.setText(location.name);
         existing.badge.setPosition(point.x, point.y + 12);
@@ -196,6 +267,15 @@ export class WorldScene extends Phaser.Scene {
         .setStrokeStyle(2, 0xe2e8f0, 0.75)
         .setDepth(10)
         .setInteractive({ cursor: "pointer" });
+      const icon = this.add
+        .text(point.x, point.y - 18, getLocationGlyph(location.locationType), {
+          color: "#f8fafc",
+          fontFamily: "ui-monospace, SFMono-Regular, monospace",
+          fontSize: "14px",
+          fontStyle: "700",
+        })
+        .setOrigin(0.5)
+        .setDepth(11);
       const label = this.add
         .text(point.x, point.y - 6, location.name, {
           color: "#e2e8f0",
@@ -215,7 +295,14 @@ export class WorldScene extends Phaser.Scene {
         .setDepth(11);
 
       body.on("pointerdown", () => {
+        this.playTapFeedback(body, icon, label, badge);
         this.events.emit("location:click", location.id);
+      });
+      body.on("pointerover", () => {
+        this.showTooltip(point.x, point.y - 48, `${location.name} / ${location.locationType}`);
+      });
+      body.on("pointerout", () => {
+        this.hideTooltip();
       });
 
       const pulseTween =
@@ -231,7 +318,7 @@ export class WorldScene extends Phaser.Scene {
             })
           : undefined;
 
-      this.locationNodes.set(location.id, { glow, body, label, badge, pulseTween });
+      this.locationNodes.set(location.id, { glow, body, icon, label, badge, pulseTween });
     }
 
     this.refreshLocationHighlights();
@@ -247,6 +334,7 @@ export class WorldScene extends Phaser.Scene {
       }
       node.pulseTween?.stop();
       node.body.destroy();
+      node.marker.destroy();
       node.label.destroy();
       this.agentNodes.delete(agentId);
     }
@@ -270,6 +358,13 @@ export class WorldScene extends Phaser.Scene {
           ease: "Quad.Out",
         });
         this.tweens.add({
+          targets: existing.marker,
+          x: point.x,
+          y: point.y - 14,
+          duration: 260,
+          ease: "Quad.Out",
+        });
+        this.tweens.add({
           targets: existing.label,
           x: point.x,
           y: point.y + 14,
@@ -277,6 +372,7 @@ export class WorldScene extends Phaser.Scene {
           ease: "Quad.Out",
         });
         existing.body.setFillStyle(fillColor, 1);
+        existing.marker.setText(getAgentMarker(agent.status));
         existing.label.setText(agent.name);
         continue;
       }
@@ -286,6 +382,15 @@ export class WorldScene extends Phaser.Scene {
         .setStrokeStyle(2, 0x0f172a, 0.75)
         .setDepth(20)
         .setInteractive({ cursor: "pointer" });
+      const marker = this.add
+        .text(point.x, point.y - 14, getAgentMarker(agent.status), {
+          color: "#cbd5e1",
+          fontFamily: "ui-monospace, SFMono-Regular, monospace",
+          fontSize: "10px",
+          fontStyle: "700",
+        })
+        .setOrigin(0.5)
+        .setDepth(21);
       const label = this.add
         .text(point.x, point.y + 14, agent.name, {
           color: "#f8fafc",
@@ -296,10 +401,17 @@ export class WorldScene extends Phaser.Scene {
         .setDepth(21);
 
       body.on("pointerdown", () => {
+        this.playTapFeedback(body, marker, label);
         this.events.emit("agent:click", agent.id);
       });
+      body.on("pointerover", () => {
+        this.showTooltip(point.x, point.y - 34, `${agent.name} / ${agent.status}`);
+      });
+      body.on("pointerout", () => {
+        this.hideTooltip();
+      });
 
-      this.agentNodes.set(agent.id, { body, label });
+      this.agentNodes.set(agent.id, { body, marker, label });
     }
 
     this.refreshAgentHighlights();
@@ -461,6 +573,7 @@ export class WorldScene extends Phaser.Scene {
       parseRgbaColor(world.ambience.overlayColor),
       world.ambience.isDark ? 0.24 : 0.1
     );
+    this.ambienceLabel?.setText(`Stage / ${world.ambience.label}`);
   }
 
   private getAgentPosition(location: SceneLocation, slotIndex: number) {
@@ -496,9 +609,10 @@ export class WorldScene extends Phaser.Scene {
       node.pulseTween?.stop();
       if (isHighlighted) {
         node.body.setStrokeStyle(3, 0xfef08a, 1);
+        node.marker.setScale(1.08);
         node.label.setScale(1.08);
         node.pulseTween = this.tweens.add({
-          targets: [node.body, node.label],
+          targets: [node.body, node.marker, node.label],
           scale: { from: 1, to: 1.08 },
           duration: 700,
           yoyo: true,
@@ -508,9 +622,69 @@ export class WorldScene extends Phaser.Scene {
       } else {
         node.body.setStrokeStyle(2, 0x0f172a, 0.75);
         node.body.setScale(1);
+        node.marker.setScale(1);
         node.label.setScale(1);
         node.pulseTween = undefined;
       }
     }
+  }
+
+  private focusCameraOnSelection(): void {
+    const camera = this.cameras.main;
+    const targetAgentNode = this.highlightedAgentId
+      ? this.agentNodes.get(this.highlightedAgentId)
+      : undefined;
+    if (targetAgentNode) {
+      camera.pan(targetAgentNode.body.x, targetAgentNode.body.y, 320, "Sine.easeInOut", true);
+      return;
+    }
+
+    const targetLocationNode = this.highlightedLocationId
+      ? this.locationNodes.get(this.highlightedLocationId)
+      : undefined;
+    if (targetLocationNode) {
+      camera.pan(
+        targetLocationNode.body.x,
+        targetLocationNode.body.y,
+        320,
+        "Sine.easeInOut",
+        true
+      );
+      return;
+    }
+
+    camera.pan(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 320, "Sine.easeInOut", true);
+  }
+
+  private showTooltip(x: number, y: number, text: string): void {
+    if (!this.tooltip) {
+      return;
+    }
+
+    const width = Math.min(220, Math.max(120, text.length * 7 + 18));
+    this.tooltip.box.setPosition(x, y);
+    this.tooltip.box.setSize(width, 30);
+    this.tooltip.box.setVisible(true);
+    this.tooltip.text.setPosition(x, y);
+    this.tooltip.text.setText(text);
+    this.tooltip.text.setVisible(true);
+  }
+
+  private hideTooltip(): void {
+    if (!this.tooltip) {
+      return;
+    }
+    this.tooltip.box.setVisible(false);
+    this.tooltip.text.setVisible(false);
+  }
+
+  private playTapFeedback(...targets: Phaser.GameObjects.GameObject[]): void {
+    this.tweens.add({
+      targets,
+      scale: { from: 1, to: 1.08 },
+      duration: 110,
+      yoyo: true,
+      ease: "Quad.Out",
+    });
   }
 }
