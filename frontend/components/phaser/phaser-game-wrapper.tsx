@@ -62,7 +62,12 @@ export function PhaserGameWrapper({
       width,
       height,
       backgroundColor: "#0f172a",
-      pixelArt: false,
+      pixelArt: true,
+      render: {
+        pixelArt: true,
+        antialias: false,
+        roundPixels: true,
+      },
       zoom,
       scene: [WorldScene],
       scale: {

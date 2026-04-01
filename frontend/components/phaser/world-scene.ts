@@ -9,10 +9,13 @@ const LOCATION_WIDTH = 88;
 const LOCATION_HEIGHT = 58;
 const SCENE_PADDING_X = 120;
 const SCENE_PADDING_Y = 90;
+const PIXEL_SCALE = 3;
+const BUILDING_TEXTURE_SIZE = 24;
+const AGENT_TEXTURE_SIZE = 16;
 
 type LocationNode = {
   glow: Phaser.GameObjects.Arc;
-  body: Phaser.GameObjects.Rectangle;
+  body: Phaser.GameObjects.Image;
   icon: Phaser.GameObjects.Text;
   label: Phaser.GameObjects.Text;
   badge: Phaser.GameObjects.Text;
@@ -20,7 +23,7 @@ type LocationNode = {
 };
 
 type AgentNode = {
-  body: Phaser.GameObjects.Arc;
+  body: Phaser.GameObjects.Image;
   marker: Phaser.GameObjects.Text;
   label: Phaser.GameObjects.Text;
   pulseTween?: Phaser.Tweens.Tween;
@@ -102,6 +105,10 @@ function getLocationGlyph(locationType: string) {
   }
 }
 
+function getLocationTextureKey(locationType: string) {
+  return `pixel-building-${locationType}`;
+}
+
 function getAgentMarker(status: SceneAgent["status"]) {
   switch (status) {
     case "moving":
@@ -115,6 +122,10 @@ function getAgentMarker(status: SceneAgent["status"]) {
     default:
       return ".";
   }
+}
+
+function getAgentTextureKey(status: SceneAgent["status"]) {
+  return `pixel-agent-${status}`;
 }
 
 function getArrowAngleDegrees(fromX: number, fromY: number, toX: number, toY: number) {
@@ -142,6 +153,7 @@ export class WorldScene extends Phaser.Scene {
   create(_initialWorld?: SceneWorld): void {
     this.cameras.main.setBackgroundColor("#0f172a");
     this.cameras.main.setZoom(1);
+    this.createPixelTextures();
 
     this.add
       .rectangle(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH, CANVAS_HEIGHT, 0x13233c)
@@ -236,7 +248,6 @@ export class WorldScene extends Phaser.Scene {
     for (const location of locations) {
       const point = this.mapWorldToCanvas(location.x, location.y, locations);
       const existing = this.locationNodes.get(location.id);
-      const fillColor = getLocationColor(location.locationType);
       const occupantRatio =
         location.capacity > 0 ? Math.min(location.occupantCount / location.capacity, 1) : 0;
       const alpha = 0.42 + occupantRatio * 0.45;
@@ -250,7 +261,7 @@ export class WorldScene extends Phaser.Scene {
           0.08 + location.heat * 0.22
         );
         existing.body.setPosition(point.x, point.y);
-        existing.body.setFillStyle(fillColor, alpha);
+        existing.body.setAlpha(alpha);
         existing.icon.setPosition(point.x, point.y - 18);
         existing.icon.setText(getLocationGlyph(location.locationType));
         existing.label.setPosition(point.x, point.y - 6);
@@ -264,8 +275,9 @@ export class WorldScene extends Phaser.Scene {
         .circle(point.x, point.y, 38 + location.heat * 18, Number.parseInt(heatLevel.color.replace("#", ""), 16), 0.08 + location.heat * 0.22)
         .setDepth(8);
       const body = this.add
-        .rectangle(point.x, point.y, LOCATION_WIDTH, LOCATION_HEIGHT, fillColor, alpha)
-        .setStrokeStyle(2, 0xe2e8f0, 0.75)
+        .image(point.x, point.y, getLocationTextureKey(location.locationType))
+        .setDisplaySize(LOCATION_WIDTH, LOCATION_HEIGHT)
+        .setAlpha(alpha)
         .setDepth(10)
         .setInteractive({ cursor: "pointer" });
       const icon = this.add
@@ -347,7 +359,6 @@ export class WorldScene extends Phaser.Scene {
       }
 
       const point = this.getAgentPosition(location, agent.slotIndex);
-      const fillColor = getAgentColor(agent.status);
       const existing = this.agentNodes.get(agent.id);
 
       if (existing) {
@@ -372,15 +383,16 @@ export class WorldScene extends Phaser.Scene {
           duration: 260,
           ease: "Quad.Out",
         });
-        existing.body.setFillStyle(fillColor, 1);
+        existing.body.setTexture(getAgentTextureKey(agent.status));
+        existing.body.setAlpha(1);
         existing.marker.setText(getAgentMarker(agent.status));
         existing.label.setText(agent.name);
         continue;
       }
 
       const body = this.add
-        .circle(point.x, point.y, 10, fillColor, 1)
-        .setStrokeStyle(2, 0x0f172a, 0.75)
+        .image(point.x, point.y, getAgentTextureKey(agent.status))
+        .setDisplaySize(AGENT_TEXTURE_SIZE * PIXEL_SCALE, AGENT_TEXTURE_SIZE * PIXEL_SCALE)
         .setDepth(20)
         .setInteractive({ cursor: "pointer" });
       const marker = this.add
@@ -597,11 +609,13 @@ export class WorldScene extends Phaser.Scene {
   private refreshLocationHighlights(): void {
     for (const [locationId, node] of this.locationNodes.entries()) {
       const isHighlighted = this.highlightedLocationId === locationId;
-      node.body.setStrokeStyle(
-        isHighlighted ? 3 : 2,
-        isHighlighted ? 0xf8fafc : 0xe2e8f0,
-        isHighlighted ? 1 : 0.75
-      );
+      if (isHighlighted) {
+        node.body.setTint(0xf8fafc);
+        node.body.setScale(1.06);
+      } else {
+        node.body.clearTint();
+        node.body.setScale(1);
+      }
       node.label.setScale(isHighlighted ? 1.05 : 1);
       node.badge.setScale(isHighlighted ? 1.05 : 1);
       node.glow.setAlpha(isHighlighted ? 0.34 : node.glow.alpha);
@@ -613,7 +627,7 @@ export class WorldScene extends Phaser.Scene {
       const isHighlighted = this.highlightedAgentId === agentId;
       node.pulseTween?.stop();
       if (isHighlighted) {
-        node.body.setStrokeStyle(3, 0xfef08a, 1);
+        node.body.setTint(0xfef08a);
         node.marker.setScale(1.08);
         node.label.setScale(1.08);
         node.pulseTween = this.tweens.add({
@@ -625,7 +639,7 @@ export class WorldScene extends Phaser.Scene {
           ease: "Sine.InOut",
         });
       } else {
-        node.body.setStrokeStyle(2, 0x0f172a, 0.75);
+        node.body.clearTint();
         node.body.setScale(1);
         node.marker.setScale(1);
         node.label.setScale(1);
@@ -724,5 +738,77 @@ export class WorldScene extends Phaser.Scene {
       x: SCENE_PADDING_X + normalizedX * (CANVAS_WIDTH - SCENE_PADDING_X * 2),
       y: SCENE_PADDING_Y + normalizedY * (CANVAS_HEIGHT - SCENE_PADDING_Y * 2),
     };
+  }
+
+  private createPixelTextures(): void {
+    const locationTypes = [
+      "cafe",
+      "plaza",
+      "park",
+      "office",
+      "home",
+      "library",
+      "dorm",
+      "lecture_hall",
+      "quad",
+    ];
+    for (const locationType of locationTypes) {
+      const key = getLocationTextureKey(locationType);
+      if (!this.textures.exists(key)) {
+        this.generateBuildingTexture(key, locationType);
+      }
+    }
+
+    const statuses: SceneAgent["status"][] = [
+      "idle",
+      "moving",
+      "talking",
+      "working",
+      "resting",
+    ];
+    for (const status of statuses) {
+      const key = getAgentTextureKey(status);
+      if (!this.textures.exists(key)) {
+        this.generateAgentTexture(key, status);
+      }
+    }
+  }
+
+  private generateBuildingTexture(key: string, locationType: string): void {
+    const graphics = this.make.graphics({ x: 0, y: 0 }, false);
+    const baseColor = getLocationColor(locationType);
+    const roofColor = Phaser.Display.Color.IntegerToColor(baseColor).darken(20).color;
+    const lightColor = Phaser.Display.Color.IntegerToColor(baseColor).lighten(25).color;
+
+    graphics.fillStyle(roofColor, 1);
+    graphics.fillRect(1, 2, BUILDING_TEXTURE_SIZE - 2, 5);
+    graphics.fillStyle(baseColor, 1);
+    graphics.fillRect(4, 7, BUILDING_TEXTURE_SIZE - 8, BUILDING_TEXTURE_SIZE - 9);
+    graphics.fillStyle(lightColor, 1);
+    graphics.fillRect(7, 10, 3, 3);
+    graphics.fillRect(14, 10, 3, 3);
+    graphics.fillStyle(0x0f172a, 1);
+    graphics.fillRect(10, 15, 4, 7);
+    graphics.lineStyle(1, 0xe2e8f0, 0.65);
+    graphics.strokeRect(4, 7, BUILDING_TEXTURE_SIZE - 8, BUILDING_TEXTURE_SIZE - 9);
+    graphics.generateTexture(key, BUILDING_TEXTURE_SIZE, BUILDING_TEXTURE_SIZE);
+    graphics.destroy();
+  }
+
+  private generateAgentTexture(key: string, status: SceneAgent["status"]): void {
+    const graphics = this.make.graphics({ x: 0, y: 0 }, false);
+    const bodyColor = getAgentColor(status);
+    const accentColor = Phaser.Display.Color.IntegerToColor(bodyColor).lighten(18).color;
+
+    graphics.fillStyle(0x0f172a, 1);
+    graphics.fillRect(5, 1, 6, 4);
+    graphics.fillStyle(accentColor, 1);
+    graphics.fillRect(4, 5, 8, 4);
+    graphics.fillStyle(bodyColor, 1);
+    graphics.fillRect(3, 9, 10, 4);
+    graphics.fillRect(4, 13, 3, 3);
+    graphics.fillRect(9, 13, 3, 3);
+    graphics.generateTexture(key, AGENT_TEXTURE_SIZE, AGENT_TEXTURE_SIZE);
+    graphics.destroy();
   }
 }
