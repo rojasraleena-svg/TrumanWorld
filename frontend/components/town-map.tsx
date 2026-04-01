@@ -118,13 +118,13 @@ interface MiniMapProps {
 function MiniMap({ nodes, links, viewBox, isDark, onNavigate }: MiniMapProps) {
   const mmDragRef = useRef<{ startX: number; startY: number; startVbX: number; startVbY: number } | null>(null);
 
-  // SVG坐标 → 小地图坐标
+  // SVG 坐标 → 小地图坐标
   const toMM = (svgX: number, svgY: number) => ({
     x: MM_PAD + ((svgX / SVG_W) * (MM_W - MM_PAD * 2)),
     y: MM_PAD + ((svgY / SVG_H) * (MM_H - MM_PAD * 2)),
   });
 
-  // 小地图坐标 → SVG坐标
+  // 小地图坐标 → SVG 坐标
   const toSVG = (mmX: number, mmY: number) => ({
     x: ((mmX - MM_PAD) / (MM_W - MM_PAD * 2)) * SVG_W,
     y: ((mmY - MM_PAD) / (MM_H - MM_PAD * 2)) * SVG_H,
@@ -136,9 +136,11 @@ function MiniMap({ nodes, links, viewBox, isDark, onNavigate }: MiniMapProps) {
   const frameW = (viewBox.width / SVG_W) * (MM_W - MM_PAD * 2);
   const frameH = (viewBox.height / SVG_H) * (MM_H - MM_PAD * 2);
 
-  const bgColor = isDark ? "rgba(15,23,42,0.88)" : "rgba(255,255,255,0.88)";
-  const borderColor = isDark ? "rgba(100,116,139,0.5)" : "rgba(148,163,184,0.4)";
-  const linkColor = isDark ? "rgba(100,116,139,0.3)" : "rgba(148,163,184,0.4)";
+  // 样式 - 增加渐变和网格
+  const borderColor = isDark ? "rgba(100,116,139,0.6)" : "rgba(148,163,184,0.5)";
+  const gridColor = isDark ? "rgba(100,116,139,0.15)" : "rgba(148,163,184,0.18)";
+  const linkColor = isDark ? "rgba(100,116,139,0.4)" : "rgba(148,163,184,0.5)";
+  const frameGlowColor = isDark ? "rgba(59,130,246,0.4)" : "rgba(59,130,246,0.3)";
 
   const handleClick = (e: MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -177,9 +179,43 @@ function MiniMap({ nodes, links, viewBox, isDark, onNavigate }: MiniMapProps) {
       viewBox={`0 0 ${MM_W} ${MM_H}`}
       onClick={handleClick}
       className="cursor-crosshair"
+      style={{
+        filter: isDark 
+          ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))' 
+          : 'drop-shadow(0 2px 8px rgba(0,0,0,0.15))'
+      }}
     >
+      <defs>
+        {/* 背景渐变 */}
+        <radialGradient id="mm-bg-gradient" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stopColor={isDark ? "rgba(30,41,59,0.7)" : "rgba(241,245,249,0.7)"} />
+          <stop offset="100%" stopColor={isDark ? "rgba(15,23,42,0.95)" : "rgba(255,255,255,0.95)"} />
+        </radialGradient>
+        {/* 网格图案 */}
+        <pattern id="mm-grid" width="16" height="16" patternUnits="userSpaceOnUse">
+          <path d="M 16 0 L 0 0 0 16" fill="none" stroke={gridColor} strokeWidth="0.5" />
+        </pattern>
+        {/* 视口框光晕 */}
+        <filter id="mm-frame-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="1.5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
       {/* 背景 */}
-      <rect x={0} y={0} width={MM_W} height={MM_H} fill={bgColor} stroke={borderColor} strokeWidth={1} />
+      <rect 
+        x={0} y={0} width={MM_W} height={MM_H} 
+        fill="url(#mm-bg-gradient)" 
+        stroke={borderColor} 
+        strokeWidth={1}
+        rx={8}
+      />
+      
+      {/* 网格 */}
+      <rect x={0} y={0} width={MM_W} height={MM_H} fill="url(#mm-grid)" rx={8} />
 
       {/* 连线 */}
       {links.map((link) => {
@@ -191,7 +227,7 @@ function MiniMap({ nodes, links, viewBox, isDark, onNavigate }: MiniMapProps) {
         return (
           <line key={`mm-${link.source}-${link.target}`}
             x1={sp.x} y1={sp.y} x2={tp.x} y2={tp.y}
-            stroke={linkColor} strokeWidth={0.8} />
+            stroke={linkColor} strokeWidth={1} />
         );
       })}
 
@@ -200,38 +236,54 @@ function MiniMap({ nodes, links, viewBox, isDark, onNavigate }: MiniMapProps) {
         const { x, y } = toMM(node.svgX, node.svgY);
         const style = LOCATION_STYLES[node.type] ?? LOCATION_STYLES.default;
         const hasOccupants = node.occupantCount > 0;
+        const isActive = node.heat && node.heat > 0.5;
+        
         return (
           <g key={`mm-node-${node.id}`}>
+            {/* 活跃地点外层光晕 */}
+            {isActive && (
+              <circle cx={x} cy={y} r={9} fill={style.color} opacity={0.08} />
+            )}
             {/* 热力光晕（有人时显示） */}
             {hasOccupants && (
-              <circle cx={x} cy={y} r={7} fill={style.color} opacity={0.15} />
+              <circle cx={x} cy={y} r={7} fill={style.color} opacity={0.2} />
             )}
+            {/* 主圆点 */}
             <circle
               cx={x} cy={y} r={hasOccupants ? 4.5 : 3}
               fill={hasOccupants ? style.color : (isDark ? "#475569" : "#94a3b8")}
-              stroke={isDark ? "rgba(15,23,42,0.6)" : "rgba(255,255,255,0.8)"}
-              strokeWidth={1}
+              stroke={isDark ? "rgba(15,23,42,0.8)" : "rgba(255,255,255,0.9)"}
+              strokeWidth={1.5}
             />
             {/* 有人数时显示小计数徽章 */}
             {node.occupantCount > 0 && (
-              <text x={x + 5} y={y - 4}
-                fontSize={5} fontWeight="700"
-                fill={isDark ? "#94a3b8" : "#64748b"}
-                textAnchor="start">
-                {node.occupantCount}
-              </text>
+              <g>
+                <circle
+                  cx={x + 6} cy={y - 3} r={4}
+                  fill={isDark ? "#1e293b" : "#ffffff"}
+                  stroke={isDark ? "#475569" : "#e2e8f0"}
+                  strokeWidth={1}
+                />
+                <text x={x + 6} y={y - 1.5}
+                  fontSize={4.5} fontWeight="700"
+                  fill={isDark ? "#94a3b8" : "#64748b"}
+                  textAnchor="middle">
+                  {node.occupantCount}
+                </text>
+              </g>
             )}
           </g>
         );
       })}
 
-      {/* 视口指示框 */}
+      {/* 视口指示框 - 增加光晕效果 */}
       <rect
         x={frameX} y={frameY} width={Math.max(frameW, 4)} height={Math.max(frameH, 4)}
-        fill="rgba(59,130,246,0.08)"
-        stroke="rgba(59,130,246,0.7)"
-        strokeWidth={1.2}
-        rx={2}
+        fill="rgba(59,130,246,0.12)"
+        stroke="rgba(59,130,246,0.85)"
+        strokeWidth={1.5}
+        rx={3}
+        filter="url(#mm-frame-glow)"
         className="cursor-move"
         onPointerDown={handleFramePointerDown}
         onPointerMove={handleFramePointerMove}

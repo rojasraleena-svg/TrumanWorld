@@ -48,9 +48,7 @@ export function AgentAvatar({
   configId,
 }: AgentAvatarProps) {
   const dimensions = sizeMap[size];
-  const [useCustomLogo, setUseCustomLogo] = useState(
-    !!configId  // 只要有 configId 就先尝试加载，失败后 onError 降级
-  );
+  const [logoState, setLogoState] = useState<"loading" | "custom" | "fallback">("loading");
 
   // 使用 agentId 作为种子生成确定性头像（作为后备）
   const avatarSvg = useMemo(() => {
@@ -67,6 +65,9 @@ export function AgentAvatar({
 
   // 自定义 logo URL - 直接使用 public 目录下的静态文件
   const customLogoUrl = configId ? `/agents/${configId}.svg` : null;
+  
+  // 根据状态决定是否使用自定义 logo
+  const useCustomLogo = logoState === "custom" && customLogoUrl !== null;
 
   return (
     <motion.div
@@ -115,13 +116,18 @@ export function AgentAvatar({
             width={dimensions.container - 4}
             height={dimensions.container - 4}
             className="object-cover"
-            onError={() => setUseCustomLogo(false)}
+            onError={() => {
+              console.log(`Failed to load custom logo for agent ${agentId}, using fallback avatar`);
+              setLogoState("fallback");
+            }}
+            onLoad={() => setLogoState("custom")}
             priority
           />
         ) : (
           <div
             dangerouslySetInnerHTML={{ __html: avatarSvg }}
             className="w-full h-full"
+            title={!configId ? "默认头像" : `使用 DiceBear 生成的默认头像`}
           />
         )}
       </div>
