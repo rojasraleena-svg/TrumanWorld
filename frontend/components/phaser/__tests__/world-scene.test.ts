@@ -1,0 +1,93 @@
+import { WorldScene } from "../world-scene";
+
+import type { SceneWorld } from "@/lib/world-scene-adapter";
+
+jest.mock("phaser", () => ({
+  Scene: class MockScene {
+    add = {
+      rectangle: jest.fn(() => ({
+        setDepth: jest.fn().mockReturnThis(),
+        setAlpha: jest.fn().mockReturnThis(),
+        setStrokeStyle: jest.fn().mockReturnThis(),
+        setInteractive: jest.fn().mockReturnThis(),
+        setPosition: jest.fn().mockReturnThis(),
+        setFillStyle: jest.fn().mockReturnThis(),
+        on: jest.fn(),
+        destroy: jest.fn(),
+      })),
+      ellipse: jest.fn(() => ({
+        setDepth: jest.fn().mockReturnThis(),
+        setAlpha: jest.fn().mockReturnThis(),
+      })),
+      circle: jest.fn(() => ({
+        setDepth: jest.fn().mockReturnThis(),
+        setStrokeStyle: jest.fn().mockReturnThis(),
+        setInteractive: jest.fn().mockReturnThis(),
+        setFillStyle: jest.fn().mockReturnThis(),
+        on: jest.fn(),
+        destroy: jest.fn(),
+      })),
+      text: jest.fn(() => ({
+        setOrigin: jest.fn().mockReturnThis(),
+        setDepth: jest.fn().mockReturnThis(),
+        setPosition: jest.fn().mockReturnThis(),
+        setText: jest.fn().mockReturnThis(),
+        destroy: jest.fn(),
+      })),
+    };
+    cameras = {
+      main: {
+        setBackgroundColor: jest.fn(),
+        setZoom: jest.fn(),
+      },
+    };
+    tweens = {
+      add: jest.fn(),
+    };
+    events = {
+      emit: jest.fn(),
+    };
+    sys = {
+      config: { key: "WorldScene" },
+    };
+  },
+}));
+
+describe("WorldScene", () => {
+  const sceneWorld: SceneWorld = {
+    runId: "run-1",
+    locations: [
+      {
+        id: "loc-1",
+        name: "Cafe",
+        locationType: "cafe",
+        x: 100,
+        y: 120,
+        capacity: 6,
+        occupantCount: 1,
+      },
+    ],
+    agents: [
+      {
+        id: "agent-1",
+        name: "Mei",
+        locationId: "loc-1",
+        status: "talking",
+        slotIndex: 0,
+      },
+    ],
+  };
+
+  it("creates the scene shell", () => {
+    const scene = new WorldScene();
+    scene.create();
+    expect(scene).toBeDefined();
+  });
+
+  it("syncs location and agent nodes", () => {
+    const scene = new WorldScene();
+    scene.create();
+    scene.syncWorld(sceneWorld);
+    expect(scene).toBeDefined();
+  });
+});

@@ -140,8 +140,6 @@ function MiniMap({ nodes, links, viewBox, isDark, onNavigate }: MiniMapProps) {
   const borderColor = isDark ? "rgba(100,116,139,0.6)" : "rgba(148,163,184,0.5)";
   const gridColor = isDark ? "rgba(100,116,139,0.15)" : "rgba(148,163,184,0.18)";
   const linkColor = isDark ? "rgba(100,116,139,0.4)" : "rgba(148,163,184,0.5)";
-  const frameGlowColor = isDark ? "rgba(59,130,246,0.4)" : "rgba(59,130,246,0.3)";
-
   const handleClick = (e: MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const mmX = ((e.clientX - rect.left) / rect.width) * MM_W;

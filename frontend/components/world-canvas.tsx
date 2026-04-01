@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { AgentAvatar } from "@/components/agent-avatar";
+import { PhaserGameWrapper, ViewToggleButton } from "@/components/phaser";
 import { TownMap } from "@/components/town-map";
 import { inferAgentStatus } from "@/lib/agent-utils";
 import { IntelligenceStreamModal } from "@/components/intelligence-stream-modal";
@@ -28,6 +29,7 @@ import {
 } from "@/lib/world-utils";
 import { useUiSearchParams } from "@/lib/ui-url-state";
 import { describeWorldEvent } from "@/lib/event-utils";
+import { buildSceneWorld } from "@/lib/world-scene-adapter";
 
 type Props = {
   runId: string;
@@ -37,6 +39,7 @@ export function WorldCanvas({ runId }: Props) {
   const { world } = useWorld();
   const { searchParams, replaceSearchParams } = useUiSearchParams();
   const [highlightedLocationId, setHighlightedLocationId] = useState<string | null>(null);
+  const [mapView, setMapView] = useState<"svg" | "phaser">("svg");
 
   const modal = searchParams.get("modal");
   const selectedAgentId = searchParams.get("agent");
@@ -105,6 +108,7 @@ export function WorldCanvas({ runId }: Props) {
         : [],
     [world],
   );
+  const sceneWorld = useMemo(() => (world ? buildSceneWorld(world) : null), [world]);
 
   if (!world) {
     return (
@@ -125,18 +129,47 @@ export function WorldCanvas({ runId }: Props) {
     <div className="flex h-full min-h-0 flex-col gap-4">
       <div className="grid h-full min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px_320px]">
         <div className="h-full min-h-[460px]">
-          <TownMap
-            world={world}
-            agentNameMap={agentNameMap}
-            highlightedLocationId={highlightedLocationId}
-            onLocationClick={(locationId) => {
-              setHighlightedLocationId(locationId);
-              replaceSearchParams({ modal: "location", loc: locationId });
-            }}
-            onAgentClick={(agentId) => {
-              replaceSearchParams({ modal: "agent", agent: agentId });
-            }}
-          />
+          <div className="flex h-full min-h-[460px] flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                  World Renderer
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  保留导演控制台结构，仅切换世界渲染层。
+                </p>
+              </div>
+              <ViewToggleButton currentView={mapView} onToggle={setMapView} />
+            </div>
+
+            <div className="min-h-0 flex-1">
+              {mapView === "phaser" && sceneWorld ? (
+                <PhaserGameWrapper
+                  sceneWorld={sceneWorld}
+                  onLocationClick={(locationId) => {
+                    setHighlightedLocationId(locationId);
+                    replaceSearchParams({ modal: "location", loc: locationId });
+                  }}
+                  onAgentClick={(agentId) => {
+                    replaceSearchParams({ modal: "agent", agent: agentId });
+                  }}
+                />
+              ) : (
+                <TownMap
+                  world={world}
+                  agentNameMap={agentNameMap}
+                  highlightedLocationId={highlightedLocationId}
+                  onLocationClick={(locationId) => {
+                    setHighlightedLocationId(locationId);
+                    replaceSearchParams({ modal: "location", loc: locationId });
+                  }}
+                  onAgentClick={(agentId) => {
+                    replaceSearchParams({ modal: "agent", agent: agentId });
+                  }}
+                />
+              )}
+            </div>
+          </div>
         </div>
 
         {/* 中间列：世界健康度 + 地点详情 */}
