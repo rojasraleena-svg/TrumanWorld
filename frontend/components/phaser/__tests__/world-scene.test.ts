@@ -12,6 +12,7 @@ jest.mock("phaser", () => ({
         setInteractive: jest.fn().mockReturnThis(),
         setPosition: jest.fn().mockReturnThis(),
         setFillStyle: jest.fn().mockReturnThis(),
+        setScale: jest.fn().mockReturnThis(),
         on: jest.fn(),
         destroy: jest.fn(),
       })),
@@ -24,7 +25,16 @@ jest.mock("phaser", () => ({
         setStrokeStyle: jest.fn().mockReturnThis(),
         setInteractive: jest.fn().mockReturnThis(),
         setFillStyle: jest.fn().mockReturnThis(),
+        setScale: jest.fn().mockReturnThis(),
+        setPosition: jest.fn().mockReturnThis(),
         on: jest.fn(),
+        destroy: jest.fn(),
+      })),
+      line: jest.fn(() => ({
+        setOrigin: jest.fn().mockReturnThis(),
+        setLineWidth: jest.fn().mockReturnThis(),
+        setDepth: jest.fn().mockReturnThis(),
+        setTo: jest.fn().mockReturnThis(),
         destroy: jest.fn(),
       })),
       text: jest.fn(() => ({
@@ -65,6 +75,7 @@ describe("WorldScene", () => {
         y: 120,
         capacity: 6,
         occupantCount: 1,
+        heat: 0.5,
       },
     ],
     agents: [
@@ -76,6 +87,27 @@ describe("WorldScene", () => {
         slotIndex: 0,
       },
     ],
+    moveTrails: [
+      {
+        id: "move-1",
+        actorName: "Mei",
+        fromLocationId: "loc-1",
+        toLocationId: "loc-1",
+      },
+    ],
+    bubbles: [
+      {
+        id: "bubble-1",
+        text: "你好",
+        speakerName: "Mei",
+        locationId: "loc-1",
+      },
+    ],
+    ambience: {
+      label: "夜晚",
+      overlayColor: "rgba(15, 23, 42, 0.35)",
+      isDark: true,
+    },
   };
 
   it("creates the scene shell", () => {

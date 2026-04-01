@@ -1,6 +1,7 @@
 import * as Phaser from "phaser";
 
 import type { SceneAgent, SceneLocation, SceneWorld } from "@/lib/world-scene-adapter";
+import { getHeatLevel } from "@/lib/world-utils";
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
@@ -10,6 +11,7 @@ const LOCATION_WIDTH = 88;
 const LOCATION_HEIGHT = 58;
 
 type LocationNode = {
+  glow: Phaser.GameObjects.Arc;
   body: Phaser.GameObjects.Rectangle;
   label: Phaser.GameObjects.Text;
   badge: Phaser.GameObjects.Text;
@@ -20,11 +22,30 @@ type AgentNode = {
   label: Phaser.GameObjects.Text;
 };
 
+type TrailNode = {
+  line: Phaser.GameObjects.Line;
+  label: Phaser.GameObjects.Text;
+};
+
+type BubbleNode = {
+  box: Phaser.GameObjects.Rectangle;
+  text: Phaser.GameObjects.Text;
+};
+
 function mapSvgToCanvas(x: number, y: number) {
   return {
     x: (x / SVG_WIDTH) * CANVAS_WIDTH,
     y: (y / SVG_HEIGHT) * CANVAS_HEIGHT,
   };
+}
+
+function parseRgbaColor(input: string): number {
+  const match = input.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+  if (!match) {
+    return 0xffffff;
+  }
+  const [, r, g, b] = match;
+  return (Number(r) << 16) + (Number(g) << 8) + Number(b);
 }
 
 function getLocationColor(locationType: string) {
@@ -62,6 +83,9 @@ function getAgentColor(status: SceneAgent["status"]) {
 export class WorldScene extends Phaser.Scene {
   private locationNodes = new Map<string, LocationNode>();
   private agentNodes = new Map<string, AgentNode>();
+  private trailNodes = new Map<string, TrailNode>();
+  private bubbleNodes = new Map<string, BubbleNode>();
+  private ambienceOverlay: Phaser.GameObjects.Rectangle | null = null;
   private currentWorld: SceneWorld | null = null;
 
   constructor() {
@@ -83,12 +107,20 @@ export class WorldScene extends Phaser.Scene {
       .ellipse(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 680, 460, 0x1e293b)
       .setDepth(-19)
       .setAlpha(0.35);
+
+    this.ambienceOverlay = this.add
+      .rectangle(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH, CANVAS_HEIGHT, 0xffffff)
+      .setDepth(-18)
+      .setAlpha(0);
   }
 
   syncWorld(world: SceneWorld): void {
     this.currentWorld = world;
+    this.syncAmbience(world);
     this.syncLocations(world.locations);
     this.syncAgents(world.agents, world.locations);
+    this.syncMoveTrails(world);
+    this.syncBubbles(world);
   }
 
   updateWorldData(world: SceneWorld): void {
@@ -102,6 +134,7 @@ export class WorldScene extends Phaser.Scene {
       if (activeIds.has(locationId)) {
         continue;
       }
+      node.glow.destroy();
       node.body.destroy();
       node.label.destroy();
       node.badge.destroy();
@@ -115,8 +148,15 @@ export class WorldScene extends Phaser.Scene {
       const occupantRatio =
         location.capacity > 0 ? Math.min(location.occupantCount / location.capacity, 1) : 0;
       const alpha = 0.42 + occupantRatio * 0.45;
+      const heatLevel = getHeatLevel(location.heat);
 
       if (existing) {
+        existing.glow.setPosition(point.x, point.y);
+        existing.glow.setScale((38 + location.heat * 18) / 38);
+        existing.glow.setFillStyle(
+          Number.parseInt(heatLevel.color.replace("#", ""), 16),
+          0.08 + location.heat * 0.22
+        );
         existing.body.setPosition(point.x, point.y);
         existing.body.setFillStyle(fillColor, alpha);
         existing.label.setPosition(point.x, point.y - 6);
@@ -126,6 +166,9 @@ export class WorldScene extends Phaser.Scene {
         continue;
       }
 
+      const glow = this.add
+        .circle(point.x, point.y, 38 + location.heat * 18, Number.parseInt(heatLevel.color.replace("#", ""), 16), 0.08 + location.heat * 0.22)
+        .setDepth(8);
       const body = this.add
         .rectangle(point.x, point.y, LOCATION_WIDTH, LOCATION_HEIGHT, fillColor, alpha)
         .setStrokeStyle(2, 0xe2e8f0, 0.75)
@@ -153,7 +196,7 @@ export class WorldScene extends Phaser.Scene {
         this.events.emit("location:click", location.id);
       });
 
-      this.locationNodes.set(location.id, { body, label, badge });
+      this.locationNodes.set(location.id, { glow, body, label, badge });
     }
   }
 
@@ -220,6 +263,116 @@ export class WorldScene extends Phaser.Scene {
 
       this.agentNodes.set(agent.id, { body, label });
     }
+  }
+
+  private syncMoveTrails(world: SceneWorld): void {
+    const activeIds = new Set(world.moveTrails.map((trail) => trail.id));
+    const locationMap = new Map(world.locations.map((location) => [location.id, location]));
+
+    for (const [trailId, node] of this.trailNodes.entries()) {
+      if (activeIds.has(trailId)) {
+        continue;
+      }
+      node.line.destroy();
+      node.label.destroy();
+      this.trailNodes.delete(trailId);
+    }
+
+    for (const trail of world.moveTrails) {
+      const fromLocation = locationMap.get(trail.fromLocationId);
+      const toLocation = locationMap.get(trail.toLocationId);
+      if (!fromLocation || !toLocation) {
+        continue;
+      }
+
+      const fromPoint = mapSvgToCanvas(fromLocation.x, fromLocation.y);
+      const toPoint = mapSvgToCanvas(toLocation.x, toLocation.y);
+      const midX = (fromPoint.x + toPoint.x) / 2;
+      const midY = (fromPoint.y + toPoint.y) / 2 - 18;
+      const existing = this.trailNodes.get(trail.id);
+
+      if (existing) {
+        existing.line.setTo(fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
+        existing.label.setPosition(midX, midY);
+        existing.label.setText(`${trail.actorName} →`);
+        continue;
+      }
+
+      const line = this.add
+        .line(0, 0, fromPoint.x, fromPoint.y, toPoint.x, toPoint.y, 0x38bdf8, 0.55)
+        .setOrigin(0, 0)
+        .setLineWidth(2, 2)
+        .setDepth(14);
+      const label = this.add
+        .text(midX, midY, `${trail.actorName} →`, {
+          color: "#7dd3fc",
+          fontFamily: "ui-monospace, SFMono-Regular, monospace",
+          fontSize: "10px",
+        })
+        .setOrigin(0.5)
+        .setDepth(15);
+
+      this.trailNodes.set(trail.id, { line, label });
+    }
+  }
+
+  private syncBubbles(world: SceneWorld): void {
+    const activeIds = new Set(world.bubbles.map((bubble) => bubble.id));
+    const locationMap = new Map(world.locations.map((location) => [location.id, location]));
+
+    for (const [bubbleId, node] of this.bubbleNodes.entries()) {
+      if (activeIds.has(bubbleId)) {
+        continue;
+      }
+      node.box.destroy();
+      node.text.destroy();
+      this.bubbleNodes.delete(bubbleId);
+    }
+
+    for (const bubble of world.bubbles) {
+      const location = locationMap.get(bubble.locationId);
+      if (!location) {
+        continue;
+      }
+
+      const point = mapSvgToCanvas(location.x, location.y);
+      const bubbleY = point.y - 58;
+      const textValue = `${bubble.speakerName}: ${bubble.text}`;
+      const existing = this.bubbleNodes.get(bubble.id);
+
+      if (existing) {
+        existing.box.setPosition(point.x, bubbleY);
+        existing.text.setPosition(point.x, bubbleY);
+        existing.text.setText(textValue);
+        continue;
+      }
+
+      const box = this.add
+        .rectangle(point.x, bubbleY, 150, 28, 0xf8fafc, 0.92)
+        .setStrokeStyle(1, 0xcbd5e1, 0.9)
+        .setDepth(30);
+      const text = this.add
+        .text(point.x, bubbleY, textValue, {
+          color: "#0f172a",
+          fontFamily: "ui-monospace, SFMono-Regular, monospace",
+          fontSize: "10px",
+        })
+        .setOrigin(0.5)
+        .setDepth(31);
+
+      this.bubbleNodes.set(bubble.id, { box, text });
+    }
+  }
+
+  private syncAmbience(world: SceneWorld): void {
+    if (!this.ambienceOverlay) {
+      return;
+    }
+
+    this.ambienceOverlay.setFillStyle(
+      parseRgbaColor(world.ambience.overlayColor),
+      world.ambience.isDark ? 0.24 : 0.1
+    );
   }
 
   private getAgentPosition(location: SceneLocation, slotIndex: number) {

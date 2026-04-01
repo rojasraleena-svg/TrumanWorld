@@ -34,6 +34,13 @@ describe("PhaserGameWrapper", () => {
     runId: "run-1",
     locations: [],
     agents: [],
+    moveTrails: [],
+    bubbles: [],
+    ambience: {
+      label: "正午",
+      overlayColor: "rgba(255, 255, 255, 0.1)",
+      isDark: false,
+    },
   };
 
   beforeEach(() => {
