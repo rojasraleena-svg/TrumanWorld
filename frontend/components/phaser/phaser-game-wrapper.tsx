@@ -49,6 +49,7 @@ export function PhaserGameWrapper({
 }: PhaserGameWrapperProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
+  const pendingSceneWorldRef = useRef<SceneWorld | null>(sceneWorld);
 
   useEffect(() => {
     if (!containerRef.current || gameRef.current) {
@@ -70,7 +71,26 @@ export function PhaserGameWrapper({
       },
     });
 
+    const attachReadyListener = window.setInterval(() => {
+      const scene = gameRef.current?.scene.getScene("WorldScene");
+      if (!isWorldScene(scene)) {
+        return;
+      }
+
+      window.clearInterval(attachReadyListener);
+
+      const syncPendingWorld = () => {
+        if (pendingSceneWorldRef.current) {
+          scene.syncWorld(pendingSceneWorldRef.current);
+        }
+      };
+
+      scene.events.on("scene:ready", syncPendingWorld);
+      syncPendingWorld();
+    }, 50);
+
     return () => {
+      window.clearInterval(attachReadyListener);
       if (gameRef.current) {
         gameRef.current.destroy(true);
         gameRef.current = null;
@@ -79,6 +99,7 @@ export function PhaserGameWrapper({
   }, [height, width, zoom]);
 
   useEffect(() => {
+    pendingSceneWorldRef.current = sceneWorld;
     const scene = gameRef.current?.scene.getScene("WorldScene");
     if (!isWorldScene(scene)) {
       return;

@@ -12,7 +12,15 @@ const internalApiBaseUrl =
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: path.join(__dirname, ".."),
-  allowedDevOrigins: ["127.0.0.1", "localhost", "*.local", "10.*", "172.*", "192.168.*"],
+  allowedDevOrigins: [
+    "127.0.0.1",
+    "localhost",
+    "*.local",
+    "10.*",
+    "172.*",
+    "192.168.*",
+    "100.79.129.46",
+  ],
   async rewrites() {
     return [
       {

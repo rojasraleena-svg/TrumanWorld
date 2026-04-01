@@ -5,10 +5,10 @@ import { getHeatLevel } from "@/lib/world-utils";
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
-const SVG_WIDTH = 700;
-const SVG_HEIGHT = 440;
 const LOCATION_WIDTH = 88;
 const LOCATION_HEIGHT = 58;
+const SCENE_PADDING_X = 120;
+const SCENE_PADDING_Y = 90;
 
 type LocationNode = {
   glow: Phaser.GameObjects.Arc;
@@ -43,13 +43,6 @@ type TooltipNode = {
   box: Phaser.GameObjects.Rectangle;
   text: Phaser.GameObjects.Text;
 };
-
-function mapSvgToCanvas(x: number, y: number) {
-  return {
-    x: (x / SVG_WIDTH) * CANVAS_WIDTH,
-    y: (y / SVG_HEIGHT) * CANVAS_HEIGHT,
-  };
-}
 
 function parseRgbaColor(input: string): number {
   const match = input.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
@@ -189,10 +182,18 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(91)
       .setVisible(false);
     this.tooltip = { box: tooltipBox, text: tooltipText };
+
+    this.events.emit("scene:ready");
+    if (this.currentWorld) {
+      this.syncWorld(this.currentWorld);
+    }
   }
 
   syncWorld(world: SceneWorld): void {
     this.currentWorld = world;
+    if (!this.ambienceOverlay) {
+      return;
+    }
     this.syncAmbience(world);
     this.syncLocations(world.locations);
     this.syncAgents(world.agents, world.locations);
@@ -233,7 +234,7 @@ export class WorldScene extends Phaser.Scene {
     }
 
     for (const location of locations) {
-      const point = mapSvgToCanvas(location.x, location.y);
+      const point = this.mapWorldToCanvas(location.x, location.y, locations);
       const existing = this.locationNodes.get(location.id);
       const fillColor = getLocationColor(location.locationType);
       const occupantRatio =
@@ -439,8 +440,8 @@ export class WorldScene extends Phaser.Scene {
         continue;
       }
 
-      const fromPoint = mapSvgToCanvas(fromLocation.x, fromLocation.y);
-      const toPoint = mapSvgToCanvas(toLocation.x, toLocation.y);
+      const fromPoint = this.mapWorldToCanvas(fromLocation.x, fromLocation.y, world.locations);
+      const toPoint = this.mapWorldToCanvas(toLocation.x, toLocation.y, world.locations);
       const midX = (fromPoint.x + toPoint.x) / 2;
       const midY = (fromPoint.y + toPoint.y) / 2 - 18;
       const recencyAlpha = Math.max(0.25, 0.68 - trail.recencyIndex * 0.14);
@@ -518,7 +519,7 @@ export class WorldScene extends Phaser.Scene {
       const speakingAgent = bubble.speakerAgentId ? agentMap.get(bubble.speakerAgentId) : undefined;
       const anchorPoint = speakingAgent
         ? this.getAgentPosition(location, speakingAgent.slotIndex)
-        : mapSvgToCanvas(location.x, location.y);
+        : this.mapWorldToCanvas(location.x, location.y, world.locations);
       const bubbleX = anchorPoint.x;
       const bubbleY = anchorPoint.y - 30 - bubble.recencyIndex * 16;
       const textValue = `${bubble.speakerName}: ${bubble.text}`;
@@ -577,7 +578,11 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private getAgentPosition(location: SceneLocation, slotIndex: number) {
-    const center = mapSvgToCanvas(location.x, location.y);
+    const center = this.mapWorldToCanvas(
+      location.x,
+      location.y,
+      this.currentWorld?.locations ?? [location],
+    );
     const columns = 3;
     const col = slotIndex % columns;
     const row = Math.floor(slotIndex / columns);
@@ -686,5 +691,38 @@ export class WorldScene extends Phaser.Scene {
       yoyo: true,
       ease: "Quad.Out",
     });
+  }
+
+  private mapWorldToCanvas(
+    x: number,
+    y: number,
+    locations: SceneLocation[],
+  ): { x: number; y: number } {
+    if (locations.length === 0) {
+      return { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 };
+    }
+
+    const xs = locations.map((location) => location.x);
+    const ys = locations.map((location) => location.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const width = maxX - minX;
+    const height = maxY - minY;
+
+    const normalizedX =
+      width === 0
+        ? 0.5
+        : (x - minX) / width;
+    const normalizedY =
+      height === 0
+        ? 0.5
+        : (y - minY) / height;
+
+    return {
+      x: SCENE_PADDING_X + normalizedX * (CANVAS_WIDTH - SCENE_PADDING_X * 2),
+      y: SCENE_PADDING_Y + normalizedY * (CANVAS_HEIGHT - SCENE_PADDING_Y * 2),
+    };
   }
 }
