@@ -16,7 +16,7 @@
 
 你的任务：观察、记录、创造条件——让 Truman 能真实地生活。
 
-当前仓库已经不再只是最初的 MVP 样机，而是一个持续演进中的实验系统。最初的 MVP 设计基线请看 [docs/product/PRD.md](docs/product/PRD.md) 与 [docs/references/MVP_ARCHITECTURE.md](docs/references/MVP_ARCHITECTURE.md)，当前实现请看 [docs/engineering/CURRENT_ARCHITECTURE.md](docs/engineering/CURRENT_ARCHITECTURE.md)。完整文档导航见 [docs/README.md](docs/README.md)。
+当前仓库已经不再只是最初的 MVP 样机，而是一个持续演进中的实验系统。最初的 MVP 设计基线请看 [docs/references/PRD.md](docs/references/PRD.md) 与 [docs/references/MVP_ARCHITECTURE.md](docs/references/MVP_ARCHITECTURE.md)，当前实现请看 [docs/engineering/CURRENT_ARCHITECTURE.md](docs/engineering/CURRENT_ARCHITECTURE.md)。如果想看下一阶段优先级，先读 [docs/product/BACKLOG.md](docs/product/BACKLOG.md)；完整文档导航见 [docs/README.md](docs/README.md)。
 
 ---
 
@@ -59,6 +59,14 @@
 - **注入事件**：让咖啡馆举办派对、让天气变坏、发送广播
 - **分析行为**：查看某个 AI 的记忆、关系、决策历史
 - **维系世界**：当 Truman 产生怀疑时，让一切自然地发生
+
+## 当前实现重点
+
+- **世界运行主链路已可用**：run 生命周期、自动 tick 调度、世界快照、时间线、agent 详情已打通
+- **规则与治理闭环已具备最小版本**：规则评估、治理执行、治理留痕、relationship 后果、`world_rules_summary` 已落地
+- **最小经济状态已落地到后端**：已有 `cash`、`employment_status`、`food_security`、`housing_security` 与相关 API
+- **前端导演控制台已可用但仍在扩展**：世界视图、时间线、agent 详情已稳定；治理/经济运营视图仍待继续接入
+- **心智模型已有铺垫但未正式结构化**：当前已有 `mood`、`emotional_valence`、`governance_attention_score` 等信号，但还没有统一的 `mental_state`
 
 
 ## 快速开始
@@ -114,6 +122,7 @@ cd frontend && npm run build
 | **时间线** | 按时间顺序浏览所有事件 |
 | **Agent 详情** | 查看任意 AI 的记忆、关系网络、历史行为 |
 | **导演观察** | Truman 的当前怀疑度、世界连续性风险评估 |
+| **治理/经济接口** | 后端已支持治理记录、cases、restrictions 与 agent 经济摘要，前端仍在继续接入 |
 
 ### 世界视图
 

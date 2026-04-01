@@ -1,4 +1,4 @@
-# Narrative World 文档中心
+# Truman World 文档中心
 
 > 当前仓库采用轻量文档结构：产品、工程、运维、参考。
 
@@ -21,21 +21,25 @@
 
 ### 我想了解产品方向
 
-1. 看 [product/FEATURE_WORLD_2D_SCENE.md](product/FEATURE_WORLD_2D_SCENE.md)
-2. 如需历史基线，补看 [references/PRD.md](references/PRD.md)
+1. 看 [product/BACKLOG.md](product/BACKLOG.md)
+2. 看 [product/FEATURE_WORLD_2D_SCENE.md](product/FEATURE_WORLD_2D_SCENE.md)
+3. 如需历史基线，补看 [references/PRD.md](references/PRD.md)
 
 ### 我想做技术决策
 
 1. 看 [engineering/CURRENT_ARCHITECTURE.md](engineering/CURRENT_ARCHITECTURE.md)
 2. 看 [engineering/WORLD_RULE_SYSTEM.md](engineering/WORLD_RULE_SYSTEM.md)
 3. 看 [engineering/world_design/README.md](engineering/world_design/README.md)
-4. 看 [references/BUILD_VS_BUY.md](references/BUILD_VS_BUY.md)
-5. 如需回看 MVP 方案，看 [references/MVP_ARCHITECTURE.md](references/MVP_ARCHITECTURE.md)
+4. 看 [engineering/world_design/IMPLEMENTATION_ROADMAP.md](engineering/world_design/IMPLEMENTATION_ROADMAP.md)
+5. 如需判断心智模型边界，看 [engineering/world_design/MENTAL_STATE_MODEL.md](engineering/world_design/MENTAL_STATE_MODEL.md)
+6. 看 [references/BUILD_VS_BUY.md](references/BUILD_VS_BUY.md)
+7. 如需回看 MVP 方案，看 [references/MVP_ARCHITECTURE.md](references/MVP_ARCHITECTURE.md)
 
 ### 我想部署和排障
 
 1. 看 [operations/RAILWAY_DEPLOYMENT.md](operations/RAILWAY_DEPLOYMENT.md)
 2. 看 [operations/RUN_QUALITY.md](operations/RUN_QUALITY.md)
+3. 如需性能背景，补看 [operations/REACTOR_POOL_BENCHMARK.md](operations/REACTOR_POOL_BENCHMARK.md)
 
 ## 3. 文档约定
 

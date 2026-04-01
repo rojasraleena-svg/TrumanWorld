@@ -5,6 +5,22 @@
 - 负责人：`repo`
 - 基线日期：`2026-03-21`
 
+## 0. 当前实现快照
+
+先说明当前代码现状，避免把“已有铺垫”误写成完全空白：
+
+- 已有 `governance_attention_score`、`current_risks`、`recent_rule_feedback` 等持续状态或上下文信号
+- day boundary reflection 已输出 `mood`
+- `mood` 会写入 memory metadata，并映射到 `Memory.emotional_valence`
+- 当前 agent detail / context 中已有 world rules 相关摘要
+
+但这些仍然只是**零散信号**，还不是本文定义的结构化心智模型。当前仍然缺：
+
+- 统一的 `mental_state` 数据结构
+- `EmotionalState / NeedState / CognitionState`
+- 持续的事件驱动更新链
+- `mental_state_summary` 在主决策上下文中的正式注入
+
 ## 1. 目标
 
 为 Agent 增加结构化的心理状态，支撑更类人的行为决策。
@@ -32,7 +48,7 @@
 - Reactor：遇到事件时的反应（基于当前情境）
 - Reflector：晚间反思（基于全天事件）
 
-但这些决策**没有结构化的内部状态**作为输入。Planner/Reactor 看到的只是事件列表，不感知 Agent 的"心情"或"需求紧迫度"。
+但这些决策**还没有结构化的内部状态**作为输入。当前虽然已有 `mood`、`emotional_valence`、`governance_attention_score` 等局部信号，但 Planner / Reactor 仍没有一个统一、可持续演化的心智对象来读取 Agent 的“心情”或“需求紧迫度”。
 
 ### 2.2 引入心智状态的价值
 
@@ -52,7 +68,7 @@ AgentSociety 明确实现了三层心智模型：
 - **需求 (Needs)**：马斯洛需求层次的动态追踪
 - **认知 (Cognition)**：对社会议题的态度和信念
 
-当前 TrumanWorld 尚未实现这三层。
+当前 TrumanWorld 尚未把这三层实现为**结构化、持续演化、可注入决策上下文**的正式模型。
 
 ## 3. 三层心智结构
 
@@ -274,13 +290,13 @@ class CognitionState:
 Agent Context
 ├── world_rules_summary     (已有)
 ├── relationships           (已有)
-├── memories               (已有)
-├── governance_attention   (已有)
+├── memories                (已有)
+├── governance_attention    (已有，散落于 status / summary)
 │
-├── [新增] mental_state    (新增)
-│   ├── emotions           (情感)
-│   ├── needs             (需求)
-│   └── cognition         (认知)
+├── [新增] mental_state     (待实现)
+│   ├── emotions            (情感)
+│   ├── needs               (需求)
+│   └── cognition           (认知)
 ```
 
 ### 4.2 心智状态如何影响决策
@@ -327,7 +343,7 @@ Agent Context
 
 ### 5.1 存储位置
 
-心智状态存储在 `Agent.status` 中：
+正式落地后，心智状态建议存储在 `Agent.status` 中：
 
 ```python
 # Agent.status 结构扩展
@@ -376,7 +392,7 @@ Agent Context
 
 ## 6. Agent Visible Summary 的扩展
 
-新增心智相关的摘要字段：
+正式落地后，建议新增心智相关摘要字段：
 
 ```yaml
 world_rules_summary:
@@ -399,7 +415,7 @@ world_rules_summary:
 
 | 优先级 | 内容 | 理由 |
 |-------|------|------|
-| **P1** | 情感层基础版 | 影响最直接，实现最简单 |
+| **P1** | 情感层基础版 | 已有 `mood / emotional_valence` 铺垫，最适合先收敛为统一模型 |
 | **P1** | 需求层基础版 | 马斯洛结构清晰，与行为映射明确 |
 | **P2** | 认知层基础版 | 需要定义议题集合，较复杂 |
 
@@ -413,6 +429,7 @@ world_rules_summary:
 
 ```
 Phase 1.1: 情感层（1-2周）
+├── 收敛现有 `mood / emotional_valence` 到统一 `mental_state.emotions`
 ├── 定义 EmotionalState 类
 ├── 事件 → 情感 更新规则
 ├── 情感 → 行为倾向 影响（prompt 中注入）

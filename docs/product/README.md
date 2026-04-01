@@ -12,4 +12,5 @@
 
 当前文档：
 
+- [BACKLOG.md](BACKLOG.md) - 当前产品待办与下一阶段优先级
 - [FEATURE_WORLD_2D_SCENE.md](FEATURE_WORLD_2D_SCENE.md)

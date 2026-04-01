@@ -21,5 +21,6 @@
 
 world design 当前状态：
 
-- 已落地最小闭环：bundle 资产加载、runtime package、facts、最小 rule evaluator、timeline 解释链、agent 轻量摘要
-- 尚未落地：治理执行层、动态 policy overlay、关系与经济的完整后果层
+- 已落地最小闭环：bundle 资产加载、runtime package、facts、最小 rule evaluator、最小 governance executor / consequences、timeline 解释链、agent 轻量摘要
+- 已落地最小经济与治理运营接口：governance ledger、cases / restrictions API、agent economic summary API
+- 尚未落地：结构化 `mental_state`、前端完整治理/经济运营视图、更完整的 reputation / economy / world evolution 扩展

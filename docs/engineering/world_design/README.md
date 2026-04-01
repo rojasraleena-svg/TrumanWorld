@@ -9,7 +9,8 @@
 - 已落地最小闭环：runtime package、facts namespace、最小 rule evaluator、最小 governance executor、最小 governance consequences、sim 接入、timeline 解释链、agent 侧轻量制度摘要
 - 已新增：动态 world effects 到 policy facts 的最小 overlay、agent detail/front-end 摘要展示、规则反馈写入长期记忆
 - 已新增：governance ledger、director 治理历史视图、粗糙治理 + 生计状态 MVP 设计稿
-- 尚未落地：完整 reputation/economy/world evolution 扩展、更完整的动态 policy 调参与统一 feedback schema
+- 已有铺垫但未正式结构化：`mood`、`emotional_valence`、`governance_attention_score`
+- 尚未落地：结构化 `mental_state`、完整 reputation/economy/world evolution 扩展、更完整的动态 policy 调参与统一 feedback schema
 
 建议阅读顺序：
 

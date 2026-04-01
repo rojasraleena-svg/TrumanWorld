@@ -1,4 +1,4 @@
-# AI Narrative World 当前架构设计
+# Truman World 当前架构设计
 
 - 类型：`engineering`
 - 状态：`active`
@@ -12,7 +12,7 @@
 - 可持续运行的 AI 小镇仿真器
 - 带导演层观察、干预和统计面板的控制台
 - 带 scenario 抽象的多题材雏形
-- 带运行恢复、timeline、世界健康度、LLM 调用统计的实验系统
+- 带运行恢复、timeline、世界健康度、治理留痕、LLM 调用统计的实验系统
 
 > 历史设计文档见 [../references/](../references/)
 
@@ -50,6 +50,7 @@ backend/app/
 - agent 详情、关系、记忆查看
 - director interventions 查看与注入
 - 世界健康度、活动分布、统计信息面板
+- 已具备部分治理运营入口，但 cases / restrictions / economic summary 的前端整合仍未完成
 
 ## 4. 当前已落地的关键能力
 
@@ -60,6 +61,9 @@ backend/app/
 - director automatic planning
 - subject alert / continuity risk 观测
 - director memories 持久化
+- world rules summary / rule feedback / governance feedback 暴露
+- governance records / cases / restrictions API
+- agent economic summary API
 - LLM token 与成本统计
 - scenario_type 持久化与按题材运行
 - 事件增量查询（since_tick 参数，节省 99% 带宽）
@@ -72,6 +76,8 @@ backend/app/
 - 文档里宣称的 `Redis` / `pgvector` 能力目前更多是预留而非主链路依赖
 - API 和前端暴露了不少内部运行与观测细节
 - 测试主链路仍以 SQLite 为主，和生产 PostgreSQL 有差距
+- 心智模型仍停留在 `mood` / `emotional_valence` / attention 等铺垫信号，尚未形成结构化 `mental_state`
+- 后端治理/经济能力比前端运营视图走得更快，产品闭环仍需补齐
 
 这部分不影响把系统描述为“当前实现”，但说明它仍处于快速演进阶段。
 
@@ -87,4 +93,6 @@ backend/app/
 
 1. [../engineering/DEVELOPMENT.md](../engineering/DEVELOPMENT.md)
 2. [CURRENT_ARCHITECTURE.md](CURRENT_ARCHITECTURE.md)
-3. [../references/SCENARIOS.md](../references/SCENARIOS.md)
+3. [../engineering/world_design/IMPLEMENTATION_ROADMAP.md](../engineering/world_design/IMPLEMENTATION_ROADMAP.md)
+4. [../product/BACKLOG.md](../product/BACKLOG.md)
+5. [../references/SCENARIOS.md](../references/SCENARIOS.md)

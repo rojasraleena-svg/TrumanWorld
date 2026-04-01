@@ -1,7 +1,7 @@
 # World Design Implementation Roadmap
 
 - 类型：`engineering`
-- 状态：`draft`
+- 状态：`active`
 - 负责人：`repo`
 - 基线日期：`2026-03-21`
 
@@ -24,14 +24,15 @@
 - 已补上 agent API 与 director API 对治理历史的查询能力
 - 已补上 director console 对治理历史的最小运营视图
 - 已补上基于 `observation_count / warning_count` 的再犯升级逻辑
-- 阶段 5 关系后果层已进入最小实现阶段
-- 阶段 6 心智模型层已完成文档设计，待启动实施
+- 阶段 5 关系后果层已完成最小实现
+- 阶段 6 心智模型层已完成文档设计，并已有少量铺垫信号，但尚未形成结构化 `mental_state`
 
 当前明确边界：
 
 - 当前世界已具备“规则可见化 + 选择性治理 + 治理留痕 + 再犯升级 + director 运营可见性”
 - 当前世界仍未进入“机构化社会治理”阶段
-- 当前 agent 仍然没有独立资产、库存、所有权、收入或罚款账户模型
+- 当前世界已具备最小经济状态字段（如 `cash`、`employment_status`、`food_security`、`housing_security`）
+- 当前 agent 仍然没有完整所有权、账户结算、工资体系、罚款体系或真实库存经济
 
 ## 2. 推荐阶段
 
@@ -198,7 +199,7 @@
 
 ### 阶段 6：心智模型层
 
-状态：`待启动`
+状态：`准备启动（已有铺垫）`
 
 目标：
 
@@ -235,6 +236,20 @@
 - 复杂情感计算模型（如多因子情感交互）
 - 全面认知图谱
 - 群体心智（集体情绪、群体极化）
+
+当前已存在的铺垫：
+
+- day boundary reflection 已写入 `mood`
+- `Memory.emotional_valence` 已承接反思 mood 的情绪极性
+- `governance_attention_score` 已作为持续状态进入 agent `status`
+- `world_rules_summary` 已向 agent 暴露 `current_risks / recent_rule_feedback`
+
+当前仍缺失的核心部分：
+
+- 没有统一 `mental_state` 结构
+- 没有 `EmotionalState / NeedState / CognitionState` 模型
+- 没有事件到心智状态的持续更新链
+- 没有 `mental_state_summary` 注入 Planner / Reactor / Reflector 主上下文
 
 第一阶段与现有组件的交互：
 
@@ -341,21 +356,26 @@
 
 按当前代码状态，下一步应优先做：
 
-### 5.1 治理增强（延续阶段4-5）
+### 5.1 心智模型（阶段6，建议优先启动）
 
-1. 选择性执法与观测概率模型，先采用无执法 agent 的平台级执行器
-2. `policy` 到 relationship 后果层的映射继续细化，扩展到更多风险标签与地点语义
-3. 更复杂的恢复机制与多因子衰减
-4. reputation / director / relationship 三者的联动
-5. agent-facing summary 与 memory/timeline 的统一 feedback schema
+1. **Phase 6.1 情感层**：从 `EmotionalState` 类定义开始
+2. 把现有 `mood / emotional_valence / governance_attention_score` 收敛到统一的 `mental_state` 结构中
+3. 建立事件 → 情感 更新规则，并把结果注入 Planner / Reactor / Reflector 上下文
+4. 增加 `mental_state_summary`，与 `world_rules_summary` 并列暴露
 
-### 5.2 心智模型（阶段6，建议并行启动）
+### 5.2 前端闭环补齐
 
-6. **Phase 6.1 情感层**：从 EmotionalState 类定义开始
-7. **Phase 6.2 需求层**：定义 NeedState 类，与马斯洛层次映射
-8. 情感层与需求层完成后，接入 Agent Context 和 World Rules Summary
+5. director console 接入 `cases / restrictions` 的稳定运营视图
+6. agent detail 接入 `economic-summary`
+7. 统一治理反馈、经济反馈与角色状态摘要的前端信息架构
 
-### 5.3 认知模拟（阶段6后续，可选）
+### 5.3 治理与关系增强（阶段4-5延续）
 
-9. 社会议题态度建模（用于观点极化等实验）
-10. 信息接触 → 认知更新规则
+8. 选择性执法与观测概率模型，继续采用无执法 agent 的平台级执行器
+9. `policy` 到 relationship 后果层的映射继续细化，扩展到更多风险标签与地点语义
+10. 更复杂的恢复机制与多因子衰减
+
+### 5.4 认知模拟（阶段6后续，可选）
+
+11. 社会议题态度建模（用于观点极化等实验）
+12. 信息接触 → 认知更新规则
