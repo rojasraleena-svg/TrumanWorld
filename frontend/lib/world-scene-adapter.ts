@@ -25,16 +25,20 @@ export type SceneAgent = {
 
 export type SceneMoveTrail = {
   id: string;
+  actorId?: string;
   actorName: string;
   fromLocationId: string;
   toLocationId: string;
+  recencyIndex: number;
 };
 
 export type SceneBubble = {
   id: string;
   text: string;
+  speakerAgentId?: string;
   speakerName: string;
   locationId: string;
+  recencyIndex: number;
 };
 
 export type SceneWorld = {
@@ -89,15 +93,17 @@ export function buildSceneWorld(world: WorldSnapshot): SceneWorld {
     moveTrails: world.recent_events
       .filter((event) => event.event_type === EVENT_MOVE)
       .slice(0, 4)
-      .map((event) => {
+      .map((event, index) => {
         const fromLocationId = String(event.payload.from_location_id ?? "");
         const toLocationId = String(event.payload.to_location_id ?? event.location_id ?? "");
         return {
           id: event.id,
+          actorId: event.actor_agent_id,
           actorName:
             agentNameMap[event.actor_agent_id ?? ""] ?? event.actor_name ?? event.actor_agent_id ?? "某人",
           fromLocationId,
           toLocationId,
+          recencyIndex: index,
         };
       })
       .filter(
@@ -106,15 +112,17 @@ export function buildSceneWorld(world: WorldSnapshot): SceneWorld {
     bubbles: world.recent_events
       .filter((event) => event.event_type === EVENT_SPEECH || event.event_type === EVENT_TALK)
       .slice(0, 3)
-      .map((event) => {
+      .map((event, index) => {
         const text = String(event.payload.message ?? "").trim();
         const locationId = String(event.location_id ?? "");
         return {
           id: event.id,
           text: text.length > 22 ? `${text.slice(0, 22)}...` : text,
+          speakerAgentId: event.actor_agent_id,
           speakerName:
             agentNameMap[event.actor_agent_id ?? ""] ?? event.actor_name ?? event.actor_agent_id ?? "某人",
           locationId,
+          recencyIndex: index,
         };
       })
       .filter((bubble) => bubble.text.length > 0 && locationIds.has(bubble.locationId)),

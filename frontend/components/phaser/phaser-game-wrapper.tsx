@@ -12,16 +12,27 @@ export interface PhaserGameWrapperProps {
   width?: number;
   height?: number;
   zoom?: number;
+  highlightedLocationId?: string | null;
+  highlightedAgentId?: string | null;
   onAgentClick?: (agentId: string) => void;
   onLocationClick?: (locationId: string) => void;
 }
 
-function isWorldScene(value: unknown): value is Pick<WorldScene, "syncWorld" | "events"> {
+function isWorldScene(
+  value: unknown
+): value is Pick<
+  WorldScene,
+  "syncWorld" | "setHighlightedLocation" | "setHighlightedAgent" | "events"
+> {
   return Boolean(
     value &&
       typeof value === "object" &&
       "syncWorld" in value &&
       typeof value.syncWorld === "function" &&
+      "setHighlightedLocation" in value &&
+      typeof value.setHighlightedLocation === "function" &&
+      "setHighlightedAgent" in value &&
+      typeof value.setHighlightedAgent === "function" &&
       "events" in value
   );
 }
@@ -31,6 +42,8 @@ export function PhaserGameWrapper({
   width = 800,
   height = 600,
   zoom = 1,
+  highlightedLocationId,
+  highlightedAgentId,
   onAgentClick,
   onLocationClick,
 }: PhaserGameWrapperProps) {
@@ -72,6 +85,22 @@ export function PhaserGameWrapper({
     }
     scene.syncWorld(sceneWorld);
   }, [sceneWorld]);
+
+  useEffect(() => {
+    const scene = gameRef.current?.scene.getScene("WorldScene");
+    if (!isWorldScene(scene)) {
+      return;
+    }
+    scene.setHighlightedLocation(highlightedLocationId ?? null);
+  }, [highlightedLocationId]);
+
+  useEffect(() => {
+    const scene = gameRef.current?.scene.getScene("WorldScene");
+    if (!isWorldScene(scene)) {
+      return;
+    }
+    scene.setHighlightedAgent(highlightedAgentId ?? null);
+  }, [highlightedAgentId]);
 
   useEffect(() => {
     const scene = gameRef.current?.scene.getScene("WorldScene");

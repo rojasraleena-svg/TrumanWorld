@@ -13,6 +13,7 @@ jest.mock("phaser", () => ({
         setPosition: jest.fn().mockReturnThis(),
         setFillStyle: jest.fn().mockReturnThis(),
         setScale: jest.fn().mockReturnThis(),
+        setSize: jest.fn().mockReturnThis(),
         on: jest.fn(),
         destroy: jest.fn(),
       })),
@@ -35,6 +36,14 @@ jest.mock("phaser", () => ({
         setLineWidth: jest.fn().mockReturnThis(),
         setDepth: jest.fn().mockReturnThis(),
         setTo: jest.fn().mockReturnThis(),
+        setAlpha: jest.fn().mockReturnThis(),
+        destroy: jest.fn(),
+      })),
+      triangle: jest.fn(() => ({
+        setDepth: jest.fn().mockReturnThis(),
+        setRotation: jest.fn().mockReturnThis(),
+        setPosition: jest.fn().mockReturnThis(),
+        setAlpha: jest.fn().mockReturnThis(),
         destroy: jest.fn(),
       })),
       text: jest.fn(() => ({
@@ -42,6 +51,8 @@ jest.mock("phaser", () => ({
         setDepth: jest.fn().mockReturnThis(),
         setPosition: jest.fn().mockReturnThis(),
         setText: jest.fn().mockReturnThis(),
+        setAlpha: jest.fn().mockReturnThis(),
+        setScale: jest.fn().mockReturnThis(),
         destroy: jest.fn(),
       })),
     };
@@ -60,6 +71,13 @@ jest.mock("phaser", () => ({
     sys = {
       config: { key: "WorldScene" },
     };
+  },
+  Math: {
+    RadToDeg: jest.fn((radians) => radians * (180 / globalThis.Math.PI)),
+    DegToRad: jest.fn((degrees) => degrees * (globalThis.Math.PI / 180)),
+    Angle: {
+      Between: jest.fn(() => 0),
+    },
   },
 }));
 
@@ -91,16 +109,20 @@ describe("WorldScene", () => {
       {
         id: "move-1",
         actorName: "Mei",
+        actorId: "agent-1",
         fromLocationId: "loc-1",
         toLocationId: "loc-1",
+        recencyIndex: 0,
       },
     ],
     bubbles: [
       {
         id: "bubble-1",
         text: "你好",
+        speakerAgentId: "agent-1",
         speakerName: "Mei",
         locationId: "loc-1",
+        recencyIndex: 0,
       },
     ],
     ambience: {

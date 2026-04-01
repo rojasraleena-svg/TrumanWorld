@@ -146,11 +146,20 @@ export function WorldCanvas({ runId }: Props) {
               {mapView === "phaser" && sceneWorld ? (
                 <PhaserGameWrapper
                   sceneWorld={sceneWorld}
+                  highlightedLocationId={highlightedLocationId}
+                  highlightedAgentId={selectedAgentId}
                   onLocationClick={(locationId) => {
                     setHighlightedLocationId(locationId);
                     replaceSearchParams({ modal: "location", loc: locationId });
                   }}
                   onAgentClick={(agentId) => {
+                    const targetLocationId =
+                      world.locations.find((location) =>
+                        location.occupants.some((agent) => agent.id === agentId),
+                      )?.id ?? null;
+                    if (targetLocationId) {
+                      setHighlightedLocationId(targetLocationId);
+                    }
                     replaceSearchParams({ modal: "agent", agent: agentId });
                   }}
                 />
