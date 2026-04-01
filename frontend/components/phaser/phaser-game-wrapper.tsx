@@ -149,7 +149,7 @@ export function PhaserGameWrapper({
     <div
       ref={containerRef}
       data-testid="phaser-game-container"
-      className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[28px] border border-slate-200 bg-slate-950 shadow-xs"
+      className="relative mx-auto aspect-[4/3] h-auto max-h-full w-full overflow-hidden rounded-[28px] border border-slate-200 bg-slate-950 shadow-xs"
     />
   );
 }

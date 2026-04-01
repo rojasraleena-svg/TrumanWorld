@@ -8,7 +8,7 @@ director_panel:
 stage:
   renderer: pixel
   theme: campus_night
-  ground_preset: boardwalk
+  ground_preset: lawn
   location_types:
     dorm:
       visual_preset: house
@@ -22,3 +22,6 @@ stage:
     quad:
       visual_preset: grove
       glyph: Q
+    cafe:
+      visual_preset: shop
+      glyph: C

@@ -14,6 +14,15 @@ const BUILDING_TEXTURE_SIZE = 24;
 const AGENT_TEXTURE_SIZE = 16;
 const GROUND_TEXTURE_SIZE = 32;
 
+type StagePalette = {
+  backgroundColor: string;
+  headerColor: number;
+  headerAlpha: number;
+  vignetteColor: number;
+  vignetteAlpha: number;
+  labelColor: string;
+};
+
 type LocationNode = {
   glow: Phaser.GameObjects.Arc;
   body: Phaser.GameObjects.Image;
@@ -133,12 +142,46 @@ function getArrowAngleDegrees(fromX: number, fromY: number, toX: number, toY: nu
   return Phaser.Math.RadToDeg(Phaser.Math.Angle.Between(fromX, fromY, toX, toY)) + 90;
 }
 
+function getStagePalette(theme?: string): StagePalette {
+  switch (theme) {
+    case "campus_night":
+      return {
+        backgroundColor: "#112317",
+        headerColor: 0x1d4d2b,
+        headerAlpha: 0.34,
+        vignetteColor: 0x08140d,
+        vignetteAlpha: 0.18,
+        labelColor: "#dcfce7",
+      };
+    case "seaside_night":
+      return {
+        backgroundColor: "#0f172a",
+        headerColor: 0x172554,
+        headerAlpha: 0.42,
+        vignetteColor: 0x0f172a,
+        vignetteAlpha: 0.16,
+        labelColor: "#e2e8f0",
+      };
+    default:
+      return {
+        backgroundColor: "#101826",
+        headerColor: 0x1f2937,
+        headerAlpha: 0.38,
+        vignetteColor: 0x020617,
+        vignetteAlpha: 0.18,
+        labelColor: "#e2e8f0",
+      };
+  }
+}
+
 export class WorldScene extends Phaser.Scene {
   private locationNodes = new Map<string, LocationNode>();
   private agentNodes = new Map<string, AgentNode>();
   private trailNodes = new Map<string, TrailNode>();
   private bubbleNodes = new Map<string, BubbleNode>();
   private stageGround: Phaser.GameObjects.TileSprite | null = null;
+  private stageHeader: Phaser.GameObjects.Rectangle | null = null;
+  private stageVignette: Phaser.GameObjects.Ellipse | null = null;
   private ambienceOverlay: Phaser.GameObjects.Rectangle | null = null;
   private ambienceLabel: Phaser.GameObjects.Text | null = null;
   private tooltip: TooltipNode | null = null;
@@ -153,7 +196,8 @@ export class WorldScene extends Phaser.Scene {
   preload(): void {}
 
   create(_initialWorld?: SceneWorld): void {
-    this.cameras.main.setBackgroundColor("#0f172a");
+    const palette = getStagePalette();
+    this.cameras.main.setBackgroundColor(palette.backgroundColor);
     this.cameras.main.setZoom(1);
     this.createPixelTextures();
 
@@ -162,12 +206,12 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(-20)
       .setAlpha(0.98);
 
-    this.add
+    this.stageHeader = this.add
       .rectangle(CANVAS_WIDTH / 2, 86, CANVAS_WIDTH, 132, 0x172554)
       .setDepth(-19)
       .setAlpha(0.42);
 
-    this.add
+    this.stageVignette = this.add
       .ellipse(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 18, 700, 470, 0x0f172a)
       .setDepth(-18)
       .setAlpha(0.16);
@@ -179,7 +223,7 @@ export class WorldScene extends Phaser.Scene {
 
     this.ambienceLabel = this.add
       .text(20, 20, "World Stage", {
-        color: "#e2e8f0",
+        color: palette.labelColor,
         fontFamily: "ui-monospace, SFMono-Regular, monospace",
         fontSize: "12px",
         fontStyle: "600",
@@ -613,9 +657,14 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private syncStageTheme(world: SceneWorld): void {
+    const palette = getStagePalette(world.stage.theme);
     const groundPreset = world.stage.groundPreset ?? "default";
     const textureKey = this.ensureGroundTexture(groundPreset);
+    this.cameras.main.setBackgroundColor(palette.backgroundColor);
     this.stageGround?.setTexture(textureKey);
+    this.stageHeader?.setFillStyle(palette.headerColor, palette.headerAlpha);
+    this.stageVignette?.setFillStyle(palette.vignetteColor, palette.vignetteAlpha);
+    this.ambienceLabel?.setColor(palette.labelColor);
   }
 
   private getAgentPosition(location: SceneLocation, slotIndex: number) {
