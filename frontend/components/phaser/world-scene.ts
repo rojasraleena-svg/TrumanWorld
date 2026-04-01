@@ -1,6 +1,6 @@
 import * as Phaser from "phaser";
 
-import type { SceneAgent, SceneLocation, SceneWorld } from "@/lib/world-scene-adapter";
+import type { SceneAgent, SceneLocation, SceneStagePalette, SceneWorld } from "@/lib/world-scene-adapter";
 import { getHeatLevel } from "@/lib/world-utils";
 
 const CANVAS_WIDTH = 800;
@@ -138,6 +138,10 @@ function getAgentTextureKey(status: SceneAgent["status"]) {
   return `pixel-agent-${status}`;
 }
 
+function getConfiguredAgentTextureKey(visualPreset: string, status: SceneAgent["status"]) {
+  return `pixel-agent-${visualPreset}-${status}`;
+}
+
 function getArrowAngleDegrees(fromX: number, fromY: number, toX: number, toY: number) {
   return Phaser.Math.RadToDeg(Phaser.Math.Angle.Between(fromX, fromY, toX, toY)) + 90;
 }
@@ -172,6 +176,22 @@ function getStagePalette(theme?: string): StagePalette {
         labelColor: "#e2e8f0",
       };
   }
+}
+
+function mergeStagePalette(
+  fallback: StagePalette,
+  override?: SceneStagePalette,
+): StagePalette {
+  return {
+    backgroundColor: override?.backgroundColor ?? fallback.backgroundColor,
+    headerColor: override?.headerColor ? parseRgbaColor(override.headerColor) : fallback.headerColor,
+    headerAlpha: override?.headerAlpha ?? fallback.headerAlpha,
+    vignetteColor: override?.vignetteColor
+      ? parseRgbaColor(override.vignetteColor)
+      : fallback.vignetteColor,
+    vignetteAlpha: override?.vignetteAlpha ?? fallback.vignetteAlpha,
+    labelColor: override?.labelColor ?? fallback.labelColor,
+  };
 }
 
 export class WorldScene extends Phaser.Scene {
@@ -450,20 +470,28 @@ export class WorldScene extends Phaser.Scene {
           duration: 260,
           ease: "Quad.Out",
         });
-        existing.body.setTexture(getAgentTextureKey(agent.status));
+        this.ensureAgentTexture(agent);
+        existing.body.setTexture(
+          getConfiguredAgentTextureKey(agent.visual?.visualPreset ?? "default", agent.status)
+        );
         existing.body.setAlpha(1);
-        existing.marker.setText(getAgentMarker(agent.status));
+        existing.marker.setText(agent.visual?.marker ?? getAgentMarker(agent.status));
         existing.label.setText(agent.name);
         continue;
       }
 
+      this.ensureAgentTexture(agent);
       const body = this.add
-        .image(point.x, point.y, getAgentTextureKey(agent.status))
+        .image(
+          point.x,
+          point.y,
+          getConfiguredAgentTextureKey(agent.visual?.visualPreset ?? "default", agent.status)
+        )
         .setDisplaySize(AGENT_TEXTURE_SIZE * PIXEL_SCALE, AGENT_TEXTURE_SIZE * PIXEL_SCALE)
         .setDepth(20)
         .setInteractive({ cursor: "pointer" });
       const marker = this.add
-        .text(point.x, point.y - 14, getAgentMarker(agent.status), {
+        .text(point.x, point.y - 14, agent.visual?.marker ?? getAgentMarker(agent.status), {
           color: "#cbd5e1",
           fontFamily: "ui-monospace, SFMono-Regular, monospace",
           fontSize: "10px",
@@ -657,7 +685,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private syncStageTheme(world: SceneWorld): void {
-    const palette = getStagePalette(world.stage.theme);
+    const palette = mergeStagePalette(getStagePalette(world.stage.theme), world.stage.palette);
     const groundPreset = world.stage.groundPreset ?? "default";
     const textureKey = this.ensureGroundTexture(groundPreset);
     this.cameras.main.setBackgroundColor(palette.backgroundColor);
@@ -830,10 +858,15 @@ export class WorldScene extends Phaser.Scene {
       "working",
       "resting",
     ];
-    for (const status of statuses) {
-      const key = getAgentTextureKey(status);
-      if (!this.textures.exists(key)) {
-        this.generateAgentTexture(key, status);
+    for (const preset of ["default", "student", "resident"]) {
+      for (const status of statuses) {
+        const key =
+          preset === "default"
+            ? getAgentTextureKey(status)
+            : getConfiguredAgentTextureKey(preset, status);
+        if (!this.textures.exists(key)) {
+          this.generateAgentTexture(key, status, preset);
+        }
       }
     }
   }
@@ -851,6 +884,14 @@ export class WorldScene extends Phaser.Scene {
     const textureKey = getConfiguredLocationTextureKey(visualPreset, location.locationType);
     if (!this.textures.exists(textureKey)) {
       this.generateBuildingTexture(textureKey, location.locationType, visualPreset);
+    }
+  }
+
+  private ensureAgentTexture(agent: SceneAgent): void {
+    const preset = agent.visual?.visualPreset ?? "default";
+    const key = getConfiguredAgentTextureKey(preset, agent.status);
+    if (!this.textures.exists(key)) {
+      this.generateAgentTexture(key, agent.status, preset);
     }
   }
 
@@ -1016,19 +1057,52 @@ export class WorldScene extends Phaser.Scene {
     graphics.destroy();
   }
 
-  private generateAgentTexture(key: string, status: SceneAgent["status"]): void {
+  private generateAgentTexture(
+    key: string,
+    status: SceneAgent["status"],
+    visualPreset: string,
+  ): void {
     const graphics = this.make.graphics({ x: 0, y: 0 }, false);
     const bodyColor = getAgentColor(status);
     const accentColor = Phaser.Display.Color.IntegerToColor(bodyColor).lighten(18).color;
 
-    graphics.fillStyle(0x0f172a, 1);
-    graphics.fillRect(5, 1, 6, 4);
-    graphics.fillStyle(accentColor, 1);
-    graphics.fillRect(4, 5, 8, 4);
-    graphics.fillStyle(bodyColor, 1);
-    graphics.fillRect(3, 9, 10, 4);
-    graphics.fillRect(4, 13, 3, 3);
-    graphics.fillRect(9, 13, 3, 3);
+    switch (visualPreset) {
+      case "student":
+        graphics.fillStyle(0x0f172a, 1);
+        graphics.fillRect(5, 1, 6, 4);
+        graphics.fillStyle(accentColor, 1);
+        graphics.fillRect(4, 5, 8, 4);
+        graphics.fillStyle(bodyColor, 1);
+        graphics.fillRect(3, 9, 10, 4);
+        graphics.fillRect(4, 13, 3, 3);
+        graphics.fillRect(9, 13, 3, 3);
+        graphics.fillStyle(0xe2e8f0, 1);
+        graphics.fillRect(11, 5, 1, 8);
+        break;
+      case "resident":
+        graphics.fillStyle(0xf5d0fe, 1);
+        graphics.fillRect(5, 1, 6, 4);
+        graphics.fillStyle(accentColor, 1);
+        graphics.fillRect(4, 5, 8, 3);
+        graphics.fillStyle(bodyColor, 1);
+        graphics.fillRect(3, 8, 10, 5);
+        graphics.fillRect(4, 13, 3, 3);
+        graphics.fillRect(9, 13, 3, 3);
+        graphics.fillStyle(0x1f2937, 1);
+        graphics.fillRect(2, 9, 1, 3);
+        graphics.fillRect(13, 9, 1, 3);
+        break;
+      default:
+        graphics.fillStyle(0x0f172a, 1);
+        graphics.fillRect(5, 1, 6, 4);
+        graphics.fillStyle(accentColor, 1);
+        graphics.fillRect(4, 5, 8, 4);
+        graphics.fillStyle(bodyColor, 1);
+        graphics.fillRect(3, 9, 10, 4);
+        graphics.fillRect(4, 13, 3, 3);
+        graphics.fillRect(9, 13, 3, 3);
+        break;
+    }
     graphics.generateTexture(key, AGENT_TEXTURE_SIZE, AGENT_TEXTURE_SIZE);
     graphics.destroy();
   }

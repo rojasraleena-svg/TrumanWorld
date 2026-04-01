@@ -129,11 +129,29 @@ export type WorldStageLocationVisual = {
   glyph?: string | null;
 };
 
+export type WorldStagePalette = {
+  background_color?: string | null;
+  header_color?: string | null;
+  header_alpha?: number | null;
+  vignette_color?: string | null;
+  vignette_alpha?: number | null;
+  label_color?: string | null;
+};
+
+export type WorldStageAgentStatusVisual = {
+  visual_preset?: string | null;
+  marker?: string | null;
+};
+
 export type WorldUiConfig = {
   stage?: {
     renderer?: string | null;
     theme?: string | null;
     ground_preset?: string | null;
+    palette?: WorldStagePalette;
+    agents?: {
+      statuses?: Record<string, WorldStageAgentStatusVisual>;
+    };
     location_types?: Record<string, WorldStageLocationVisual>;
   };
 };

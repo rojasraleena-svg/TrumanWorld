@@ -9,6 +9,30 @@ stage:
   renderer: pixel
   theme: campus_night
   ground_preset: lawn
+  palette:
+    background_color: "#112317"
+    header_color: "#1d4d2b"
+    header_alpha: 0.34
+    vignette_color: "#08140d"
+    vignette_alpha: 0.18
+    label_color: "#dcfce7"
+  agents:
+    statuses:
+      idle:
+        visual_preset: student
+        marker: .
+      moving:
+        visual_preset: student
+        marker: ">"
+      talking:
+        visual_preset: student
+        marker: "~"
+      working:
+        visual_preset: student
+        marker: "+"
+      resting:
+        visual_preset: student
+        marker: z
   location_types:
     dorm:
       visual_preset: house

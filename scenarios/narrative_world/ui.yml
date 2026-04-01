@@ -9,6 +9,30 @@ stage:
   renderer: pixel
   theme: seaside_night
   ground_preset: boardwalk
+  palette:
+    background_color: "#0f172a"
+    header_color: "#172554"
+    header_alpha: 0.42
+    vignette_color: "#0f172a"
+    vignette_alpha: 0.16
+    label_color: "#e2e8f0"
+  agents:
+    statuses:
+      idle:
+        visual_preset: resident
+        marker: .
+      moving:
+        visual_preset: resident
+        marker: ">"
+      talking:
+        visual_preset: resident
+        marker: "~"
+      working:
+        visual_preset: resident
+        marker: "+"
+      resting:
+        visual_preset: resident
+        marker: z
   location_types:
     home:
       visual_preset: house

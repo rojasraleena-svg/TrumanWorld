@@ -20,6 +20,9 @@ from app.api.schemas.simulation import (
     WorldHealthMetricsConfig,
     WorldLocationResponse,
     WorldPulseResponse,
+    WorldStageAgentStatusVisualResponse,
+    WorldStageAgentUiResponse,
+    WorldStagePaletteResponse,
     WorldSnapshotResponse,
     WorldSnapshotRunResponse,
     WorldStageLocationVisualResponse,
@@ -281,11 +284,31 @@ def _build_world_ui_config(scenario_type: str | None) -> WorldUiConfigResponse:
         ui_cfg = load_ui_config_for_scenario(scenario_type) or {}
         stage_cfg = ui_cfg.get("stage", {})
         location_type_cfg = stage_cfg.get("location_types", {})
+        agent_status_cfg = (stage_cfg.get("agents") or {}).get("statuses", {})
+        palette_cfg = stage_cfg.get("palette", {})
         return WorldUiConfigResponse(
             stage=WorldStageUiResponse(
                 renderer=stage_cfg.get("renderer"),
                 theme=stage_cfg.get("theme"),
                 ground_preset=stage_cfg.get("ground_preset"),
+                palette=WorldStagePaletteResponse(
+                    background_color=palette_cfg.get("background_color"),
+                    header_color=palette_cfg.get("header_color"),
+                    header_alpha=palette_cfg.get("header_alpha"),
+                    vignette_color=palette_cfg.get("vignette_color"),
+                    vignette_alpha=palette_cfg.get("vignette_alpha"),
+                    label_color=palette_cfg.get("label_color"),
+                ),
+                agents=WorldStageAgentUiResponse(
+                    statuses={
+                        status: WorldStageAgentStatusVisualResponse(
+                            visual_preset=(config or {}).get("visual_preset"),
+                            marker=(config or {}).get("marker"),
+                        )
+                        for status, config in agent_status_cfg.items()
+                        if isinstance(config, dict)
+                    }
+                ),
                 location_types={
                     location_type: WorldStageLocationVisualResponse(
                         visual_preset=(config or {}).get("visual_preset"),

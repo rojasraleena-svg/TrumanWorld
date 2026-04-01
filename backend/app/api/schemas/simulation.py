@@ -562,10 +562,39 @@ class WorldStageLocationVisualResponse(BaseModel):
     glyph: str | None = Field(None, description="地点字形标记", examples=["H"])
 
 
+class WorldStagePaletteResponse(BaseModel):
+    background_color: str | None = Field(None, description="背景色", examples=["#112317"])
+    header_color: str | None = Field(None, description="顶部氛围层颜色", examples=["#1d4d2b"])
+    header_alpha: float | None = Field(None, description="顶部氛围层透明度", examples=[0.34])
+    vignette_color: str | None = Field(None, description="舞台暗角颜色", examples=["#08140d"])
+    vignette_alpha: float | None = Field(None, description="舞台暗角透明度", examples=[0.18])
+    label_color: str | None = Field(None, description="标签文字颜色", examples=["#dcfce7"])
+
+
+class WorldStageAgentStatusVisualResponse(BaseModel):
+    visual_preset: str | None = Field(None, description="角色视觉预设", examples=["student"])
+    marker: str | None = Field(None, description="角色状态标记", examples=["!"])
+
+
+class WorldStageAgentUiResponse(BaseModel):
+    statuses: dict[str, WorldStageAgentStatusVisualResponse] = Field(
+        default_factory=dict,
+        description="按角色状态定义的视觉预设",
+    )
+
+
 class WorldStageUiResponse(BaseModel):
     renderer: str | None = Field(None, description="舞台渲染器", examples=["pixel"])
     theme: str | None = Field(None, description="舞台主题", examples=["campus_night"])
     ground_preset: str | None = Field(None, description="地面预设", examples=["boardwalk"])
+    palette: WorldStagePaletteResponse = Field(
+        default_factory=WorldStagePaletteResponse,
+        description="舞台调色板",
+    )
+    agents: WorldStageAgentUiResponse = Field(
+        default_factory=WorldStageAgentUiResponse,
+        description="角色 UI 配置",
+    )
     location_types: dict[str, WorldStageLocationVisualResponse] = Field(
         default_factory=dict,
         description="按地点类型定义的视觉预设",

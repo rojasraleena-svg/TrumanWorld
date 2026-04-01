@@ -13,6 +13,20 @@ export type SceneLocationVisual = {
   glyph?: string;
 };
 
+export type SceneAgentVisual = {
+  visualPreset?: string;
+  marker?: string;
+};
+
+export type SceneStagePalette = {
+  backgroundColor?: string;
+  headerColor?: string;
+  headerAlpha?: number;
+  vignetteColor?: string;
+  vignetteAlpha?: number;
+  labelColor?: string;
+};
+
 export type SceneLocation = {
   id: string;
   name: string;
@@ -32,6 +46,7 @@ export type SceneAgent = {
   locationId: string;
   status: AgentStatus;
   slotIndex: number;
+  visual?: SceneAgentVisual;
 };
 
 export type SceneMoveTrail = {
@@ -66,6 +81,7 @@ export type SceneWorld = {
   stage: {
     theme?: string;
     groundPreset?: string;
+    palette?: SceneStagePalette;
   };
 };
 
@@ -81,6 +97,9 @@ export function buildSceneWorld(world: WorldSnapshot): SceneWorld {
       .slice()
       .sort((left, right) => left.id.localeCompare(right.id))
       .forEach((agent, index) => {
+        const agentVisualConfig = world.ui_config?.stage?.agents?.statuses?.[
+          inferAgentStatus(agent.id, world.recent_events)
+        ];
         agents.push({
           id: agent.id,
           name: agent.name,
@@ -88,6 +107,10 @@ export function buildSceneWorld(world: WorldSnapshot): SceneWorld {
           locationId: location.id,
           status: inferAgentStatus(agent.id, world.recent_events),
           slotIndex: index,
+          visual: {
+            visualPreset: agentVisualConfig?.visual_preset ?? undefined,
+            marker: agentVisualConfig?.marker ?? undefined,
+          },
         });
       });
   }
@@ -156,6 +179,14 @@ export function buildSceneWorld(world: WorldSnapshot): SceneWorld {
     stage: {
       theme: world.ui_config?.stage?.theme ?? undefined,
       groundPreset: world.ui_config?.stage?.ground_preset ?? undefined,
+      palette: {
+        backgroundColor: world.ui_config?.stage?.palette?.background_color ?? undefined,
+        headerColor: world.ui_config?.stage?.palette?.header_color ?? undefined,
+        headerAlpha: world.ui_config?.stage?.palette?.header_alpha ?? undefined,
+        vignetteColor: world.ui_config?.stage?.palette?.vignette_color ?? undefined,
+        vignetteAlpha: world.ui_config?.stage?.palette?.vignette_alpha ?? undefined,
+        labelColor: world.ui_config?.stage?.palette?.label_color ?? undefined,
+      },
     },
   };
 }
