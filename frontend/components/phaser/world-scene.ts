@@ -106,8 +106,8 @@ function getLocationGlyph(locationType: string) {
   }
 }
 
-function getLocationTextureKey(locationType: string) {
-  return `pixel-building-${locationType}`;
+function getConfiguredLocationTextureKey(visualPreset: string, locationType: string) {
+  return `pixel-building-${visualPreset}-${locationType}`;
 }
 
 function getAgentMarker(status: SceneAgent["status"]) {
@@ -138,6 +138,7 @@ export class WorldScene extends Phaser.Scene {
   private agentNodes = new Map<string, AgentNode>();
   private trailNodes = new Map<string, TrailNode>();
   private bubbleNodes = new Map<string, BubbleNode>();
+  private stageGround: Phaser.GameObjects.TileSprite | null = null;
   private ambienceOverlay: Phaser.GameObjects.Rectangle | null = null;
   private ambienceLabel: Phaser.GameObjects.Text | null = null;
   private tooltip: TooltipNode | null = null;
@@ -156,14 +157,8 @@ export class WorldScene extends Phaser.Scene {
     this.cameras.main.setZoom(1);
     this.createPixelTextures();
 
-    this.add
-      .tileSprite(
-        CANVAS_WIDTH / 2,
-        CANVAS_HEIGHT / 2,
-        CANVAS_WIDTH,
-        CANVAS_HEIGHT,
-        "pixel-ground"
-      )
+    this.stageGround = this.add
+      .tileSprite(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH, CANVAS_HEIGHT, "pixel-ground")
       .setDepth(-20)
       .setAlpha(0.98);
 
@@ -218,6 +213,7 @@ export class WorldScene extends Phaser.Scene {
     if (!this.ambienceOverlay) {
       return;
     }
+    this.syncStageTheme(world);
     this.syncAmbience(world);
     this.syncLocations(world.locations);
     this.syncAgents(world.agents, world.locations);
@@ -266,6 +262,7 @@ export class WorldScene extends Phaser.Scene {
       const heatLevel = getHeatLevel(location.heat);
 
       if (existing) {
+        this.ensureLocationTexture(location);
         existing.glow.setPosition(point.x, point.y);
         existing.glow.setScale((38 + location.heat * 18) / 38);
         existing.glow.setFillStyle(
@@ -273,9 +270,15 @@ export class WorldScene extends Phaser.Scene {
           0.08 + location.heat * 0.22
         );
         existing.body.setPosition(point.x, point.y);
+        existing.body.setTexture(
+          getConfiguredLocationTextureKey(
+            location.visual.visualPreset ?? location.locationType,
+            location.locationType
+          )
+        );
         existing.body.setAlpha(alpha);
         existing.icon.setPosition(point.x, point.y - 18);
-        existing.icon.setText(getLocationGlyph(location.locationType));
+        existing.icon.setText(location.visual.glyph ?? getLocationGlyph(location.locationType));
         existing.label.setPosition(point.x, point.y - 6);
         existing.label.setText(location.name);
         existing.badge.setPosition(point.x, point.y + 12);
@@ -286,14 +289,22 @@ export class WorldScene extends Phaser.Scene {
       const glow = this.add
         .circle(point.x, point.y, 38 + location.heat * 18, Number.parseInt(heatLevel.color.replace("#", ""), 16), 0.08 + location.heat * 0.22)
         .setDepth(8);
+      this.ensureLocationTexture(location);
       const body = this.add
-        .image(point.x, point.y, getLocationTextureKey(location.locationType))
+        .image(
+          point.x,
+          point.y,
+          getConfiguredLocationTextureKey(
+            location.visual.visualPreset ?? location.locationType,
+            location.locationType
+          )
+        )
         .setDisplaySize(LOCATION_WIDTH, LOCATION_HEIGHT)
         .setAlpha(alpha)
         .setDepth(10)
         .setInteractive({ cursor: "pointer" });
       const icon = this.add
-        .text(point.x, point.y - 18, getLocationGlyph(location.locationType), {
+        .text(point.x, point.y - 18, location.visual.glyph ?? getLocationGlyph(location.locationType), {
           color: "#f8fafc",
           fontFamily: "ui-monospace, SFMono-Regular, monospace",
           fontSize: "14px",
@@ -601,6 +612,12 @@ export class WorldScene extends Phaser.Scene {
     this.ambienceLabel?.setText(`Stage / ${world.ambience.label}`);
   }
 
+  private syncStageTheme(world: SceneWorld): void {
+    const groundPreset = world.stage.groundPreset ?? "default";
+    const textureKey = this.ensureGroundTexture(groundPreset);
+    this.stageGround?.setTexture(textureKey);
+  }
+
   private getAgentPosition(location: SceneLocation, slotIndex: number) {
     const center = this.mapWorldToCanvas(
       location.x,
@@ -754,25 +771,7 @@ export class WorldScene extends Phaser.Scene {
 
   private createPixelTextures(): void {
     if (!this.textures.exists("pixel-ground")) {
-      this.generateGroundTexture("pixel-ground");
-    }
-
-    const locationTypes = [
-      "cafe",
-      "plaza",
-      "park",
-      "office",
-      "home",
-      "library",
-      "dorm",
-      "lecture_hall",
-      "quad",
-    ];
-    for (const locationType of locationTypes) {
-      const key = getLocationTextureKey(locationType);
-      if (!this.textures.exists(key)) {
-        this.generateBuildingTexture(key, locationType);
-      }
+      this.generateGroundTexture("pixel-ground", "default");
     }
 
     const statuses: SceneAgent["status"][] = [
@@ -790,35 +789,73 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  private generateGroundTexture(key: string): void {
+  private ensureGroundTexture(groundPreset: string): string {
+    const key = groundPreset === "default" ? "pixel-ground" : `pixel-ground-${groundPreset}`;
+    if (!this.textures.exists(key)) {
+      this.generateGroundTexture(key, groundPreset);
+    }
+    return key;
+  }
+
+  private ensureLocationTexture(location: SceneLocation): void {
+    const visualPreset = location.visual.visualPreset ?? location.locationType;
+    const textureKey = getConfiguredLocationTextureKey(visualPreset, location.locationType);
+    if (!this.textures.exists(textureKey)) {
+      this.generateBuildingTexture(textureKey, location.locationType, visualPreset);
+    }
+  }
+
+  private generateGroundTexture(key: string, groundPreset: string): void {
     const graphics = this.make.graphics({ x: 0, y: 0 }, false);
 
-    graphics.fillStyle(0x16233a, 1);
-    graphics.fillRect(0, 0, GROUND_TEXTURE_SIZE, GROUND_TEXTURE_SIZE);
-
-    graphics.fillStyle(0x1d2f4f, 1);
-    graphics.fillRect(0, 0, GROUND_TEXTURE_SIZE, 10);
-
-    graphics.fillStyle(0x203456, 1);
-    graphics.fillRect(0, 10, GROUND_TEXTURE_SIZE, GROUND_TEXTURE_SIZE - 10);
-
-    graphics.fillStyle(0x2a4365, 1);
-    for (let x = 0; x < GROUND_TEXTURE_SIZE; x += 8) {
-      graphics.fillRect(x, 9, 4, 1);
-      graphics.fillRect(x + 2, 18, 2, 1);
-      graphics.fillRect(x + 1, 26, 3, 1);
-    }
-
-    graphics.fillStyle(0x101827, 0.8);
-    for (let y = 0; y < GROUND_TEXTURE_SIZE; y += 8) {
-      graphics.fillRect(0, y, GROUND_TEXTURE_SIZE, 1);
+    switch (groundPreset) {
+      case "lawn":
+        graphics.fillStyle(0x16351f, 1);
+        graphics.fillRect(0, 0, GROUND_TEXTURE_SIZE, GROUND_TEXTURE_SIZE);
+        graphics.fillStyle(0x1f6b36, 1);
+        for (let x = 0; x < GROUND_TEXTURE_SIZE; x += 6) {
+          graphics.fillRect(x, 6, 2, 3);
+          graphics.fillRect(x + 1, 16, 2, 4);
+          graphics.fillRect(x + 3, 25, 2, 3);
+        }
+        break;
+      case "plaza":
+        graphics.fillStyle(0x2c3444, 1);
+        graphics.fillRect(0, 0, GROUND_TEXTURE_SIZE, GROUND_TEXTURE_SIZE);
+        graphics.fillStyle(0x455066, 1);
+        for (let x = 0; x < GROUND_TEXTURE_SIZE; x += 8) {
+          graphics.fillRect(x, 0, 1, GROUND_TEXTURE_SIZE);
+        }
+        for (let y = 0; y < GROUND_TEXTURE_SIZE; y += 8) {
+          graphics.fillRect(0, y, GROUND_TEXTURE_SIZE, 1);
+        }
+        break;
+      case "boardwalk":
+      default:
+        graphics.fillStyle(0x16233a, 1);
+        graphics.fillRect(0, 0, GROUND_TEXTURE_SIZE, GROUND_TEXTURE_SIZE);
+        graphics.fillStyle(0x1d2f4f, 1);
+        graphics.fillRect(0, 0, GROUND_TEXTURE_SIZE, 10);
+        graphics.fillStyle(0x203456, 1);
+        graphics.fillRect(0, 10, GROUND_TEXTURE_SIZE, GROUND_TEXTURE_SIZE - 10);
+        graphics.fillStyle(0x2a4365, 1);
+        for (let x = 0; x < GROUND_TEXTURE_SIZE; x += 8) {
+          graphics.fillRect(x, 9, 4, 1);
+          graphics.fillRect(x + 2, 18, 2, 1);
+          graphics.fillRect(x + 1, 26, 3, 1);
+        }
+        graphics.fillStyle(0x101827, 0.8);
+        for (let y = 0; y < GROUND_TEXTURE_SIZE; y += 8) {
+          graphics.fillRect(0, y, GROUND_TEXTURE_SIZE, 1);
+        }
+        break;
     }
 
     graphics.generateTexture(key, GROUND_TEXTURE_SIZE, GROUND_TEXTURE_SIZE);
     graphics.destroy();
   }
 
-  private generateBuildingTexture(key: string, locationType: string): void {
+  private generateBuildingTexture(key: string, locationType: string, visualPreset: string): void {
     const graphics = this.make.graphics({ x: 0, y: 0 }, false);
     const baseColor = getLocationColor(locationType);
     const roofColor = Phaser.Display.Color.IntegerToColor(baseColor).darken(20).color;
@@ -828,7 +865,8 @@ export class WorldScene extends Phaser.Scene {
     graphics.fillStyle(0x0b1220, 0.5);
     graphics.fillRect(5, 20, 14, 2);
 
-    switch (locationType) {
+    switch (visualPreset) {
+      case "shop":
       case "cafe":
         graphics.fillStyle(roofColor, 1);
         graphics.fillRect(4, 5, 16, 3);
@@ -842,6 +880,7 @@ export class WorldScene extends Phaser.Scene {
         graphics.fillStyle(darkColor, 1);
         graphics.fillRect(10, 14, 4, 4);
         break;
+      case "grove":
       case "park":
       case "quad":
         graphics.fillStyle(0x14532d, 1);
@@ -855,6 +894,7 @@ export class WorldScene extends Phaser.Scene {
         graphics.fillStyle(0x854d0e, 1);
         graphics.fillRect(10, 18, 4, 3);
         break;
+      case "tower":
       case "office":
         graphics.fillStyle(roofColor, 1);
         graphics.fillRect(6, 3, 12, 3);
@@ -869,6 +909,7 @@ export class WorldScene extends Phaser.Scene {
         graphics.fillStyle(darkColor, 1);
         graphics.fillRect(10, 18, 4, 2);
         break;
+      case "house":
       case "home":
       case "dorm":
         graphics.fillStyle(roofColor, 1);
@@ -881,6 +922,7 @@ export class WorldScene extends Phaser.Scene {
         graphics.fillStyle(darkColor, 1);
         graphics.fillRect(11, 15, 3, 4);
         break;
+      case "hall":
       case "library":
       case "lecture_hall":
         graphics.fillStyle(roofColor, 1);
@@ -894,6 +936,7 @@ export class WorldScene extends Phaser.Scene {
         graphics.fillStyle(darkColor, 1);
         graphics.fillRect(10, 15, 4, 3);
         break;
+      case "square":
       case "plaza":
         graphics.fillStyle(roofColor, 1);
         graphics.fillRect(6, 18, 12, 2);

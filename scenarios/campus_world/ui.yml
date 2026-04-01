@@ -5,3 +5,20 @@ intelligence_stream:
   poll_interval_ms: 3000
 director_panel:
   max_memories_load: 100
+stage:
+  renderer: pixel
+  theme: campus_night
+  ground_preset: boardwalk
+  location_types:
+    dorm:
+      visual_preset: house
+      glyph: D
+    lecture_hall:
+      visual_preset: hall
+      glyph: L
+    library:
+      visual_preset: hall
+      glyph: B
+    quad:
+      visual_preset: grove
+      glyph: Q

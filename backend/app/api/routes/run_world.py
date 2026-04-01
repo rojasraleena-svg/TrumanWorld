@@ -22,6 +22,9 @@ from app.api.schemas.simulation import (
     WorldPulseResponse,
     WorldSnapshotResponse,
     WorldSnapshotRunResponse,
+    WorldStageLocationVisualResponse,
+    WorldStageUiResponse,
+    WorldUiConfigResponse,
 )
 from app.infra.db import get_db_session
 from app.infra.logging import get_logger
@@ -271,6 +274,30 @@ def _build_health_metrics_config(scenario_type: str | None) -> WorldHealthMetric
         )
     except Exception:
         return WorldHealthMetricsConfig()
+
+
+def _build_world_ui_config(scenario_type: str | None) -> WorldUiConfigResponse:
+    try:
+        ui_cfg = load_ui_config_for_scenario(scenario_type) or {}
+        stage_cfg = ui_cfg.get("stage", {})
+        location_type_cfg = stage_cfg.get("location_types", {})
+        return WorldUiConfigResponse(
+            stage=WorldStageUiResponse(
+                renderer=stage_cfg.get("renderer"),
+                theme=stage_cfg.get("theme"),
+                ground_preset=stage_cfg.get("ground_preset"),
+                location_types={
+                    location_type: WorldStageLocationVisualResponse(
+                        visual_preset=(config or {}).get("visual_preset"),
+                        glyph=(config or {}).get("glyph"),
+                    )
+                    for location_type, config in location_type_cfg.items()
+                    if isinstance(config, dict)
+                },
+            )
+        )
+    except Exception:
+        return WorldUiConfigResponse()
 
 
 @router.get(
@@ -601,4 +628,5 @@ async def get_world_snapshot(
             llm_model=token_totals.get("model"),
         ),
         health_metrics_config=_build_health_metrics_config(run.scenario_type),
+        ui_config=_build_world_ui_config(run.scenario_type),
     )

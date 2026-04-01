@@ -94,6 +94,10 @@ describe("WorldScene", () => {
         id: "loc-1",
         name: "Cafe",
         locationType: "cafe",
+        visual: {
+          visualPreset: "shop",
+          glyph: "C",
+        },
         x: 100,
         y: 120,
         capacity: 6,
@@ -134,6 +138,10 @@ describe("WorldScene", () => {
       label: "夜晚",
       overlayColor: "rgba(15, 23, 42, 0.35)",
       isDark: true,
+    },
+    stage: {
+      theme: "campus_night",
+      groundPreset: "boardwalk",
     },
   };
 

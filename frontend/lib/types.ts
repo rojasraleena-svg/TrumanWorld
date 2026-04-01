@@ -124,6 +124,20 @@ export type WorldLocation = {
   occupants: AgentSummary[];
 };
 
+export type WorldStageLocationVisual = {
+  visual_preset?: string | null;
+  glyph?: string | null;
+};
+
+export type WorldUiConfig = {
+  stage?: {
+    renderer?: string | null;
+    theme?: string | null;
+    ground_preset?: string | null;
+    location_types?: Record<string, WorldStageLocationVisual>;
+  };
+};
+
 export type WorldSnapshot = {
   run: RunSummary;
   world_clock?: WorldClock;
@@ -167,6 +181,7 @@ export type WorldSnapshot = {
     ui_intelligence_stream_poll_interval: number;
     ui_director_panel_max_memories: number;
   };
+  ui_config?: WorldUiConfig;
 };
 
 export type WorldPulse = {

@@ -557,6 +557,25 @@ class WorldSnapshotRunResponse(RunBaseResponse):
     pass
 
 
+class WorldStageLocationVisualResponse(BaseModel):
+    visual_preset: str | None = Field(None, description="地点视觉预设", examples=["house"])
+    glyph: str | None = Field(None, description="地点字形标记", examples=["H"])
+
+
+class WorldStageUiResponse(BaseModel):
+    renderer: str | None = Field(None, description="舞台渲染器", examples=["pixel"])
+    theme: str | None = Field(None, description="舞台主题", examples=["campus_night"])
+    ground_preset: str | None = Field(None, description="地面预设", examples=["boardwalk"])
+    location_types: dict[str, WorldStageLocationVisualResponse] = Field(
+        default_factory=dict,
+        description="按地点类型定义的视觉预设",
+    )
+
+
+class WorldUiConfigResponse(BaseModel):
+    stage: WorldStageUiResponse = Field(default_factory=WorldStageUiResponse, description="舞台 UI 配置")
+
+
 class WorldDirectorStatsResponse(BaseModel):
     total: int = Field(0, description="总干预数", ge=0)
     executed: int = Field(0, description="已消费数", ge=0)
@@ -643,6 +662,10 @@ class WorldSnapshotResponse(BaseModel):
     )
     health_metrics_config: WorldHealthMetricsConfig = Field(
         default_factory=WorldHealthMetricsConfig, description="健康度配置"
+    )
+    ui_config: WorldUiConfigResponse = Field(
+        default_factory=WorldUiConfigResponse,
+        description="世界 UI 配置",
     )
 
 

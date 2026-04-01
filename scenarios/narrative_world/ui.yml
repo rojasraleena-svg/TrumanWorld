@@ -5,3 +5,23 @@ intelligence_stream:
   poll_interval_ms: 3000
 director_panel:
   max_memories_load: 100
+stage:
+  renderer: pixel
+  theme: seaside_night
+  ground_preset: boardwalk
+  location_types:
+    home:
+      visual_preset: house
+      glyph: H
+    cafe:
+      visual_preset: shop
+      glyph: C
+    plaza:
+      visual_preset: square
+      glyph: P
+    park:
+      visual_preset: grove
+      glyph: G
+    office:
+      visual_preset: tower
+      glyph: O

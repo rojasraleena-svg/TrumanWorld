@@ -1,12 +1,23 @@
 import { inferAgentStatus, type AgentStatus } from "@/lib/agent-utils";
 import { EVENT_MOVE, EVENT_SPEECH, EVENT_TALK } from "@/lib/simulation-protocol";
 import type { WorldSnapshot } from "@/lib/types";
-import { calculateLocationHeat, buildWorldNameMaps, getTimeOfDay, getTimeOfDayStyle } from "@/lib/world-utils";
+import {
+  buildWorldNameMaps,
+  calculateLocationHeat,
+  getTimeOfDay,
+  getTimeOfDayStyle,
+} from "@/lib/world-utils";
+
+export type SceneLocationVisual = {
+  visualPreset?: string;
+  glyph?: string;
+};
 
 export type SceneLocation = {
   id: string;
   name: string;
   locationType: string;
+  visual: SceneLocationVisual;
   x: number;
   y: number;
   capacity: number;
@@ -52,6 +63,10 @@ export type SceneWorld = {
     overlayColor: string;
     isDark: boolean;
   };
+  stage: {
+    theme?: string;
+    groundPreset?: string;
+  };
 };
 
 export function buildSceneWorld(world: WorldSnapshot): SceneWorld {
@@ -79,16 +94,23 @@ export function buildSceneWorld(world: WorldSnapshot): SceneWorld {
 
   return {
     runId: world.run.id,
-    locations: world.locations.map((location) => ({
-      id: location.id,
-      name: location.name,
-      locationType: location.location_type,
-      x: location.x,
-      y: location.y,
-      capacity: location.capacity,
-      occupantCount: location.occupants.length,
-      heat: calculateLocationHeat(location.id, world.recent_events),
-    })),
+    locations: world.locations.map((location) => {
+      const visualConfig = world.ui_config?.stage?.location_types?.[location.location_type];
+      return {
+        id: location.id,
+        name: location.name,
+        locationType: location.location_type,
+        visual: {
+          visualPreset: visualConfig?.visual_preset ?? location.location_type,
+          glyph: visualConfig?.glyph ?? undefined,
+        },
+        x: location.x,
+        y: location.y,
+        capacity: location.capacity,
+        occupantCount: location.occupants.length,
+        heat: calculateLocationHeat(location.id, world.recent_events),
+      };
+    }),
     agents,
     moveTrails: world.recent_events
       .filter((event) => event.event_type === EVENT_MOVE)
@@ -130,6 +152,10 @@ export function buildSceneWorld(world: WorldSnapshot): SceneWorld {
       label: timeStyle.label,
       overlayColor: timeStyle.overlayColor,
       isDark: timeStyle.isDark,
+    },
+    stage: {
+      theme: world.ui_config?.stage?.theme ?? undefined,
+      groundPreset: world.ui_config?.stage?.ground_preset ?? undefined,
     },
   };
 }
