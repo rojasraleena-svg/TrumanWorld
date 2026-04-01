@@ -29,6 +29,9 @@ updates:
       prefix: "chore(deps)"
     reviewers:
       - "gqy20"
+    ignore:
+      - dependency-name: "eslint"
+        versions: [">=10.0.0"]
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
