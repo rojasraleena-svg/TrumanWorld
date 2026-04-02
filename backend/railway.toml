@@ -1,6 +1,6 @@
 [build]
 builder = "RAILPACK"
-buildCommand = "cd backend && uv sync --frozen"
+buildCommand = "mkdir -p /app/.uv-cache && cd backend && UV_CACHE_DIR=/app/.uv-cache uv sync --frozen"
 watchPatterns = [
   "/backend/**",
   "/agents/**",

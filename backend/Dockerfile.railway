@@ -15,13 +15,16 @@ RUN pip install --no-cache-dir uv==${UV_VERSION}
 RUN useradd --create-home --shell /bin/bash appuser
 
 ENV HOME=/home/appuser \
-    PATH=/home/appuser/.local/bin:$PATH
+    PATH=/home/appuser/.local/bin:$PATH \
+    UV_CACHE_DIR=/app/.uv-cache
 
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
 USER appuser
 
 WORKDIR /app
+
+RUN mkdir -p /app/.uv-cache && chown -R appuser:appuser /app/.uv-cache
 
 COPY --chown=appuser:appuser backend/pyproject.toml backend/uv.lock /app/backend/
 WORKDIR /app/backend
