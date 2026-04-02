@@ -6,7 +6,6 @@ watchPatterns = [
 ]
 
 [deploy]
-startCommand = "cd frontend && npm run start -- --hostname 0.0.0.0 --port ${PORT:-3000}"
 healthcheckPath = "/"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
