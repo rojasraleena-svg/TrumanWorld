@@ -32,6 +32,7 @@ RUN uv sync --frozen
 
 COPY --chown=appuser:appuser backend /app/backend
 COPY --chown=appuser:appuser agents /app/agents
+COPY --chown=appuser:appuser scenarios /app/scenarios
 
 EXPOSE 8000
 
