@@ -35,7 +35,7 @@ export function HomeView() {
           >
             <div className="flex items-end justify-between">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-ink">楚门的世界</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-ink">Truman World</h1>
                 <p className="mt-1 text-sm text-slate-400">观察、记录、创造条件——让 Truman 真实地生活</p>
               </div>
               <div className="flex items-center gap-3">
