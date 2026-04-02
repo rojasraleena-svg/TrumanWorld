@@ -4,6 +4,7 @@ buildCommand = "mkdir -p /app/.uv-cache && cd backend && UV_CACHE_DIR=/app/.uv-c
 watchPatterns = [
   "/backend/**",
   "/agents/**",
+  "/scenarios/**",
 ]
 
 [deploy]
