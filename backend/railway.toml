@@ -9,7 +9,8 @@ watchPatterns = [
 ]
 
 [deploy]
-startCommand = "cd backend && uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+preDeployCommand = "uv run --directory /app/backend alembic upgrade head"
+startCommand = "uv run --directory /app/backend alembic upgrade head && uv run --directory /app/backend uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
