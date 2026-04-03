@@ -5,6 +5,7 @@ watchPatterns = [
   "/backend/**",
   "/agents/**",
   "/scenarios/**",
+  "/scripts/**",
 ]
 
 [deploy]
